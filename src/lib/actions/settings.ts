@@ -24,6 +24,18 @@ export async function sendTestWhatsApp(): Promise<ActionResult> {
   const { data: profile } = await supabase.auth.getUser();
   if (!profile.user) return { ok: false, error: "Not signed in." };
 
+  if (
+    !process.env.TWILIO_ACCOUNT_SID ||
+    !process.env.TWILIO_AUTH_TOKEN ||
+    !process.env.TWILIO_WHATSAPP_FROM
+  ) {
+    return {
+      ok: false,
+      error:
+        "Twilio isn't configured yet — set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_WHATSAPP_FROM in your deployment environment (see docs/DEPLOYMENT.md).",
+    };
+  }
+
   const { data: recipients } = await supabase
     .from("settings")
     .select("value")

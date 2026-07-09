@@ -877,7 +877,7 @@ begin
         nullif(v_row->>'pack_size','')::int,
         nullif(trim(coalesce(v_row->>'notes','')), ''),
         nullif(v_row->>'max_per_checkout','')::int,
-        coalesce((v_row->>'requires_approval')::boolean, false)
+        coalesce(nullif(trim(coalesce(v_row->>'requires_approval','')),'')::boolean, false)
       )
       returning id into v_item_id;
       v_created := v_created + 1;
@@ -889,7 +889,7 @@ begin
           pack_size = coalesce(nullif(v_row->>'pack_size','')::int, pack_size),
           notes = coalesce(nullif(trim(coalesce(v_row->>'notes','')), ''), notes),
           max_per_checkout = coalesce(nullif(v_row->>'max_per_checkout','')::int, max_per_checkout),
-          requires_approval = coalesce((v_row->>'requires_approval')::boolean, requires_approval),
+          requires_approval = coalesce(nullif(trim(coalesce(v_row->>'requires_approval','')),'')::boolean, requires_approval),
           is_active = true
       where id = v_item_id;
       v_updated := v_updated + 1;
@@ -1205,7 +1205,12 @@ select
   t.item_id, i.sku, i.name as item_name, i.unit,
   t.location_id, l.name as location_name,
   t.user_id,
-  case when u.is_active then u.full_name else 'Former staff — ' || u.full_name end as user_name,
+  -- Left joins: staff can see ledger rows recorded on their behalf even
+  -- though RLS hides the acting admin's user row from them.
+  coalesce(
+    case when u.is_active then u.full_name else 'Former staff — ' || u.full_name end,
+    'Staff member'
+  ) as user_name,
   t.on_behalf_of,
   ob.full_name as on_behalf_of_name,
   c.name as category_name
@@ -1213,7 +1218,7 @@ from public.transactions t
 join public.items i on i.id = t.item_id
 join public.categories c on c.id = i.category_id
 join public.locations l on l.id = t.location_id
-join public.users u on u.id = t.user_id
+left join public.users u on u.id = t.user_id
 left join public.users ob on ob.id = t.on_behalf_of;
 
 -- Safe user directory (no PIN hashes / phone numbers) for name display.

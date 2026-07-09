@@ -10,6 +10,7 @@ export default async function KioskLayout({
 }) {
   const profile = await getProfile();
   if (!profile) redirect("/login");
+  if (!profile.is_active) redirect("/");
 
   // Kiosk device accounts run this; admins may open it to test.
   if (
