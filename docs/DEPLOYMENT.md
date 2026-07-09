@@ -84,13 +84,18 @@ register five templates once — after that, everything is automatic.
 
    | Template name | Body |
    | --- | --- |
-   | `mv_stock_digest` | `📦 MathVision Stock — {{1}} low-stock item(s): {{2}}`<br>`Open requests: {{3}} · Pending approvals: {{4}}`<br>`Dashboard: {{5}}` |
-   | `mv_out_of_stock` | `🔴 OUT OF STOCK: {{1}} — {{2}}. {{3}}.`<br>`Reorder dashboard: {{4}}` |
-   | `mv_approval_needed` | `🟡 Approval needed: {{1}} requests {{2}} × {{3}} at {{4}}.`<br>`Review: {{5}}` |
-   | `mv_approval_decided` | `MathVision Stock: your request for {{1}} × {{2}} was {{3}}. Note: {{4}}` |
-   | `mv_request_update` | `MathVision Stock: your request for {{1}} × {{2}} {{3}}. Note: {{4}}` |
+   | `mv_stock_digest` | `📦 MathVision Stock daily update: {{1}} item(s) are running low across the store rooms: {{2}}. There are also {{3}} open stock request(s) and {{4}} checkout approval(s) waiting for review. See suggested order quantities on the reorder dashboard: {{5}}` |
+   | `mv_out_of_stock` | `🔴 MathVision Stock alert: {{1}} has just run out at the {{2}} store room. Availability in the other rooms: {{3}}. Please review and reorder soon from the dashboard: {{4}}` |
+   | `mv_approval_needed` | `🟡 MathVision Stock approval needed: {{1}} is requesting {{2}} unit(s) of {{3}} from the {{4}} store room. Please approve or reject this checkout in the approvals queue: {{5}}` |
+   | `mv_approval_decided` | `Update from MathVision Stock: your checkout request for {{1}} × {{2}} has been reviewed by the procurement team. Decision: {{3}}. Note from the team: {{4}}` |
+   | `mv_request_update` | `Update from MathVision Stock: your stock request for {{1}} × {{2}} has been updated by the procurement team. New status: {{3}}. Note from the team: {{4}}` |
 
-   (Line breaks inside a body are fine — just never inside a variable.)
+   > The bodies are deliberately wordy: Meta rejects templates whose text is
+   > short relative to their variable count ("This template has too many
+   > variables for its length", subCode 2388293). If a template is rejected,
+   > **Duplicate** it in Twilio (new name, e.g. `mv_request_update_2`), paste
+   > the body above, resubmit, and use the *new* HX… SID. Line breaks inside
+   > a body are fine — just never inside a variable.
 
    Meta asks for **sample values** for each variable when you submit — use
    these (they mirror what the app really sends):
@@ -101,11 +106,11 @@ register five templates once — after that, everything is automatic.
    | `mv_out_of_stock` | `Whiteboard marker (blue)` | `Level 8` | `14 remain in Basement` | `https://your-app.vercel.app/admin/reorder` | — |
    | `mv_approval_needed` | `Priya` | `2` | `HP 26A toner cartridge` | `Level 8` | `https://your-app.vercel.app/admin/approvals` |
    | `mv_approval_decided` | `2` | `HP 26A toner cartridge` | `approved — please collect from Level 8` | `Spare key is with the ops lead` | — |
-   | `mv_request_update` | `5` | `A4 paper 80gsm (ream)` | `has been ordered 🛒` | `Arriving Thursday with Popular Book Co` | — |
+   | `mv_request_update` | `5` | `A4 paper 80gsm (ream)` | `ordered 🛒` | `Arriving Thursday with Popular Book Co` | — |
 
    Other values `{{3}}` can take in `mv_approval_decided`: `not approved`.
-   Other values `{{3}}` can take in `mv_request_update`: `has been
-   acknowledged`, `is ready — stock has arrived ✅`, `was declined`. Meta only
+   Other values `{{3}}` can take in `mv_request_update`: `acknowledged`,
+   `ready for collection — stock has arrived ✅`, `declined`. Meta only
    needs one sample each; these are just so reviewers see realistic content.
 3. Submit each for WhatsApp approval (usually minutes to a few hours). Then
    copy each template's **Content SID** (`HX…`) into Vercel env vars:

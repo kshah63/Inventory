@@ -271,6 +271,13 @@ export function composeRequestUpdateMessage(info: {
     fulfilled: "is ready — stock has arrived ✅",
     rejected: "was declined",
   };
+  // The template slot reads "New status: {{3}}" — needs a noun phrase.
+  const statusShort: Record<string, string> = {
+    acknowledged: "acknowledged",
+    ordered: "ordered 🛒",
+    fulfilled: "ready for collection — stock has arrived ✅",
+    rejected: "declined",
+  };
   const statusPhrase = statusText[info.status] ?? `is now "${info.status}"`;
   const note = info.admin_note?.trim() || "-";
   return {
@@ -278,7 +285,7 @@ export function composeRequestUpdateMessage(info: {
     variables: {
       "1": String(info.qty),
       "2": info.item_label,
-      "3": statusPhrase,
+      "3": statusShort[info.status] ?? info.status,
       "4": note,
     },
   };
