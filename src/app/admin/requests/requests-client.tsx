@@ -1,0 +1,261 @@
+"use client";
+
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Inbox } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
+import { updateRequestStatus } from "@/lib/actions/requests";
+import { friendlyError, timeAgo, REQUEST_STATUS_LABELS } from "@/lib/utils";
+import type { RequestStatus } from "@/lib/types";
+
+export interface AdminRequest {
+  id: string;
+  qty: number;
+  status: RequestStatus;
+  note: string | null;
+  admin_note: string | null;
+  created_at: string;
+  free_text_item: string | null;
+  item_name: string | null;
+  unit: string | null;
+  location_name: string;
+  requester_name: string;
+}
+
+const STATUS_ORDER: RequestStatus[] = [
+  "open",
+  "acknowledged",
+  "ordered",
+  "fulfilled",
+  "rejected",
+];
+
+const STATUS_BADGE: Record<RequestStatus, React.ComponentProps<typeof Badge>["variant"]> = {
+  open: "warning",
+  acknowledged: "secondary",
+  ordered: "default",
+  fulfilled: "success",
+  rejected: "destructive",
+};
+
+/** Sensible default for "what happens next" when the dialog opens. */
+const NEXT_STATUS: Record<RequestStatus, RequestStatus> = {
+  open: "acknowledged",
+  acknowledged: "ordered",
+  ordered: "fulfilled",
+  fulfilled: "fulfilled",
+  rejected: "rejected",
+};
+
+const EMPTY_COPY: Record<string, { title: string; description: string }> = {
+  open: {
+    title: "No open requests",
+    description: "You're all caught up — new staff requests will land here first.",
+  },
+  acknowledged: {
+    title: "Nothing acknowledged",
+    description: "Requests you've acknowledged but not yet ordered will sit here.",
+  },
+  ordered: {
+    title: "No orders in flight",
+    description: "Requests marked as ordered will appear here until fulfilled.",
+  },
+  fulfilled: {
+    title: "Nothing fulfilled yet",
+    description: "Completed requests will show up here.",
+  },
+  rejected: {
+    title: "No rejected requests",
+    description: "Requests you've turned down will appear here.",
+  },
+  all: {
+    title: "No requests yet",
+    description: "Staff restock and new-item requests will appear here as they come in.",
+  },
+};
+
+function itemLabel(r: AdminRequest): string {
+  return r.item_name ?? r.free_text_item ?? "item";
+}
+
+export function RequestsClient({ requests }: { requests: AdminRequest[] }) {
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const [tab, setTab] = React.useState<string>("open");
+  const [active, setActive] = React.useState<AdminRequest | null>(null);
+  const [newStatus, setNewStatus] = React.useState<RequestStatus>("acknowledged");
+  const [adminNote, setAdminNote] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+
+  const counts = React.useMemo(() => {
+    const c: Record<string, number> = { all: requests.length };
+    for (const s of STATUS_ORDER) c[s] = 0;
+    for (const r of requests) c[r.status] = (c[r.status] ?? 0) + 1;
+    return c;
+  }, [requests]);
+
+  const visible =
+    tab === "all" ? requests : requests.filter((r) => r.status === tab);
+
+  function openDialog(r: AdminRequest) {
+    setActive(r);
+    setNewStatus(NEXT_STATUS[r.status]);
+    setAdminNote(r.admin_note ?? "");
+  }
+
+  function closeDialog() {
+    if (saving) return;
+    setActive(null);
+  }
+
+  async function save() {
+    if (!active) return;
+    setSaving(true);
+    const result = await updateRequestStatus(active.id, newStatus, adminNote);
+    setSaving(false);
+    if (!result.ok) {
+      toast(friendlyError(result.error), "error");
+      return;
+    }
+    toast(
+      `"${itemLabel(active)}" marked ${REQUEST_STATUS_LABELS[newStatus]} — the requester gets a WhatsApp update if their number is on file.`
+    );
+    setActive(null);
+    router.refresh();
+  }
+
+  return (
+    <div className="space-y-4">
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="h-auto max-w-full flex-wrap justify-start">
+          {[...STATUS_ORDER, "all" as const].map((s) => (
+            <TabsTrigger key={s} value={s}>
+              {s === "all" ? "All" : REQUEST_STATUS_LABELS[s]}
+              <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground">
+                {counts[s] ?? 0}
+              </span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
+      {visible.length === 0 ? (
+        <EmptyState
+          icon={Inbox}
+          title={EMPTY_COPY[tab].title}
+          description={EMPTY_COPY[tab].description}
+        />
+      ) : (
+        <div className="space-y-3">
+          {visible.map((r) => (
+            <Card key={r.id}>
+              <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">
+                      {r.qty} × {itemLabel(r)}
+                    </span>
+                    {r.unit && (
+                      <span className="text-sm text-muted-foreground">{r.unit}</span>
+                    )}
+                    {!r.item_name && r.free_text_item && (
+                      <Badge variant="outline">NEW ITEM</Badge>
+                    )}
+                    <Badge variant={STATUS_BADGE[r.status]}>
+                      {REQUEST_STATUS_LABELS[r.status]}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {r.requester_name} · {r.location_name} · {timeAgo(r.created_at)}
+                  </p>
+                  {r.note && (
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">Requester note:</span>{" "}
+                      {r.note}
+                    </p>
+                  )}
+                  {r.admin_note && (
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">Admin note:</span>{" "}
+                      {r.admin_note}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 self-start"
+                  onClick={() => openDialog(r)}
+                >
+                  Update status <ArrowRight />
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={active !== null} onClose={closeDialog} className="max-w-md">
+        {active && (
+          <>
+            <DialogTitle>
+              {active.qty} × {itemLabel(active)}
+            </DialogTitle>
+            <DialogDescription>
+              Requested by {active.requester_name} for {active.location_name}. They get
+              a WhatsApp update if their number is on file.
+            </DialogDescription>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="request-status">New status</Label>
+                <Select
+                  id="request-status"
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value as RequestStatus)}
+                >
+                  {STATUS_ORDER.map((s) => (
+                    <option key={s} value={s}>
+                      {REQUEST_STATUS_LABELS[s]}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="request-admin-note">Admin note (optional)</Label>
+                <Textarea
+                  id="request-admin-note"
+                  value={adminNote}
+                  onChange={(e) => setAdminNote(e.target.value)}
+                  placeholder="e.g. Ordered from Popular, arriving Friday"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={closeDialog} disabled={saving}>
+                Cancel
+              </Button>
+              <Button onClick={save} loading={saving}>
+                Save &amp; notify
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </Dialog>
+    </div>
+  );
+}
