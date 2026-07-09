@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* MathVision house style — navy primary, clean & minimal */
+    --background: 220 33% 98%;
+    --foreground: 222 47% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 13%;
+    --primary: 222 63% 22%; /* navy */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 27% 94%;
+    --secondary-foreground: 222 47% 20%;
+    --muted: 220 27% 94%;
+    --muted-foreground: 220 12% 44%;
+    --accent: 217 72% 95%;
+    --accent-foreground: 222 63% 22%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 60% 32%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 42%;
+    --warning-foreground: 0 0% 100%;
+    --border: 220 20% 88%;
+    --input: 220 20% 84%;
+    --ring: 222 63% 35%;
+    --radius: 0.625rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+@layer utilities {
+  /* Kiosk mode: large touch targets, no text selection, no touch callouts */
+  .kiosk-root {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}

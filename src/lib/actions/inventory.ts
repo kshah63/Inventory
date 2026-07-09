@@ -1,0 +1,250 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { broadcastToProcurement, composeOutOfStockAlert } from "@/lib/whatsapp";
+import type { ActionResult } from "@/lib/types";
+
+export async function receiveStock(
+  locationId: string,
+  lines: { item_id: string; qty: number }[],
+  note?: string
+): Promise<ActionResult<number>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("receive_stock", {
+    p_location_id: locationId,
+    p_lines: lines,
+    p_note: note ?? null,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin");
+  return { ok: true, data: data as number };
+}
+
+export async function transferStock(params: {
+  itemId: string;
+  fromLocation: string;
+  toLocation: string;
+  qty: number;
+  note?: string;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("transfer_stock", {
+    p_item_id: params.itemId,
+    p_from_location: params.fromLocation,
+    p_to_location: params.toLocation,
+    p_qty: params.qty,
+    p_note: params.note ?? null,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin");
+  return { ok: true, data: undefined };
+}
+
+export async function adjustStock(params: {
+  itemId: string;
+  locationId: string;
+  qtyDelta: number;
+  note: string;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("adjust_stock", {
+    p_item_id: params.itemId,
+    p_location_id: params.locationId,
+    p_qty_delta: params.qtyDelta,
+    p_note: params.note,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  // If an adjustment drove an item to zero, alert like a checkout would.
+  if (params.qtyDelta < 0) {
+    const { data: level } = await supabase
+      .from("stock_levels")
+      .select("qty_on_hand, reorder_point, items(name), locations(name)")
+      .eq("item_id", params.itemId)
+      .eq("location_id", params.locationId)
+      .single();
+    const levelRow = level as unknown as {
+      qty_on_hand: number;
+      reorder_point: number;
+      items: { name: string };
+      locations: { name: string };
+    } | null;
+    if (levelRow && levelRow.qty_on_hand === 0 && levelRow.reorder_point > 0) {
+      const { data: elsewhere } = await supabase
+        .from("stock_levels")
+        .select("qty_on_hand, locations(name)")
+        .eq("item_id", params.itemId)
+        .neq("location_id", params.locationId)
+        .gt("qty_on_hand", 0);
+      await broadcastToProcurement(
+        composeOutOfStockAlert({
+          name: levelRow.items.name,
+          location: levelRow.locations.name,
+          elsewhere: ((elsewhere ?? []) as unknown as {
+            qty_on_hand: number;
+            locations: { name: string };
+          }[]).map((e) => ({ location: e.locations.name, qty: e.qty_on_hand })),
+        }),
+        "out_of_stock"
+      ).catch(() => {});
+    }
+  }
+
+  revalidatePath("/admin");
+  return { ok: true, data: undefined };
+}
+
+export async function setStockParams(params: {
+  itemId: string;
+  locationId: string;
+  reorderPoint: number;
+  parLevel: number;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_stock_params", {
+    p_item_id: params.itemId,
+    p_location_id: params.locationId,
+    p_reorder_point: params.reorderPoint,
+    p_par_level: params.parLevel,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/inventory");
+  return { ok: true, data: undefined };
+}
+
+export async function applyStocktake(
+  locationId: string,
+  lines: { item_id: string; counted_qty: number }[],
+  note?: string
+): Promise<ActionResult<{ stocktake_id: string; adjustments: number }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("apply_stocktake", {
+    p_location_id: locationId,
+    p_lines: lines,
+    p_note: note ?? null,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin");
+  return { ok: true, data: data as { stocktake_id: string; adjustments: number } };
+}
+
+export interface ImportRow {
+  sku: string;
+  name: string;
+  category: string;
+  unit?: string;
+  pack_size?: string;
+  max_per_checkout?: string;
+  requires_approval?: string;
+  notes?: string;
+  stock: {
+    location: string;
+    qty: string | null;
+    reorder_point?: string;
+    par_level?: string;
+  }[];
+}
+
+export async function importCatalog(
+  rows: ImportRow[]
+): Promise<ActionResult<{ created: number; updated: number; stock_adjusted: number }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("import_catalog", { p_rows: rows });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/inventory");
+  return {
+    ok: true,
+    data: data as { created: number; updated: number; stock_adjusted: number },
+  };
+}
+
+export async function saveItem(params: {
+  id?: string;
+  sku: string;
+  name: string;
+  categoryId: string;
+  unit: string;
+  packSize: number | null;
+  notes: string | null;
+  maxPerCheckout: number | null;
+  requiresApproval: boolean;
+  isActive: boolean;
+  photoUrl?: string | null;
+}): Promise<ActionResult<{ id: string }>> {
+  const supabase = await createClient();
+  const row = {
+    sku: params.sku.trim(),
+    name: params.name.trim(),
+    category_id: params.categoryId,
+    unit: params.unit.trim() || "pcs",
+    pack_size: params.packSize,
+    notes: params.notes?.trim() || null,
+    max_per_checkout: params.maxPerCheckout,
+    requires_approval: params.requiresApproval,
+    is_active: params.isActive,
+    ...(params.photoUrl !== undefined ? { photo_url: params.photoUrl } : {}),
+  };
+  if (!row.sku || !row.name) return { ok: false, error: "SKU and name are required." };
+
+  if (params.id) {
+    const { error } = await supabase.from("items").update(row).eq("id", params.id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/admin/inventory");
+    return { ok: true, data: { id: params.id } };
+  }
+  const { data, error } = await supabase.from("items").insert(row).select("id").single();
+  if (error) {
+    if (error.code === "23505") return { ok: false, error: `SKU "${row.sku}" already exists.` };
+    return { ok: false, error: error.message };
+  }
+  revalidatePath("/admin/inventory");
+  return { ok: true, data: { id: data.id } };
+}
+
+export async function uploadItemPhoto(
+  itemId: string,
+  formData: FormData
+): Promise<ActionResult<{ url: string }>> {
+  const supabase = await createClient();
+  const file = formData.get("photo") as File | null;
+  if (!file || file.size === 0) return { ok: false, error: "No photo selected." };
+  if (file.size > 5 * 1024 * 1024) return { ok: false, error: "Photo must be under 5MB." };
+
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const path = `${itemId}/${Date.now()}.${ext}`;
+  const { error: uploadError } = await supabase.storage
+    .from("item-photos")
+    .upload(path, file, { upsert: true, contentType: file.type });
+  if (uploadError) return { ok: false, error: uploadError.message };
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("item-photos").getPublicUrl(path);
+
+  const { error } = await supabase
+    .from("items")
+    .update({ photo_url: publicUrl })
+    .eq("id", itemId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/admin/inventory");
+  return { ok: true, data: { url: publicUrl } };
+}
+
+export async function saveCategory(
+  name: string
+): Promise<ActionResult<{ id: string }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("categories")
+    .insert({ name: name.trim() })
+    .select("id")
+    .single();
+  if (error) {
+    if (error.code === "23505") return { ok: false, error: "Category already exists." };
+    return { ok: false, error: error.message };
+  }
+  revalidatePath("/admin/inventory");
+  return { ok: true, data: { id: data.id } };
+}
