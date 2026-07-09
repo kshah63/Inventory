@@ -89,6 +89,7 @@ export default async function KioskPage() {
       categories={categories}
       items={items}
       staff={staff}
+      preview={profile?.role !== "kiosk"}
     />
   );
 }

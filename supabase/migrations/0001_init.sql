@@ -354,6 +354,12 @@ begin
      or v_session.kiosk_user_id <> auth.uid() then
     raise exception 'SESSION_EXPIRED';
   end if;
+  -- A user deactivated mid-session loses the session immediately.
+  if not exists (
+    select 1 from public.users where id = v_session.user_id and is_active
+  ) then
+    raise exception 'SESSION_EXPIRED';
+  end if;
   return v_session;
 end;
 $$;
@@ -393,6 +399,11 @@ $$;
 
 -- Verify PIN (bcrypt, rate-limited: 5 failures → 60s lockout) and open a
 -- short-lived session bound to this kiosk device and its location.
+--
+-- IMPORTANT: auth failures are returned as {ok:false, error:...} rather than
+-- raised — a raised exception would roll back the whole RPC transaction and
+-- discard the failed-attempt counter, lockout, and audit writes, making the
+-- rate limit dead code.
 create or replace function public.kiosk_start_session(p_user_id uuid, p_pin text)
 returns jsonb
 language plpgsql security definer set search_path = public
@@ -413,11 +424,14 @@ begin
   select * into v_target from public.users where id = p_user_id for update;
   if v_target.id is null or not v_target.is_active or v_target.role = 'kiosk'
      or v_target.pin_hash is null then
-    raise exception 'PIN_INVALID';
+    return jsonb_build_object('ok', false, 'error', 'PIN_INVALID');
   end if;
 
   if v_target.pin_locked_until is not null and v_target.pin_locked_until > now() then
-    raise exception 'PIN_LOCKED:%', ceil(extract(epoch from (v_target.pin_locked_until - now())))::int;
+    return jsonb_build_object(
+      'ok', false,
+      'error', 'PIN_LOCKED:' || ceil(extract(epoch from (v_target.pin_locked_until - now())))::int
+    );
   end if;
 
   if v_target.pin_hash <> crypt(p_pin, v_target.pin_hash) then
@@ -427,12 +441,12 @@ begin
       update public.users
       set pin_failed_attempts = 0, pin_locked_until = now() + interval '60 seconds'
       where id = p_user_id;
-      raise exception 'PIN_LOCKED:60';
+      return jsonb_build_object('ok', false, 'error', 'PIN_LOCKED:60');
     end if;
     update public.users
     set pin_failed_attempts = pin_failed_attempts + 1
     where id = p_user_id;
-    raise exception 'PIN_INVALID';
+    return jsonb_build_object('ok', false, 'error', 'PIN_INVALID');
   end if;
 
   insert into public.pin_attempts (user_id, kiosk_user_id, success)
@@ -447,6 +461,7 @@ begin
   returning token into v_token;
 
   return jsonb_build_object(
+    'ok', true,
     'token', v_token,
     'user_id', v_target.id,
     'full_name', v_target.full_name
@@ -477,6 +492,7 @@ declare
   v_line jsonb;
   v_item public.items;
   v_qty int;
+  v_lines jsonb;
   v_taken jsonb := '[]'::jsonb;
   v_zero jsonb := '[]'::jsonb;
   v_remaining int;
@@ -488,7 +504,18 @@ begin
     raise exception 'Nothing to check out.';
   end if;
 
-  for v_line in select * from jsonb_array_elements(p_lines) loop
+  -- Merge duplicate lines per item so max_per_checkout applies to the item
+  -- TOTAL (a direct caller could otherwise split one item across lines), and
+  -- order by item so concurrent checkouts lock rows in a consistent order.
+  select jsonb_agg(jsonb_build_object('item_id', s.item_id, 'qty', s.qty) order by s.item_id)
+  into v_lines
+  from (
+    select e->>'item_id' as item_id, sum((e->>'qty')::int) as qty
+    from jsonb_array_elements(p_lines) e
+    group by 1
+  ) s;
+
+  for v_line in select * from jsonb_array_elements(v_lines) loop
     v_qty := (v_line->>'qty')::int;
     if v_qty is null or v_qty <= 0 then
       raise exception 'Invalid quantity.';
@@ -537,7 +564,9 @@ begin
 end;
 $$;
 
--- "I took too many" — positive ledger entry tagged return.
+-- "I took too many" — positive ledger entry tagged return. Capped at the
+-- user's own net checkouts of that item at this room (trailing 90 days) so
+-- stock can't be inflated by "returning" items never taken.
 create or replace function public.kiosk_return(p_token uuid, p_item_id uuid, p_qty int, p_note text default null)
 returns jsonb
 language plpgsql security definer set search_path = public
@@ -545,6 +574,7 @@ as $$
 declare
   v_session public.kiosk_sessions;
   v_item public.items;
+  v_net_taken int;
 begin
   v_session := public._get_kiosk_session(p_token);
   if p_qty is null or p_qty <= 0 then
@@ -553,6 +583,21 @@ begin
   select * into v_item from public.items where id = p_item_id;
   if v_item.id is null then
     raise exception 'Item not found.';
+  end if;
+
+  select coalesce(sum(-qty_delta), 0) into v_net_taken
+  from public.transactions
+  where user_id = v_session.user_id
+    and item_id = p_item_id
+    and location_id = v_session.location_id
+    and type in ('checkout','return')
+    and created_at > now() - interval '90 days';
+
+  if v_net_taken <= 0 then
+    raise exception 'No recent checkout of "%" by you in this room — ask an admin to record an adjustment instead.', v_item.name;
+  end if;
+  if p_qty > v_net_taken then
+    raise exception 'You can return at most % % of "%" (your recent checkouts here).', v_net_taken, v_item.unit, v_item.name;
   end if;
 
   perform public._apply_transaction(
@@ -585,6 +630,9 @@ begin
   end if;
   if not v_item.requires_approval then
     raise exception '"%" does not need approval — just take it.', v_item.name;
+  end if;
+  if v_item.max_per_checkout is not null and p_qty > v_item.max_per_checkout then
+    raise exception 'Max % % of "%" per checkout.', v_item.max_per_checkout, v_item.unit, v_item.name;
   end if;
 
   insert into public.pending_checkouts (item_id, location_id, qty, requested_by)

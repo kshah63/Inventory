@@ -21,14 +21,23 @@ export function ConfirmScreen({
   const onFinishRef = React.useRef(onFinish);
   onFinishRef.current = onFinish;
 
+  // onFinish must fire exactly once, whether via countdown, "Finish now",
+  // or both racing at 0s.
+  const finishedRef = React.useRef(false);
+  const finish = React.useCallback(() => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    onFinishRef.current();
+  }, []);
+
   React.useEffect(() => {
-    const timer = setInterval(() => setSecondsLeft((s) => s - 1), 1000);
+    const timer = setInterval(() => setSecondsLeft((s) => (s <= 0 ? s : s - 1)), 1000);
     return () => clearInterval(timer);
   }, []);
 
   React.useEffect(() => {
-    if (secondsLeft <= 0) onFinishRef.current();
-  }, [secondsLeft]);
+    if (secondsLeft <= 0) finish();
+  }, [secondsLeft, finish]);
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col items-center px-4 py-10 text-center sm:px-6">
@@ -72,7 +81,7 @@ export function ConfirmScreen({
         </div>
       )}
 
-      <Button type="button" size="xl" className="mt-8 w-full sm:w-auto" onClick={onFinish}>
+      <Button type="button" size="xl" className="mt-8 w-full sm:w-auto" onClick={finish}>
         Finish now ({Math.max(secondsLeft, 0)}s)
       </Button>
     </div>

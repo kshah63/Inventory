@@ -51,6 +51,9 @@ interface KioskAppProps {
   categories: Category[];
   items: CatalogItem[];
   staff: KioskStaff[];
+  /** True when an admin opened /kiosk to look around — PIN sign-in only works
+   * on real kiosk device accounts, so say so up front. */
+  preview?: boolean;
 }
 
 export function KioskApp({
@@ -60,6 +63,7 @@ export function KioskApp({
   categories,
   items: initialItems,
   staff,
+  preview,
 }: KioskAppProps) {
   useWakeLock();
   const { toast } = useToast();
@@ -75,6 +79,8 @@ export function KioskApp({
 
   const sessionRef = React.useRef(session);
   sessionRef.current = session;
+  const itemsRef = React.useRef(items);
+  itemsRef.current = items;
 
   // ── Live stock: reflect every stock_levels update in local state ──────────
   React.useEffect(() => {
@@ -82,7 +88,8 @@ export function KioskApp({
       .channel("kiosk-stock-levels")
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "stock_levels" },
+        // "*" so brand-new stock rows (INSERTs) show up too, not just updates.
+        { event: "*", schema: "public", table: "stock_levels" },
         (payload) => {
           const row = payload.new as unknown as {
             item_id?: string;
@@ -117,12 +124,16 @@ export function KioskApp({
     };
   }, [supabase]);
 
-  /** Full stock re-sync (after every checkout, and after checkout errors). */
-  const syncStock = React.useCallback(async () => {
+  /** Full stock re-sync (after every checkout, and after checkout errors).
+   * Returns the fresh stock map so callers can re-validate the basket. */
+  const syncStock = React.useCallback(async (): Promise<Map<
+    string,
+    { location_id: string; qty_on_hand: number }[]
+  > | null> => {
     const { data } = await supabase
       .from("stock_levels")
       .select("item_id, location_id, qty_on_hand");
-    if (!data) return;
+    if (!data) return null;
     const byItem = new Map<string, { location_id: string; qty_on_hand: number }[]>();
     for (const r of data as unknown as {
       item_id: string;
@@ -134,11 +145,15 @@ export function KioskApp({
       byItem.set(r.item_id, arr);
     }
     setItems((prev) => prev.map((it) => ({ ...it, stock_levels: byItem.get(it.id) ?? [] })));
+    return byItem;
   }, [supabase]);
 
   // ── Session lifecycle ──────────────────────────────────────────────────────
   const resetToPicker = React.useCallback((endCurrentSession: boolean) => {
     const current = sessionRef.current;
+    // Null the ref synchronously so racing calls (idle timer + confirm
+    // countdown + "Finish now") can't end the same session twice.
+    sessionRef.current = null;
     if (endCurrentSession && current) void endKioskSession(current.token);
     setSession(null);
     setPendingStaff(null);
@@ -189,16 +204,38 @@ export function KioskApp({
     setCheckingOut(true);
     const result = await kioskCheckout(current.token, basket);
     setCheckingOut(false);
-    void syncStock();
     if (!result.ok) {
-      // e.g. someone took the last unit — stay in the shop so qty can be adjusted.
+      // e.g. someone took the last unit — show why, then clamp the basket to
+      // the fresh stock so tapping Done again just works.
       handleActionError(result.error);
+      const fresh = await syncStock();
+      if (fresh && result.error !== "SESSION_EXPIRED") {
+        const clamped = basket.flatMap((line) => {
+          const stockHere =
+            fresh.get(line.item_id)?.find((sl) => sl.location_id === locationId)
+              ?.qty_on_hand ?? 0;
+          const cap =
+            itemsRef.current.find((i) => i.id === line.item_id)?.max_per_checkout ??
+            Infinity;
+          const maxQty = Math.min(stockHere, cap);
+          if (maxQty <= 0) return [];
+          return [{ ...line, qty: Math.min(line.qty, maxQty) }];
+        });
+        const adjusted =
+          clamped.length !== basket.length ||
+          clamped.some((l, i) => l.qty !== basket[i]?.qty);
+        if (adjusted) {
+          setBasket(clamped);
+          toast("Your basket was adjusted to what's available — tap Done again.");
+        }
+      }
       return;
     }
+    void syncStock();
     setBasket([]);
     setCheckoutResult(result.data);
     setScreen("confirm");
-  }, [basket, resetToPicker, syncStock, handleActionError]);
+  }, [basket, locationId, resetToPicker, syncStock, handleActionError, toast]);
 
   const handleRequestApproval = React.useCallback(
     async (item: CatalogItem, qty: number): Promise<boolean> => {
@@ -278,6 +315,12 @@ export function KioskApp({
 
   return (
     <div className="flex min-h-screen flex-col">
+      {preview && (
+        <div className="bg-warning/15 px-4 py-1.5 text-center text-sm text-foreground">
+          Admin preview — browsing only. PIN sign-in and checkouts work on the
+          kiosk device accounts (Users → Add kiosk device).
+        </div>
+      )}
       <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b bg-card px-4 py-3 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <Logo />

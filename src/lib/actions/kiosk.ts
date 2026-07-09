@@ -24,7 +24,25 @@ export async function startKioskSession(
     p_pin: pin,
   });
   if (error) return { ok: false, error: error.message };
-  return { ok: true, data: data as KioskSessionInfo };
+
+  // PIN failures come back as a value (not a raised error) so the DB commits
+  // the rate-limit counters; map them onto the same ActionResult shape.
+  const result = data as {
+    ok: boolean;
+    error?: string;
+    token?: string;
+    user_id?: string;
+    full_name?: string;
+  };
+  if (!result.ok) return { ok: false, error: result.error ?? "PIN_INVALID" };
+  return {
+    ok: true,
+    data: {
+      token: result.token!,
+      user_id: result.user_id!,
+      full_name: result.full_name!,
+    },
+  };
 }
 
 export async function endKioskSession(token: string): Promise<void> {
