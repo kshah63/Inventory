@@ -4,28 +4,31 @@
 
 @layer base {
   :root {
-    /* MathVision house style — navy primary, clean & minimal */
-    --background: 220 33% 98%;
-    --foreground: 222 47% 13%;
+    /* MathVision brand — royal blue #2E3192 primary, orange #F15A29 accent,
+       exact values from the official logo. Clean & minimal. */
+    --background: 228 33% 98%;
+    --foreground: 235 40% 14%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 13%;
-    --primary: 222 63% 22%; /* navy */
+    --card-foreground: 235 40% 14%;
+    --primary: 238 52% 38%; /* #2E3192 */
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 27% 94%;
-    --secondary-foreground: 222 47% 20%;
-    --muted: 220 27% 94%;
-    --muted-foreground: 220 12% 44%;
-    --accent: 217 72% 95%;
-    --accent-foreground: 222 63% 22%;
+    --secondary: 230 27% 94%;
+    --secondary-foreground: 236 40% 22%;
+    --muted: 230 27% 94%;
+    --muted-foreground: 230 12% 44%;
+    --accent: 235 60% 95%;
+    --accent-foreground: 238 52% 38%;
+    --brand: 15 88% 55%; /* #F15A29 */
+    --brand-foreground: 0 0% 100%;
     --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
     --success: 152 60% 32%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 42%;
     --warning-foreground: 0 0% 100%;
-    --border: 220 20% 88%;
-    --input: 220 20% 84%;
-    --ring: 222 63% 35%;
+    --border: 228 20% 88%;
+    --input: 228 20% 84%;
+    --ring: 238 52% 48%;
     --radius: 0.625rem;
   }
 
