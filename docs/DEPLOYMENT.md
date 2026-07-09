@@ -90,9 +90,23 @@ register five templates once — after that, everything is automatic.
    | `mv_approval_decided` | `MathVision Stock: your request for {{1}} × {{2}} was {{3}}. Note: {{4}}` |
    | `mv_request_update` | `MathVision Stock: your request for {{1}} × {{2}} {{3}}. Note: {{4}}` |
 
-   (Line breaks inside a body are fine; give Meta sample values when asked,
-   e.g. digest → `4` / `A4 paper (Level 8: 2 ream left); Tea bags (Basement:
-   OUT)` / `2` / `1` / your app URL.)
+   (Line breaks inside a body are fine — just never inside a variable.)
+
+   Meta asks for **sample values** for each variable when you submit — use
+   these (they mirror what the app really sends):
+
+   | Template | {{1}} | {{2}} | {{3}} | {{4}} | {{5}} |
+   | --- | --- | --- | --- | --- | --- |
+   | `mv_stock_digest` | `4` | `A4 paper 80gsm (Level 8: 2 ream left); Whiteboard marker blue (Basement: 6 pcs left); Tea bags (Level 8: OUT)` | `2` | `1` | `https://your-app.vercel.app/admin/reorder` |
+   | `mv_out_of_stock` | `Whiteboard marker (blue)` | `Level 8` | `14 remain in Basement` | `https://your-app.vercel.app/admin/reorder` | — |
+   | `mv_approval_needed` | `Priya` | `2` | `HP 26A toner cartridge` | `Level 8` | `https://your-app.vercel.app/admin/approvals` |
+   | `mv_approval_decided` | `2` | `HP 26A toner cartridge` | `approved — please collect from Level 8` | `Spare key is with the ops lead` | — |
+   | `mv_request_update` | `5` | `A4 paper 80gsm (ream)` | `has been ordered 🛒` | `Arriving Thursday with Popular Book Co` | — |
+
+   Other values `{{3}}` can take in `mv_approval_decided`: `not approved`.
+   Other values `{{3}}` can take in `mv_request_update`: `has been
+   acknowledged`, `is ready — stock has arrived ✅`, `was declined`. Meta only
+   needs one sample each; these are just so reviewers see realistic content.
 3. Submit each for WhatsApp approval (usually minutes to a few hours). Then
    copy each template's **Content SID** (`HX…`) into Vercel env vars:
 
