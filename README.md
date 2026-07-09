@@ -26,9 +26,10 @@ a live catalog, and proactive reorder alerts.
   reorder point with suggested order quantities (par − on-hand) and
   days-to-stockout, exportable as CSV or a copy-paste WhatsApp order message.
 - **WhatsApp alerts (Twilio)** — daily 8:00am SGT digest, immediate
-  out-of-stock alerts, approval pings, and requester notifications. Works
-  with the Twilio sandbox for testing; degrades gracefully (skipped + logged)
-  when Twilio isn't configured.
+  out-of-stock alerts, approval pings, and requester notifications. Sends
+  approved content templates on production WhatsApp senders (required by
+  Meta outside 24h reply windows), freeform in the sandbox, and degrades
+  gracefully (skipped + logged) when Twilio isn't configured.
 - **Admin suite** — receive/transfer/adjust, stocktake mode with variance
   reports, full inventory grid with CSV import/export (idempotent on SKU),
   consumption reports (by user/item/category/department), filterable audit

@@ -62,40 +62,64 @@ lead time.
 
 ## 3. Twilio WhatsApp
 
-The app sends four kinds of WhatsApp messages: the daily 8am digest,
-immediate out-of-stock alerts, approval pings, and requester notifications.
-**Everything works without Twilio** — sends are skipped and logged, and the
-Reorder dashboard has a "Copy as WhatsApp message" button as the manual
-fallback — so you can launch first and wire this up after.
+The app sends five kinds of WhatsApp messages: the daily 8am digest,
+immediate out-of-stock alerts, approval pings, approval decisions, and
+request status updates. **Everything works without Twilio** — sends are
+skipped and logged, and the Reorder dashboard has a "Copy as WhatsApp
+message" button as the manual fallback — so alerts can be wired up any time.
 
-### Testing today (sandbox, 10 minutes)
+### Production sender (approved WhatsApp number)
 
-1. Create an account at [twilio.com](https://twilio.com) → Console →
-   **Messaging → Try it out → Send a WhatsApp message**.
-2. The sandbox gives you a number (e.g. `+1 415 523 8886`) and a join code.
-   Each procurement team member sends `join <code>` to that number on
-   WhatsApp once.
-3. Set the env vars in Vercel:
+WhatsApp only delivers **business-initiated** messages outside a 24-hour
+reply window when they use a **pre-approved content template**. All of this
+app's alerts are business-initiated, so with a production sender you must
+register five templates once — after that, everything is automatic.
+
+1. Set the basics in Vercel and redeploy:
    - `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` — Console → Account Info
-   - `TWILIO_WHATSAPP_FROM=whatsapp:+14155238886` (the sandbox number)
-4. Redeploy, then in the app: **Admin → Settings** → add each recipient's
-   number in E.164 format (`+65…`) → **Send test message**.
+   - `TWILIO_WHATSAPP_FROM=whatsapp:+65…` — your approved sender number
+2. Twilio Console → **Messaging → Content Template Builder** → create these
+   five templates (type **Text**, category **Utility**, language English).
+   Copy each body exactly — `{{1}}`…`{{5}}` are the variables the app fills:
 
-> Sandbox caveat: recipients must re-join every 72 hours. Fine for testing;
-> get a production sender before relying on it.
+   | Template name | Body |
+   | --- | --- |
+   | `mv_stock_digest` | `📦 MathVision Stock — {{1}} low-stock item(s): {{2}}`<br>`Open requests: {{3}} · Pending approvals: {{4}}`<br>`Dashboard: {{5}}` |
+   | `mv_out_of_stock` | `🔴 OUT OF STOCK: {{1}} — {{2}}. {{3}}.`<br>`Reorder dashboard: {{4}}` |
+   | `mv_approval_needed` | `🟡 Approval needed: {{1}} requests {{2}} × {{3}} at {{4}}.`<br>`Review: {{5}}` |
+   | `mv_approval_decided` | `MathVision Stock: your request for {{1}} × {{2}} was {{3}}. Note: {{4}}` |
+   | `mv_request_update` | `MathVision Stock: your request for {{1}} × {{2}} {{3}}. Note: {{4}}` |
 
-### Production sender (when ready)
+   (Line breaks inside a body are fine; give Meta sample values when asked,
+   e.g. digest → `4` / `A4 paper (Level 8: 2 ream left); Tea bags (Basement:
+   OUT)` / `2` / `1` / your app URL.)
+3. Submit each for WhatsApp approval (usually minutes to a few hours). Then
+   copy each template's **Content SID** (`HX…`) into Vercel env vars:
 
-1. Twilio Console → **Messaging → Senders → WhatsApp senders** → register a
-   dedicated number with your Meta Business account (Twilio walks you
-   through Meta Business verification — this can take days; start early).
-2. For business-initiated messages WhatsApp requires **approved templates**
-   once outside a 24-hour reply window. Register templates matching the
-   app's message shapes (digest, out-of-stock, approval, request update) in
-   Twilio's Content Template Builder, or simply have the team message the
-   sender number once ("subscribe") to open the 24h session window — the
-   digest itself keeps the window warm on active days.
-3. Swap `TWILIO_WHATSAPP_FROM` to your production number.
+   ```
+   TWILIO_CONTENT_SID_DIGEST=HX…
+   TWILIO_CONTENT_SID_OUT_OF_STOCK=HX…
+   TWILIO_CONTENT_SID_APPROVAL_NEEDED=HX…
+   TWILIO_CONTENT_SID_APPROVAL_DECIDED=HX…
+   TWILIO_CONTENT_SID_REQUEST_UPDATE=HX…
+   ```
+4. Redeploy, then **Admin → Settings** → add each recipient's number in
+   E.164 format (`+65…`) → **Send test message** (the test uses the digest
+   template, so it verifies the whole production path).
+
+> Without the ContentSid vars the app falls back to freeform messages, which
+> WhatsApp only delivers inside a 24h window after the recipient last
+> messaged your sender. Freeform failures can look "sent" in Twilio and
+> still not arrive — check Twilio's Monitor → Logs → Messaging (error 63016)
+> if something seems missing. The app's own send log is in **Supabase →
+> `notifications_log`**.
+
+### Sandbox (only if you want a scratch environment)
+
+Console → Messaging → Try it out → Send a WhatsApp message; each recipient
+sends the `join <code>` message once; set
+`TWILIO_WHATSAPP_FROM=whatsapp:+14155238886` and leave the ContentSid vars
+unset. Recipients must re-join every 72 hours.
 
 ## 4. Users, PINs & kiosk tablets
 

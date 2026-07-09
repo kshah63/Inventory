@@ -47,8 +47,19 @@ export async function sendTestWhatsApp(): Promise<ActionResult> {
     return { ok: false, error: "Add at least one recipient number first." };
   }
 
+  // Shaped like the digest so the approved template path (if configured)
+  // gets exercised by the test too.
   await broadcastToProcurement(
-    "✅ MathVision Stock — test message. WhatsApp alerts are working!",
+    {
+      body: "✅ MathVision Stock — test message. WhatsApp alerts are working!",
+      variables: {
+        "1": "0",
+        "2": "test message — WhatsApp alerts are working",
+        "3": "0",
+        "4": "0",
+        "5": process.env.NEXT_PUBLIC_APP_URL ?? "-",
+      },
+    },
     "digest"
   );
   revalidatePath("/admin/settings");
