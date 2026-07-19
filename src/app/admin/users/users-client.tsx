@@ -415,7 +415,7 @@ function AddStaffDialog({ open, onClose }: { open: boolean; onClose: () => void 
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(false);
-  const [form, setForm] = React.useState({ fullName: "", department: "", phone: "", pin: "" });
+  const [form, setForm] = React.useState({ fullName: "", phone: "", pin: "" });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -426,7 +426,6 @@ function AddStaffDialog({ open, onClose }: { open: boolean; onClose: () => void 
     setLoading(true);
     const result = await createPinOnlyStaff({
       fullName: form.fullName,
-      department: form.department || undefined,
       phone: form.phone || undefined,
       pin: form.pin,
     });
@@ -436,7 +435,7 @@ function AddStaffDialog({ open, onClose }: { open: boolean; onClose: () => void 
       return;
     }
     toast(`${form.fullName} added — they can use the kiosk right away.`);
-    setForm({ fullName: "", department: "", phone: "", pin: "" });
+    setForm({ fullName: "", phone: "", pin: "" });
     onClose();
     router.refresh();
   }
@@ -457,24 +456,14 @@ function AddStaffDialog({ open, onClose }: { open: boolean; onClose: () => void 
             onChange={(e) => setForm({ ...form, fullName: e.target.value })}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="ns-dept">Department</Label>
-            <Input
-              id="ns-dept"
-              value={form.department}
-              onChange={(e) => setForm({ ...form, department: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="ns-phone">WhatsApp number</Label>
-            <Input
-              id="ns-phone"
-              placeholder="+65…"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            />
-          </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="ns-phone">WhatsApp number</Label>
+          <Input
+            id="ns-phone"
+            placeholder="+65…"
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="ns-pin">Kiosk PIN</Label>
