@@ -1,4 +1,6 @@
 -- Minimal Supabase environment shim for migration validation
+create schema extensions;
+create extension pgcrypto with schema extensions;
 create role anon nologin;
 create role authenticated nologin;
 create role service_role nologin;

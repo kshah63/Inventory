@@ -7,7 +7,17 @@
 -- project.
 -- ═══════════════════════════════════════════════════════════════════════════
 
-create extension if not exists pgcrypto;
+-- pgcrypto for bcrypt PIN hashing. On Supabase the extension lives in the
+-- `extensions` schema (and is usually pre-enabled); on vanilla Postgres we
+-- create that schema to match. Every function below sets
+-- `search_path = public, extensions` so crypt()/gen_salt() resolve in both.
+create schema if not exists extensions;
+do $$
+begin
+  if not exists (select 1 from pg_extension where extname = 'pgcrypto') then
+    create extension pgcrypto with schema extensions;
+  end if;
+end $$;
 
 -- ───────────────────────────────────────────────────────────────────────────
 -- 1. TABLES
@@ -190,21 +200,21 @@ create table public.notifications_log (
 
 create or replace function public.current_user_role()
 returns text
-language sql stable security definer set search_path = public
+language sql stable security definer set search_path = public, extensions
 as $$
   select role from public.users where id = auth.uid() and is_active
 $$;
 
 create or replace function public.is_admin()
 returns boolean
-language sql stable security definer set search_path = public
+language sql stable security definer set search_path = public, extensions
 as $$
   select coalesce(public.current_user_role() in ('super_admin','procurement'), false)
 $$;
 
 create or replace function public.is_super_admin()
 returns boolean
-language sql stable security definer set search_path = public
+language sql stable security definer set search_path = public, extensions
 as $$
   select coalesce(public.current_user_role() = 'super_admin', false)
 $$;
@@ -213,7 +223,7 @@ $$;
 -- The very first account ever created becomes super_admin (bootstrap).
 create or replace function public.handle_new_user()
 returns trigger
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 declare
   v_role text;
@@ -289,7 +299,7 @@ create or replace function public._apply_transaction(
   p_on_behalf_of uuid default null,
   p_transfer_group uuid default null
 ) returns uuid
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 declare
   v_qty int;
@@ -342,7 +352,7 @@ $$;
 -- belong to the calling kiosk device account.
 create or replace function public._get_kiosk_session(p_token uuid)
 returns public.kiosk_sessions
-language plpgsql stable security definer set search_path = public
+language plpgsql stable security definer set search_path = public, extensions
 as $$
 declare
   v_session public.kiosk_sessions;
@@ -366,7 +376,7 @@ $$;
 
 create or replace function public._require_admin()
 returns uuid
-language plpgsql stable security definer set search_path = public
+language plpgsql stable security definer set search_path = public, extensions
 as $$
 begin
   if not public.is_admin() then
@@ -383,7 +393,7 @@ $$;
 -- Staff list for the kiosk user picker. Only users with a PIN set appear.
 create or replace function public.kiosk_get_staff()
 returns table (id uuid, full_name text, department text)
-language plpgsql stable security definer set search_path = public
+language plpgsql stable security definer set search_path = public, extensions
 as $$
 begin
   if public.current_user_role() not in ('kiosk','procurement','super_admin') then
@@ -406,7 +416,7 @@ $$;
 -- rate limit dead code.
 create or replace function public.kiosk_start_session(p_user_id uuid, p_pin text)
 returns jsonb
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 declare
   v_kiosk public.users;
@@ -471,7 +481,7 @@ $$;
 
 create or replace function public.kiosk_end_session(p_token uuid)
 returns void
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 begin
   update public.kiosk_sessions
@@ -485,7 +495,7 @@ $$;
 -- and reports which items hit zero (for out-of-stock alerts).
 create or replace function public.kiosk_checkout(p_token uuid, p_lines jsonb)
 returns jsonb
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 declare
   v_session public.kiosk_sessions;
@@ -569,7 +579,7 @@ $$;
 -- stock can't be inflated by "returning" items never taken.
 create or replace function public.kiosk_return(p_token uuid, p_item_id uuid, p_qty int, p_note text default null)
 returns jsonb
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 declare
   v_session public.kiosk_sessions;
@@ -613,7 +623,7 @@ $$;
 -- Approval-required item → pending_checkouts row for procurement to decide.
 create or replace function public.kiosk_request_approval(p_token uuid, p_item_id uuid, p_qty int)
 returns jsonb
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 declare
   v_session public.kiosk_sessions;
@@ -654,7 +664,7 @@ $$;
 create or replace function public.kiosk_create_request(
   p_token uuid, p_item_id uuid, p_free_text text, p_qty int, p_note text default null
 ) returns uuid
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 declare
   v_session public.kiosk_sessions;
@@ -683,7 +693,7 @@ $$;
 -- Bulk receive. p_lines: [{"item_id": "...", "qty": 50}, ...]
 create or replace function public.receive_stock(p_location_id uuid, p_lines jsonb, p_note text default null)
 returns int
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 declare
   v_actor uuid := public._require_admin();
@@ -711,7 +721,7 @@ $$;
 create or replace function public.transfer_stock(
   p_item_id uuid, p_from_location uuid, p_to_location uuid, p_qty int, p_note text default null
 ) returns uuid
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 declare
   v_actor uuid := public._require_admin();
@@ -735,7 +745,7 @@ $$;
 create or replace function public.adjust_stock(
   p_item_id uuid, p_location_id uuid, p_qty_delta int, p_note text
 ) returns uuid
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 declare
   v_actor uuid := public._require_admin();
@@ -752,7 +762,7 @@ $$;
 create or replace function public.set_stock_params(
   p_item_id uuid, p_location_id uuid, p_reorder_point int, p_par_level int
 ) returns void
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 begin
   perform public._require_admin();
@@ -771,7 +781,7 @@ $$;
 create or replace function public.decide_pending_checkout(
   p_id uuid, p_approve boolean, p_note text default null
 ) returns jsonb
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 declare
   v_actor uuid := public._require_admin();
@@ -820,7 +830,7 @@ $$;
 -- p_lines: [{"item_id": "...", "counted_qty": 12}, ...]
 create or replace function public.apply_stocktake(p_location_id uuid, p_lines jsonb, p_note text default null)
 returns jsonb
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 declare
   v_actor uuid := public._require_admin();
@@ -881,7 +891,7 @@ $$;
 -- qty null → leave stock untouched; qty set → adjust on-hand to match.
 create or replace function public.import_catalog(p_rows jsonb)
 returns jsonb
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 declare
   v_actor uuid := public._require_admin();
@@ -985,7 +995,7 @@ $$;
 -- staff can set their own from their own device.
 create or replace function public.set_user_pin(p_user_id uuid, p_pin text)
 returns void
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 begin
   if not (public.is_super_admin() or auth.uid() = p_user_id) then
@@ -1009,7 +1019,7 @@ $$;
 create or replace function public.create_staff_member(
   p_full_name text, p_department text default null, p_phone text default null, p_pin text default null
 ) returns uuid
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 declare
   v_id uuid;
@@ -1041,7 +1051,7 @@ create or replace function public.update_user_profile(
   p_is_active boolean default null,
   p_kiosk_location_id uuid default null
 ) returns void
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = public, extensions
 as $$
 declare
   v_user public.users;
@@ -1091,7 +1101,7 @@ returns table (
   qty_on_hand int, reorder_point int, par_level int, suggested_qty int,
   avg_daily_use numeric, days_to_stockout numeric
 )
-language plpgsql stable security definer set search_path = public
+language plpgsql stable security definer set search_path = public, extensions
 as $$
 begin
   perform public._require_admin();
@@ -1123,7 +1133,7 @@ $$;
 
 create or replace function public.get_dashboard_stats()
 returns jsonb
-language plpgsql stable security definer set search_path = public
+language plpgsql stable security definer set search_path = public, extensions
 as $$
 declare
   v_result jsonb;
@@ -1159,7 +1169,7 @@ $$;
 create or replace function public.report_consumption(
   p_from timestamptz, p_to timestamptz, p_group_by text
 ) returns table (group_key text, group_label text, total_qty bigint, tx_count bigint)
-language plpgsql stable security definer set search_path = public
+language plpgsql stable security definer set search_path = public, extensions
 as $$
 begin
   perform public._require_admin();
@@ -1200,7 +1210,7 @@ $$;
 -- Daily checkout volume for charts (in Asia/Singapore days).
 create or replace function public.report_daily_usage(p_days int default 30)
 returns table (day date, total_qty bigint)
-language plpgsql stable security definer set search_path = public
+language plpgsql stable security definer set search_path = public, extensions
 as $$
 begin
   perform public._require_admin();
@@ -1218,7 +1228,7 @@ $$;
 -- Data for the WhatsApp daily digest / email fallback.
 create or replace function public.get_digest_data()
 returns jsonb
-language plpgsql stable security definer set search_path = public
+language plpgsql stable security definer set search_path = public, extensions
 as $$
 declare
   v_result jsonb;
