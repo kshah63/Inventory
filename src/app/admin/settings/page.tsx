@@ -1,11 +1,13 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getProfile } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
 import { SettingsClient } from "./settings-client";
+import { ConnectionCheck } from "./connection-check";
 
 export const metadata = { title: "Settings" };
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
+  const profile = await getProfile();
   const supabase = await createClient();
   const { data } = await supabase
     .from("settings")
@@ -26,7 +28,7 @@ export default async function SettingsPage() {
     <>
       <PageHeader
         title="Settings"
-        description="WhatsApp notifications, store-room zones, and your account."
+        description="WhatsApp notifications, departments, and your account."
       />
       <SettingsClient
         initialRecipients={recipients}
@@ -34,6 +36,11 @@ export default async function SettingsPage() {
         initialAlertsEnabled={alertsEnabled}
         initialZones={zones}
       />
+      {profile?.role === "super_admin" && (
+        <div className="mt-6">
+          <ConnectionCheck />
+        </div>
+      )}
     </>
   );
 }
