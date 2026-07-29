@@ -51,10 +51,10 @@ export function OrdersList({ orders }: { orders: StaffOrder[] }) {
       <EmptyState
         icon={ShoppingBag}
         title="No orders yet"
-        description="Order supplies from the Shop and they'll show up here."
+        description="Order supplies from the Catalogue and they'll show up here."
       >
         <Link href="/browse" className={buttonVariants({})}>
-          Go to Shop
+          Browse the catalogue
         </Link>
       </EmptyState>
     );

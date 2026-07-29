@@ -7,7 +7,7 @@ import { signOut } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "/browse", label: "Shop", icon: Search },
+  { href: "/browse", label: "Catalogue", icon: Search },
   { href: "/orders", label: "My orders", icon: ShoppingBag },
   { href: "/activity", label: "Activity", icon: History },
   { href: "/requests", label: "Requests", icon: Inbox },

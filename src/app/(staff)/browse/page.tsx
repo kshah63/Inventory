@@ -1,12 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
 import type { CatalogItem, Category, Location } from "@/lib/types";
-import { ShopClient } from "./shop-client";
+import { CatalogueClient } from "./catalogue-client";
 
-export const metadata = { title: "Shop" };
+export const metadata = { title: "Catalogue" };
 export const dynamic = "force-dynamic";
 
-export default async function ShopPage() {
+export default async function CataloguePage() {
   const supabase = await createClient();
 
   const [locationsRes, categoriesRes, itemsRes, zonesRes] = await Promise.all([
@@ -37,7 +37,7 @@ export default async function ShopPage() {
         title="Order supplies"
         description="Add what you need, place the order, and the procurement team will pack it for collection."
       />
-      <ShopClient
+      <CatalogueClient
         items={items}
         locations={locations}
         categories={categories}

@@ -20,7 +20,7 @@ function totalStock(item: CatalogItem): number {
   return item.stock_levels.reduce((n, sl) => n + sl.qty_on_hand, 0);
 }
 
-export function ShopClient({
+export function CatalogueClient({
   items,
   locations,
   categories,

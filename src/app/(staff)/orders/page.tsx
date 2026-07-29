@@ -30,7 +30,7 @@ export default async function MyOrdersPage() {
     <div>
       <PageHeader
         title="My orders"
-        description="Placed from the Shop — collect once procurement marks them ready."
+        description="Placed from the Catalogue — collect once procurement marks them ready."
       />
       <OrdersList orders={orders} />
     </div>
