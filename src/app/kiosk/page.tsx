@@ -50,16 +50,21 @@ export default async function KioskPage() {
     );
   }
 
-  const [{ data: categoriesData }, { data: itemsData }] = await Promise.all([
-    supabase.from("categories").select("id, name, sort_order").order("sort_order"),
-    supabase
-      .from("items")
-      .select("*, category:categories(name), stock_levels(location_id, qty_on_hand)")
-      .eq("is_active", true)
-      .order("name"),
-  ]);
+  const [{ data: categoriesData }, { data: itemsData }, { data: zonesData }] =
+    await Promise.all([
+      supabase.from("categories").select("id, name, sort_order").order("sort_order"),
+      supabase
+        .from("items")
+        .select("*, category:categories(name), stock_levels(location_id, qty_on_hand)")
+        .eq("is_active", true)
+        .order("name"),
+      supabase.from("settings").select("value").eq("key", "zones").maybeSingle(),
+    ]);
   const categories = (categoriesData ?? []) as unknown as Category[];
   const items = (itemsData ?? []) as unknown as CatalogItem[];
+  const zones = Array.isArray(zonesData?.value)
+    ? (zonesData.value as unknown[]).filter((z): z is string => typeof z === "string")
+    : [];
 
   // Staff list for the picker. The RPC only works for kiosk/admin roles and
   // may error for admin preview accounts — fall back to the safe directory view.
@@ -89,6 +94,7 @@ export default async function KioskPage() {
       categories={categories}
       items={items}
       staff={staff}
+      zones={zones}
       preview={profile?.role !== "kiosk"}
     />
   );

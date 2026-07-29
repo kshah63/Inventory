@@ -6,7 +6,7 @@ import { broadcastToProcurement } from "@/lib/whatsapp";
 import type { ActionResult } from "@/lib/types";
 
 export async function updateSetting(
-  key: "whatsapp_recipients" | "digest_enabled" | "alerts_enabled",
+  key: "whatsapp_recipients" | "digest_enabled" | "alerts_enabled" | "zones",
   value: unknown
 ): Promise<ActionResult> {
   const supabase = await createClient();

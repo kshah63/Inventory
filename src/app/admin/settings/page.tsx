@@ -10,12 +10,14 @@ export default async function SettingsPage() {
   const { data } = await supabase
     .from("settings")
     .select("key, value")
-    .in("key", ["whatsapp_recipients", "digest_enabled", "alerts_enabled"]);
+    .in("key", ["whatsapp_recipients", "digest_enabled", "alerts_enabled", "zones"]);
 
   const map = new Map((data ?? []).map((r) => [r.key as string, r.value as unknown]));
 
   const raw = map.get("whatsapp_recipients");
   const recipients = Array.isArray(raw) ? (raw as string[]) : [];
+  const rawZones = map.get("zones");
+  const zones = Array.isArray(rawZones) ? (rawZones as string[]) : [];
   // Both flags are seeded true — treat a missing row the same way.
   const digestEnabled = map.get("digest_enabled") !== false;
   const alertsEnabled = map.get("alerts_enabled") !== false;
@@ -24,12 +26,13 @@ export default async function SettingsPage() {
     <>
       <PageHeader
         title="Settings"
-        description="WhatsApp notifications and your account."
+        description="WhatsApp notifications, store-room zones, and your account."
       />
       <SettingsClient
         initialRecipients={recipients}
         initialDigestEnabled={digestEnabled}
         initialAlertsEnabled={alertsEnabled}
+        initialZones={zones}
       />
     </>
   );

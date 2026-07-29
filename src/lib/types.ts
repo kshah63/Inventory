@@ -77,6 +77,7 @@ export interface TransactionRow {
   id: string;
   type: TransactionType;
   qty_delta: number;
+  zone: string | null;
   note: string | null;
   transfer_group: string | null;
   created_at: string;
@@ -140,6 +141,7 @@ export interface DashboardStats {
   low_stock: number;
   out_of_stock: number;
   open_requests: number;
+  ordered_requests: number;
   pending_approvals: number;
   checkouts_today: number;
   top_movers_week: { name: string; qty: number }[];

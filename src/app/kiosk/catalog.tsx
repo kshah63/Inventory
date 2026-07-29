@@ -46,6 +46,7 @@ export function Catalog({
   const [categoryId, setCategoryId] = React.useState<string | null>(null);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [qty, setQty] = React.useState(1);
+  const [perPack, setPerPack] = React.useState(false);
   const [note, setNote] = React.useState("");
   const [busy, setBusy] = React.useState(false);
 
@@ -72,6 +73,7 @@ export function Catalog({
   const openItem = (item: CatalogItem) => {
     setSelectedId(item.id);
     setQty(basketQty.get(item.id) ?? 1);
+    setPerPack(false);
     setNote("");
   };
 
@@ -95,7 +97,16 @@ export function Catalog({
       : mode === "approval"
         ? selected.max_per_checkout ?? 99
         : Math.min(here, selected.max_per_checkout ?? here);
-  const clampedQty = Math.max(1, Math.min(qty, maxQty));
+
+  // Pack-aware taking (pilot feedback): items with a pack_size can be taken
+  // by the pack — the stepper counts packs, stock is deducted in base units.
+  const packSize = selected?.pack_size ?? null;
+  const packChoiceAvailable =
+    mode === "take" && packSize != null && packSize > 1 && Math.floor(maxQty / packSize) >= 1;
+  const usePack = perPack && packChoiceAvailable && packSize != null;
+  const effectiveMax = usePack ? Math.floor(maxQty / packSize) : maxQty;
+  const clampedQty = Math.max(1, Math.min(qty, effectiveMax));
+  const baseQty = usePack ? clampedQty * packSize : clampedQty;
 
   const alsoElsewhere = (item: CatalogItem): string | null => {
     const others = item.stock_levels
@@ -234,10 +245,31 @@ export function Catalog({
             </DialogDescription>
 
             <div className="py-4">
-              <QtyStepper value={clampedQty} onChange={setQty} min={1} max={maxQty} unit={selected.unit} />
+              {packChoiceAvailable && packSize != null && (
+                <div className="mb-4 flex justify-center gap-2">
+                  <UnitChip active={!perPack} onClick={() => setPerPack(false)}>
+                    Single {selected.unit}
+                  </UnitChip>
+                  <UnitChip active={perPack} onClick={() => setPerPack(true)}>
+                    Pack of {packSize}
+                  </UnitChip>
+                </div>
+              )}
+              <QtyStepper
+                value={clampedQty}
+                onChange={setQty}
+                min={1}
+                max={effectiveMax}
+                unit={usePack ? `pack${clampedQty === 1 ? "" : "s"} of ${packSize}` : selected.unit}
+              />
+              {usePack && (
+                <p className="mt-3 text-center text-base font-medium">
+                  = {baseQty} {selected.unit} total
+                </p>
+              )}
               {selected.max_per_checkout != null && (
                 <p className="mt-3 text-center text-sm text-muted-foreground">
-                  Max {selected.max_per_checkout} per checkout
+                  Max {selected.max_per_checkout} {selected.unit} per checkout
                 </p>
               )}
             </div>
@@ -267,11 +299,13 @@ export function Catalog({
                   size="xl"
                   className="sm:flex-1"
                   onClick={() => {
-                    onTake(selected, clampedQty);
+                    onTake(selected, baseQty);
                     setSelectedId(null);
                   }}
                 >
-                  Take {clampedQty} {selected.unit}
+                  {usePack
+                    ? `Take ${clampedQty} pack${clampedQty === 1 ? "" : "s"} (${baseQty} ${selected.unit})`
+                    : `Take ${clampedQty} ${selected.unit}`}
                 </Button>
               )}
               {mode === "approval" && (
@@ -301,6 +335,32 @@ export function Catalog({
         )}
       </Dialog>
     </div>
+  );
+}
+
+function UnitChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "h-12 rounded-lg border px-5 text-base font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        active
+          ? "border-transparent bg-primary text-primary-foreground"
+          : "bg-card hover:bg-accent"
+      )}
+    >
+      {children}
+    </button>
   );
 }
 

@@ -29,6 +29,7 @@ import { UserPicker, initialsOf } from "./user-picker";
 import { PinPad } from "./pin-pad";
 import { Catalog } from "./catalog";
 import { BasketBar, type BasketDisplayLine } from "./basket";
+import { ReviewSheet } from "./review-sheet";
 import { ReturnScreen } from "./return-screen";
 import { CantFindScreen } from "./cant-find";
 import { ConfirmScreen } from "./confirm-screen";
@@ -51,6 +52,8 @@ interface KioskAppProps {
   categories: Category[];
   items: CatalogItem[];
   staff: KioskStaff[];
+  /** Zones offered at checkout ("which zone is this for?"). Empty = skip. */
+  zones: string[];
   /** True when an admin opened /kiosk to look around — PIN sign-in only works
    * on real kiosk device accounts, so say so up front. */
   preview?: boolean;
@@ -63,6 +66,7 @@ export function KioskApp({
   categories,
   items: initialItems,
   staff,
+  zones,
   preview,
 }: KioskAppProps) {
   useWakeLock();
@@ -74,6 +78,7 @@ export function KioskApp({
   const [session, setSession] = React.useState<KioskSessionInfo | null>(null);
   const [items, setItems] = React.useState<CatalogItem[]>(initialItems);
   const [basket, setBasket] = React.useState<BasketLine[]>([]);
+  const [reviewOpen, setReviewOpen] = React.useState(false);
   const [checkoutResult, setCheckoutResult] = React.useState<CheckoutResult | null>(null);
   const [checkingOut, setCheckingOut] = React.useState(false);
 
@@ -158,6 +163,7 @@ export function KioskApp({
     setSession(null);
     setPendingStaff(null);
     setBasket([]);
+    setReviewOpen(false);
     setCheckoutResult(null);
     setCheckingOut(false);
     setScreen("picker");
@@ -193,18 +199,24 @@ export function KioskApp({
   });
 
   // ── Actions ───────────────────────────────────────────────────────────────
-  const handleDone = React.useCallback(async () => {
-    const current = sessionRef.current;
-    if (!current) return;
+  // "Done" with items opens the review sheet (basket + zone); empty = sign out.
+  const handleDone = React.useCallback(() => {
+    if (!sessionRef.current) return;
     if (basket.length === 0) {
-      // Nothing in the basket — "Done" just signs out.
       resetToPicker(true);
       return;
     }
+    setReviewOpen(true);
+  }, [basket, resetToPicker]);
+
+  const handleConfirmCheckout = React.useCallback(async (zone: string | null) => {
+    const current = sessionRef.current;
+    if (!current || basket.length === 0) return;
     setCheckingOut(true);
-    const result = await kioskCheckout(current.token, basket);
+    const result = await kioskCheckout(current.token, basket, zone);
     setCheckingOut(false);
     if (!result.ok) {
+      setReviewOpen(false);
       // e.g. someone took the last unit — show why, then clamp the basket to
       // the fresh stock so tapping Done again just works.
       handleActionError(result.error);
@@ -233,9 +245,10 @@ export function KioskApp({
     }
     void syncStock();
     setBasket([]);
+    setReviewOpen(false);
     setCheckoutResult(result.data);
     setScreen("confirm");
-  }, [basket, locationId, resetToPicker, syncStock, handleActionError, toast]);
+  }, [basket, locationId, syncStock, handleActionError, toast]);
 
   const handleRequestApproval = React.useCallback(
     async (item: CatalogItem, qty: number): Promise<boolean> => {
@@ -419,6 +432,16 @@ export function KioskApp({
           busy={checkingOut}
         />
       )}
+
+      <ReviewSheet
+        open={reviewOpen}
+        lines={basketLines}
+        zones={zones}
+        busy={checkingOut}
+        onRemove={(itemId) => setBasketLine(itemId, 0)}
+        onCancel={() => setReviewOpen(false)}
+        onConfirm={(zone) => void handleConfirmCheckout(zone)}
+      />
     </div>
   );
 }

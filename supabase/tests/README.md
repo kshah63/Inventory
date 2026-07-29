@@ -13,6 +13,7 @@ read other users' history).
 createdb mvtest
 psql -d mvtest -v ON_ERROR_STOP=1 -f 00_supabase_shim.sql   # fakes auth.*, storage.*, roles
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0001_init.sql
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0002_zones_and_packs.sql
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../seed_demo.sql        # tests use the demo catalog
 psql -d mvtest -f 01_smoke_test.sql                          # expect: ALL SMOKE TESTS PASSED
 ```

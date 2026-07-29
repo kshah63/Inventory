@@ -52,12 +52,14 @@ export async function endKioskSession(token: string): Promise<void> {
 
 export async function kioskCheckout(
   token: string,
-  lines: BasketLine[]
+  lines: BasketLine[],
+  zone?: string | null
 ): Promise<ActionResult<CheckoutResult>> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("kiosk_checkout", {
     p_token: token,
     p_lines: lines,
+    p_zone: zone ?? null,
   });
   if (error) return { ok: false, error: error.message };
 

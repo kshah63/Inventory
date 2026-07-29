@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Info, KeyRound, MessageCircle, Phone, Plus, Send, X } from "lucide-react";
+import { Info, KeyRound, MapPin, MessageCircle, Phone, Plus, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,10 +25,12 @@ export function SettingsClient({
   initialRecipients,
   initialDigestEnabled,
   initialAlertsEnabled,
+  initialZones,
 }: {
   initialRecipients: string[];
   initialDigestEnabled: boolean;
   initialAlertsEnabled: boolean;
+  initialZones: string[];
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -37,6 +39,11 @@ export function SettingsClient({
   const [recipients, setRecipients] = React.useState(initialRecipients);
   const [draft, setDraft] = React.useState("");
   const [savingRecipients, setSavingRecipients] = React.useState(false);
+
+  // Store-room zones (asked at kiosk checkout)
+  const [zones, setZones] = React.useState(initialZones);
+  const [zoneDraft, setZoneDraft] = React.useState("");
+  const [savingZones, setSavingZones] = React.useState(false);
 
   // Toggles
   const [digestEnabled, setDigestEnabled] = React.useState(initialDigestEnabled);
@@ -84,6 +91,40 @@ export function SettingsClient({
     await saveRecipients(
       recipients.filter((n) => n !== number),
       `${number} removed.`
+    );
+  }
+
+  async function saveZones(next: string[], successMessage: string) {
+    setSavingZones(true);
+    const result = await updateSetting("zones", next);
+    setSavingZones(false);
+    if (!result.ok) {
+      toast(friendlyError(result.error), "error");
+      return false;
+    }
+    setZones(next);
+    toast(successMessage);
+    router.refresh();
+    return true;
+  }
+
+  async function addZone(e: React.FormEvent) {
+    e.preventDefault();
+    const value = zoneDraft.trim();
+    if (!value) return;
+    if (zones.some((z) => z.toLowerCase() === value.toLowerCase())) {
+      toast("That zone is already in the list.", "error");
+      return;
+    }
+    if (await saveZones([...zones, value], `${value} added.`)) {
+      setZoneDraft("");
+    }
+  }
+
+  async function removeZone(zone: string) {
+    await saveZones(
+      zones.filter((z) => z !== zone),
+      `${zone} removed.`
     );
   }
 
@@ -250,6 +291,59 @@ export function SettingsClient({
               Copy-as-WhatsApp on the Reorder page.
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+            Zones
+          </CardTitle>
+          <CardDescription>
+            At checkout the kiosk asks &ldquo;which zone is this for?&rdquo; —
+            these are the choices. Consumption reports can group by zone.
+            Remove all zones to skip the question.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {zones.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No zones configured — kiosk checkouts won&apos;t ask.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {zones.map((zone) => (
+                <span
+                  key={zone}
+                  className="inline-flex items-center gap-1.5 rounded-full border bg-muted py-1 pl-3 pr-1 text-sm"
+                >
+                  {zone}
+                  <button
+                    type="button"
+                    onClick={() => removeZone(zone)}
+                    disabled={savingZones}
+                    className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={`Remove ${zone}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <form onSubmit={addZone} className="flex gap-2">
+            <Input
+              placeholder="e.g. Zone 23"
+              value={zoneDraft}
+              onChange={(e) => setZoneDraft(e.target.value)}
+              className="max-w-xs"
+              aria-label="New zone"
+            />
+            <Button type="submit" variant="outline" loading={savingZones}>
+              <Plus /> Add
+            </Button>
+          </form>
         </CardContent>
       </Card>
 

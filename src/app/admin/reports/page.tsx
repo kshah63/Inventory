@@ -26,13 +26,14 @@ export const metadata = { title: "Reports" };
 export const dynamic = "force-dynamic";
 
 const RANGES = [7, 30, 90];
-const GROUPS: ReportGroupBy[] = ["user", "item", "category", "department"];
+const GROUPS: ReportGroupBy[] = ["user", "item", "category", "department", "zone"];
 
 const GROUP_LABELS: Record<ReportGroupBy, string> = {
   user: "user",
   item: "item",
   category: "category",
   department: "department",
+  zone: "zone",
 };
 
 function param(v: string | string[] | undefined): string {
