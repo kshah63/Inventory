@@ -25,9 +25,11 @@ const OTHER = "__other__";
 export function NewRequestDialog({
   items,
   locations,
+  zones,
 }: {
   items: SelectableItem[];
   locations: Location[];
+  zones: string[];
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -39,6 +41,7 @@ export function NewRequestDialog({
   const [freeText, setFreeText] = React.useState("");
   const [qty, setQty] = React.useState("1");
   const [locationId, setLocationId] = React.useState(locations[0]?.id ?? "");
+  const [zone, setZone] = React.useState<string | null>(null);
   const [note, setNote] = React.useState("");
 
   const isOther = itemId === OTHER;
@@ -48,6 +51,7 @@ export function NewRequestDialog({
     setFreeText("");
     setQty("1");
     setLocationId(locations[0]?.id ?? "");
+    setZone(null);
     setNote("");
   }
 
@@ -75,6 +79,10 @@ export function NewRequestDialog({
       toast("Pick a location.", "error");
       return;
     }
+    if (zones.length > 0 && !zone) {
+      toast("Pick which department this is for.", "error");
+      return;
+    }
 
     setSubmitting(true);
     const result = await createRequest({
@@ -82,6 +90,7 @@ export function NewRequestDialog({
       freeText: isOther ? freeText.trim() : null,
       qty: qtyNum,
       locationId,
+      zone,
       note: note.trim() || undefined,
     });
     setSubmitting(false);
@@ -173,6 +182,30 @@ export function NewRequestDialog({
               </Select>
             </div>
           </div>
+
+          {zones.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Which department is this for?</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {zones.map((z) => (
+                  <button
+                    key={z}
+                    type="button"
+                    onClick={() => setZone(zone === z ? null : z)}
+                    aria-pressed={zone === z}
+                    className={
+                      "h-9 rounded-full border px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                      (zone === z
+                        ? "border-transparent bg-primary text-primary-foreground"
+                        : "bg-card hover:bg-accent")
+                    }
+                  >
+                    {z}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="request-note">

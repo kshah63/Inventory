@@ -1,6 +1,6 @@
 // Shared domain types mirroring the Supabase schema (supabase/migrations/0001_init.sql).
 
-export type Role = "super_admin" | "procurement" | "staff" | "kiosk";
+export type Role = "super_admin" | "procurement" | "staff" | "dept_head" | "kiosk";
 
 export type TransactionType =
   | "checkout"
@@ -60,6 +60,7 @@ export interface UserProfile {
   id: string;
   full_name: string;
   role: Role;
+  user_no: number | null;
   department: string | null;
   phone: string | null;
   kiosk_location_id: string | null;
@@ -73,6 +74,7 @@ export interface StaffDirectoryEntry {
   department: string | null;
   role: Role;
   is_active: boolean;
+  user_no: number | null;
 }
 
 export interface TransactionRow {
@@ -103,6 +105,7 @@ export interface RequestRow {
   free_text_item: string | null;
   qty: number;
   location_id: string;
+  zone: string | null;
   status: RequestStatus;
   note: string | null;
   admin_note: string | null;

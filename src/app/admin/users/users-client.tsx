@@ -5,10 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   KeyRound,
   Lock,
-  MonitorSmartphone,
   Pencil,
   Phone,
-  Plus,
   UserPlus,
   Copy,
   Check,
@@ -30,9 +28,7 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
 import {
-  createKioskDevice,
   createLoginUser,
-  createPinOnlyStaff,
   resetUserPassword,
   setUserPin,
   updateUser,
@@ -43,7 +39,7 @@ export interface UserListEntry {
   id: string;
   full_name: string;
   role: Role;
-  department: string | null;
+  user_no: number | null;
   phone: string | null;
   has_pin: boolean;
   kiosk_location_id: string | null;
@@ -53,7 +49,8 @@ export interface UserListEntry {
 const ROLE_LABELS: Record<Role, string> = {
   super_admin: "Super admin",
   procurement: "Procurement",
-  staff: "Staff",
+  staff: "Department Admin",
+  dept_head: "Department Head",
   kiosk: "Kiosk device",
 };
 
@@ -61,14 +58,13 @@ const ROLE_BADGE: Record<Role, "default" | "secondary" | "outline" | "warning"> 
   super_admin: "default",
   procurement: "warning",
   staff: "secondary",
+  dept_head: "warning",
   kiosk: "outline",
 };
 
 type DialogKind =
   | { kind: "none" }
   | { kind: "add-login" }
-  | { kind: "add-staff" }
-  | { kind: "add-kiosk" }
   | { kind: "edit"; user: UserListEntry }
   | { kind: "pin"; user: UserListEntry }
   | { kind: "temp-password"; label: string; password: string };
@@ -77,19 +73,18 @@ export function UsersClient({
   users,
   locations,
   selfId,
+  nextUserNo,
 }: {
   users: UserListEntry[];
   locations: Location[];
   selfId: string;
+  nextUserNo: number;
 }) {
   const [dialog, setDialog] = React.useState<DialogKind>({ kind: "none" });
   const [showInactive, setShowInactive] = React.useState(false);
 
   const visible = users.filter((u) => showInactive || u.is_active);
   const people = visible.filter((u) => u.role !== "kiosk");
-  const kiosks = visible.filter((u) => u.role === "kiosk");
-  const locationName = (id: string | null) =>
-    locations.find((l) => l.id === id)?.name ?? "—";
 
   const close = () => setDialog({ kind: "none" });
 
@@ -98,12 +93,6 @@ export function UsersClient({
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={() => setDialog({ kind: "add-login" })}>
           <UserPlus /> Add login user
-        </Button>
-        <Button variant="outline" onClick={() => setDialog({ kind: "add-staff" })}>
-          <Plus /> Add staff member (PIN only)
-        </Button>
-        <Button variant="outline" onClick={() => setDialog({ kind: "add-kiosk" })}>
-          <MonitorSmartphone /> Add kiosk device
         </Button>
         <label className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
           <Switch checked={showInactive} onCheckedChange={setShowInactive} />
@@ -117,8 +106,8 @@ export function UsersClient({
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>ID</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead>Department</TableHead>
               <TableHead>WhatsApp</TableHead>
               <TableHead>Kiosk PIN</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -138,10 +127,12 @@ export function UsersClient({
                     </Badge>
                   )}
                 </TableCell>
+                <TableCell className="font-mono tabular-nums">
+                  {u.user_no ?? "—"}
+                </TableCell>
                 <TableCell>
                   <Badge variant={ROLE_BADGE[u.role]}>{ROLE_LABELS[u.role]}</Badge>
                 </TableCell>
-                <TableCell className="text-muted-foreground">{u.department ?? "—"}</TableCell>
                 <TableCell className="text-muted-foreground">
                   {u.phone ? (
                     <span className="inline-flex items-center gap-1">
@@ -191,69 +182,11 @@ export function UsersClient({
         </Table>
       </section>
 
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-muted-foreground">
-          Kiosk devices (one per store room)
-        </h2>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Device</TableHead>
-              <TableHead>Store room</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {kiosks.map((u) => (
-              <TableRow key={u.id} className={u.is_active ? "" : "opacity-50"}>
-                <TableCell className="font-medium">
-                  <span className="inline-flex items-center gap-2">
-                    <MonitorSmartphone className="h-4 w-4 text-muted-foreground" />
-                    {u.full_name}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  {u.kiosk_location_id ? (
-                    locationName(u.kiosk_location_id)
-                  ) : (
-                    <Badge variant="destructive">No location!</Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setDialog({ kind: "edit", user: u })}
-                  >
-                    <Pencil /> Edit
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-            {kiosks.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">
-                  No kiosk devices yet — add one per store room, sign the tablet
-                  in with it, and mount it by the door.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </section>
 
       <AddLoginDialog
         open={dialog.kind === "add-login"}
         onClose={close}
-        onTempPassword={(label, password) =>
-          setDialog({ kind: "temp-password", label, password })
-        }
-      />
-      <AddStaffDialog open={dialog.kind === "add-staff"} onClose={close} />
-      <AddKioskDialog
-        open={dialog.kind === "add-kiosk"}
-        onClose={close}
-        locations={locations}
+        nextUserNo={nextUserNo}
         onTempPassword={(label, password) =>
           setDialog({ kind: "temp-password", label, password })
         }
@@ -282,10 +215,12 @@ export function UsersClient({
 function AddLoginDialog({
   open,
   onClose,
+  nextUserNo,
   onTempPassword,
 }: {
   open: boolean;
   onClose: () => void;
+  nextUserNo: number;
   onTempPassword: (label: string, password: string) => void;
 }) {
   const router = useRouter();
@@ -294,16 +229,19 @@ function AddLoginDialog({
   const [form, setForm] = React.useState({
     email: "",
     fullName: "",
-    role: "staff" as Exclude<Role, "kiosk">,
-    department: "",
+    role: "staff" as "staff" | "dept_head",
+    userNo: String(nextUserNo),
     phone: "",
-    pin: "",
   });
+
+  React.useEffect(() => {
+    if (open) setForm((f) => ({ ...f, userNo: String(nextUserNo) }));
+  }, [open, nextUserNo]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (form.pin && !/^[0-9]{4,6}$/.test(form.pin)) {
-      toast("PIN must be 4–6 digits.", "error");
+    if (!/^[1-9][0-9]{3}$/.test(form.userNo)) {
+      toast("User ID must be a four-digit number.", "error");
       return;
     }
     setLoading(true);
@@ -311,9 +249,8 @@ function AddLoginDialog({
       email: form.email,
       fullName: form.fullName,
       role: form.role,
-      department: form.department || undefined,
+      userNo: Number(form.userNo),
       phone: form.phone || undefined,
-      pin: form.pin || undefined,
     });
     setLoading(false);
     if (!result.ok) {
@@ -321,15 +258,14 @@ function AddLoginDialog({
       return;
     }
     onTempPassword(form.email, result.data.tempPassword);
-    setForm({ email: "", fullName: "", role: "staff", department: "", phone: "", pin: "" });
+    setForm({ email: "", fullName: "", role: "staff", userNo: String(nextUserNo), phone: "" });
     router.refresh();
   }
-
   return (
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>Add login user</DialogTitle>
       <DialogDescription>
-        Creates an account for the web app. You&apos;ll get a one-time temporary
+        Creates an account for the app. You&apos;ll get a one-time temporary
         password to pass on — they can change it in Settings.
       </DialogDescription>
       <form onSubmit={submit} className="space-y-3">
@@ -359,45 +295,40 @@ function AddLoginDialog({
               id="nu-role"
               value={form.role}
               onChange={(e) =>
-                setForm({ ...form, role: e.target.value as Exclude<Role, "kiosk"> })
+                setForm({ ...form, role: e.target.value as "staff" | "dept_head" })
               }
             >
-              <option value="staff">Staff</option>
-              <option value="procurement">Procurement</option>
-              <option value="super_admin">Super admin</option>
+              <option value="staff">Department Admin</option>
+              <option value="dept_head">Department Head</option>
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="nu-dept">Department</Label>
+            <Label htmlFor="nu-userno">User ID</Label>
             <Input
-              id="nu-dept"
-              value={form.department}
-              onChange={(e) => setForm({ ...form, department: e.target.value })}
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="nu-phone">WhatsApp number</Label>
-            <Input
-              id="nu-phone"
-              placeholder="+65…"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="nu-pin">Kiosk PIN (optional)</Label>
-            <Input
-              id="nu-pin"
+              id="nu-userno"
               inputMode="numeric"
-              placeholder="4–6 digits"
-              value={form.pin}
-              onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, "") })}
-              maxLength={6}
+              maxLength={4}
+              value={form.userNo}
+              onChange={(e) =>
+                setForm({ ...form, userNo: e.target.value.replace(/\D/g, "") })
+              }
             />
           </div>
         </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="nu-phone">WhatsApp number</Label>
+          <Input
+            id="nu-phone"
+            placeholder="+65…"
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          The four-digit User ID stays with the person even when they change
+          departments. Procurement and Super Admin accounts are created from
+          the back end only.
+        </p>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
@@ -410,168 +341,6 @@ function AddLoginDialog({
     </Dialog>
   );
 }
-
-function AddStaffDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const router = useRouter();
-  const { toast } = useToast();
-  const [loading, setLoading] = React.useState(false);
-  const [form, setForm] = React.useState({ fullName: "", phone: "", pin: "" });
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!/^[0-9]{4,6}$/.test(form.pin)) {
-      toast("PIN must be 4–6 digits.", "error");
-      return;
-    }
-    setLoading(true);
-    const result = await createPinOnlyStaff({
-      fullName: form.fullName,
-      phone: form.phone || undefined,
-      pin: form.pin,
-    });
-    setLoading(false);
-    if (!result.ok) {
-      toast(result.error, "error");
-      return;
-    }
-    toast(`${form.fullName} added — they can use the kiosk right away.`);
-    setForm({ fullName: "", phone: "", pin: "" });
-    onClose();
-    router.refresh();
-  }
-
-  return (
-    <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Add staff member (kiosk only)</DialogTitle>
-      <DialogDescription>
-        For people who only use the store-room tablets — no email login needed.
-      </DialogDescription>
-      <form onSubmit={submit} className="space-y-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="ns-name">Full name</Label>
-          <Input
-            id="ns-name"
-            required
-            value={form.fullName}
-            onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="ns-phone">WhatsApp number</Label>
-          <Input
-            id="ns-phone"
-            placeholder="+65…"
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="ns-pin">Kiosk PIN</Label>
-          <Input
-            id="ns-pin"
-            required
-            inputMode="numeric"
-            placeholder="4–6 digits"
-            value={form.pin}
-            onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, "") })}
-            maxLength={6}
-          />
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" loading={loading}>
-            Add staff member
-          </Button>
-        </DialogFooter>
-      </form>
-    </Dialog>
-  );
-}
-
-function AddKioskDialog({
-  open,
-  onClose,
-  locations,
-  onTempPassword,
-}: {
-  open: boolean;
-  onClose: () => void;
-  locations: Location[];
-  onTempPassword: (label: string, password: string) => void;
-}) {
-  const router = useRouter();
-  const { toast } = useToast();
-  const [loading, setLoading] = React.useState(false);
-  const [email, setEmail] = React.useState("");
-  const [locationId, setLocationId] = React.useState(locations[0]?.id ?? "");
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const location = locations.find((l) => l.id === locationId);
-    if (!location) {
-      toast("Pick a store room.", "error");
-      return;
-    }
-    setLoading(true);
-    const result = await createKioskDevice({
-      email,
-      locationId,
-      locationName: location.name,
-    });
-    setLoading(false);
-    if (!result.ok) {
-      toast(result.error, "error");
-      return;
-    }
-    onTempPassword(email, result.data.tempPassword);
-    setEmail("");
-    router.refresh();
-  }
-
-  return (
-    <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Add kiosk device</DialogTitle>
-      <DialogDescription>
-        One per store room. Sign the wall tablet in with this account — it can
-        only browse the catalog and record checkouts, nothing else.
-      </DialogDescription>
-      <form onSubmit={submit} className="space-y-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="nk-email">Device email</Label>
-          <Input
-            id="nk-email"
-            type="email"
-            required
-            placeholder="kiosk-level8@mathvision.sg"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="nk-loc">Store room</Label>
-          <Select id="nk-loc" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" loading={loading}>
-            Create device account
-          </Button>
-        </DialogFooter>
-      </form>
-    </Dialog>
-  );
-}
-
 function EditUserDialog({
   user,
   locations,
@@ -589,9 +358,10 @@ function EditUserDialog({
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(false);
   const [resetting, setResetting] = React.useState(false);
+  const backendRole = user.role === "super_admin" || user.role === "procurement";
   const [form, setForm] = React.useState({
     fullName: user.full_name,
-    department: user.department ?? "",
+    userNo: user.user_no ? String(user.user_no) : "",
     phone: user.phone ?? "",
     role: user.role,
     isActive: user.is_active,
@@ -600,13 +370,20 @@ function EditUserDialog({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (user.role !== "kiosk" && form.userNo && !/^[1-9][0-9]{3}$/.test(form.userNo)) {
+      toast("User ID must be a four-digit number.", "error");
+      return;
+    }
     setLoading(true);
     const result = await updateUser({
       userId: user.id,
       fullName: form.fullName,
-      department: form.department,
       phone: form.phone,
-      role: form.role,
+      // Back-end-managed roles (procurement / super admin) are never sent —
+      // the picker only offers the two department roles.
+      role: backendRole ? undefined : (form.role as Role),
+      userNo:
+        user.role !== "kiosk" && form.userNo ? Number(form.userNo) : undefined,
       isActive: form.isActive,
       kioskLocationId:
         user.role === "kiosk" && form.kioskLocationId ? form.kioskLocationId : undefined,
@@ -649,11 +426,15 @@ function EditUserDialog({
           <>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="eu-dept">Department</Label>
+                <Label htmlFor="eu-userno">User ID</Label>
                 <Input
-                  id="eu-dept"
-                  value={form.department}
-                  onChange={(e) => setForm({ ...form, department: e.target.value })}
+                  id="eu-userno"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={form.userNo}
+                  onChange={(e) =>
+                    setForm({ ...form, userNo: e.target.value.replace(/\D/g, "") })
+                  }
                 />
               </div>
               <div className="space-y-1.5">
@@ -668,17 +449,25 @@ function EditUserDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="eu-role">Role</Label>
-              <Select
-                id="eu-role"
-                value={form.role}
-                disabled={isSelf}
-                onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
-              >
-                <option value="staff">Staff</option>
-                <option value="procurement">Procurement</option>
-                <option value="super_admin">Super admin</option>
-              </Select>
-              {isSelf && (
+              {backendRole ? (
+                <>
+                  <Input value={user.role === "super_admin" ? "Super admin" : "Procurement"} disabled />
+                  <p className="text-xs text-muted-foreground">
+                    This role is managed from the back end.
+                  </p>
+                </>
+              ) : (
+                <Select
+                  id="eu-role"
+                  value={form.role}
+                  disabled={isSelf}
+                  onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
+                >
+                  <option value="staff">Department Admin</option>
+                  <option value="dept_head">Department Head</option>
+                </Select>
+              )}
+              {isSelf && !backendRole && (
                 <p className="text-xs text-muted-foreground">
                   You can&apos;t change your own role.
                 </p>

@@ -16,6 +16,7 @@ export async function createRequest(params: {
   freeText: string | null;
   qty: number;
   locationId: string;
+  zone?: string | null;
   note?: string;
 }): Promise<ActionResult> {
   const supabase = await createClient();
@@ -34,6 +35,7 @@ export async function createRequest(params: {
     free_text_item: params.freeText?.trim() || null,
     qty: params.qty,
     location_id: params.locationId,
+    zone: params.zone?.trim() || null,
     note: params.note?.trim() || null,
   });
   if (error) return { ok: false, error: error.message };

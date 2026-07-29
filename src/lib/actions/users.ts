@@ -22,18 +22,28 @@ async function requireSuperAdmin(): Promise<ActionResult<string>> {
   return { ok: true, data: profile.id };
 }
 
-/** Create a login (auth user) for an admin/procurement/staff member.
- * Returns a one-time temporary password to share with them. */
+/** Create a login for a Department Admin or Department Head. Procurement
+ * and Super Admin accounts are deliberately NOT creatable from the app —
+ * back end only. Returns a one-time temporary password to share. */
 export async function createLoginUser(params: {
   email: string;
   fullName: string;
-  role: Exclude<Role, "kiosk">;
-  department?: string;
+  role: "staff" | "dept_head";
+  userNo?: number;
   phone?: string;
   pin?: string;
 }): Promise<ActionResult<{ tempPassword: string }>> {
   const guard = await requireSuperAdmin();
   if (!guard.ok) return guard;
+  if (params.role !== "staff" && params.role !== "dept_head") {
+    return { ok: false, error: "That role can only be assigned from the back end." };
+  }
+  if (
+    params.userNo !== undefined &&
+    (!Number.isInteger(params.userNo) || params.userNo < 1000 || params.userNo > 9999)
+  ) {
+    return { ok: false, error: "User ID must be a four-digit number." };
+  }
 
   const email = params.email.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
@@ -53,17 +63,17 @@ export async function createLoginUser(params: {
     password: tempPassword,
     email_confirm: true,
     user_metadata: { full_name: params.fullName.trim() },
-    app_metadata: { role: params.role },
+    app_metadata: {
+      role: params.role,
+      ...(params.userNo !== undefined ? { user_no: params.userNo } : {}),
+    },
   });
   if (error) return { ok: false, error: error.message };
 
   // The handle_new_user trigger created the profile; enrich it.
   await admin
     .from("users")
-    .update({
-      department: params.department?.trim() || null,
-      phone: params.phone?.trim() || null,
-    })
+    .update({ phone: params.phone?.trim() || null })
     .eq("id", created.user.id);
 
   if (params.pin) {
@@ -141,21 +151,33 @@ export async function createPinOnlyStaff(params: {
 export async function updateUser(params: {
   userId: string;
   fullName?: string;
-  department?: string;
   phone?: string;
   role?: Role;
+  userNo?: number;
   isActive?: boolean;
   kioskLocationId?: string;
 }): Promise<ActionResult> {
+  // Role changes from the app are limited to the two department roles;
+  // procurement/super admin assignments happen on the back end only.
+  if (params.role && params.role !== "staff" && params.role !== "dept_head") {
+    return { ok: false, error: "That role can only be assigned from the back end." };
+  }
+  if (
+    params.userNo !== undefined &&
+    (!Number.isInteger(params.userNo) || params.userNo < 1000 || params.userNo > 9999)
+  ) {
+    return { ok: false, error: "User ID must be a four-digit number." };
+  }
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_user_profile", {
     p_user_id: params.userId,
     p_full_name: params.fullName ?? null,
-    p_department: params.department ?? null,
+    p_department: null,
     p_phone: params.phone ?? null,
     p_role: params.role ?? null,
     p_is_active: params.isActive ?? null,
     p_kiosk_location_id: params.kioskLocationId ?? null,
+    p_user_no: params.userNo ?? null,
   });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/users");

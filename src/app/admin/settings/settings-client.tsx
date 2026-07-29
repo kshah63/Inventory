@@ -40,7 +40,7 @@ export function SettingsClient({
   const [draft, setDraft] = React.useState("");
   const [savingRecipients, setSavingRecipients] = React.useState(false);
 
-  // Store-room zones (asked at kiosk checkout)
+  // Departments (asked on orders and requests)
   const [zones, setZones] = React.useState(initialZones);
   const [zoneDraft, setZoneDraft] = React.useState("");
   const [savingZones, setSavingZones] = React.useState(false);
@@ -298,18 +298,18 @@ export function SettingsClient({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <MapPin className="h-4 w-4 text-muted-foreground" />
-            Zones
+            Departments
           </CardTitle>
           <CardDescription>
-            At checkout the kiosk asks &ldquo;which zone is this for?&rdquo; —
-            these are the choices. Consumption reports can group by zone.
-            Remove all zones to skip the question.
+            Orders and requests ask &ldquo;which department is this for?&rdquo; —
+            these are the choices, and consumption reports group by them.
+            Remove all entries to skip the question.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {zones.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No zones configured — kiosk checkouts won&apos;t ask.
+              No departments configured — orders and requests won&apos;t ask.
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -334,11 +334,11 @@ export function SettingsClient({
           )}
           <form onSubmit={addZone} className="flex gap-2">
             <Input
-              placeholder="e.g. Zone 23"
+              placeholder="e.g. 23"
               value={zoneDraft}
               onChange={(e) => setZoneDraft(e.target.value)}
               className="max-w-xs"
-              aria-label="New zone"
+              aria-label="New department"
             />
             <Button type="submit" variant="outline" loading={savingZones}>
               <Plus /> Add

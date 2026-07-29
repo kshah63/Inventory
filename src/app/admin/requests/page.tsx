@@ -14,6 +14,7 @@ interface RequestQueryRow {
   admin_note: string | null;
   created_at: string;
   free_text_item: string | null;
+  zone: string | null;
   items: { name: string; unit: string } | null;
   locations: { name: string } | null;
   users: { full_name: string } | null;
@@ -38,6 +39,7 @@ export default async function AdminRequestsPage() {
       admin_note: r.admin_note,
       created_at: r.created_at,
       free_text_item: r.free_text_item,
+      zone: r.zone,
       item_name: r.items?.name ?? null,
       unit: r.items?.unit ?? null,
       location_name: r.locations?.name ?? "—",

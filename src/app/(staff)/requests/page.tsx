@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function RequestsPage() {
   const supabase = await createClient();
 
-  const [requestsRes, locationsRes, itemsRes] = await Promise.all([
+  const [requestsRes, locationsRes, itemsRes, zonesRes] = await Promise.all([
     // RLS limits staff to their own requests.
     supabase
       .from("requests")
@@ -25,11 +25,15 @@ export default async function RequestsPage() {
       .select("id, name, unit")
       .eq("is_active", true)
       .order("name"),
+    supabase.from("settings").select("value").eq("key", "zones").maybeSingle(),
   ]);
 
   const requests = (requestsRes.data ?? []) as unknown as RequestWithJoins[];
   const locations = (locationsRes.data ?? []) as unknown as Location[];
   const items = (itemsRes.data ?? []) as unknown as SelectableItem[];
+  const zones = Array.isArray(zonesRes.data?.value)
+    ? (zonesRes.data.value as unknown[]).filter((z): z is string => typeof z === "string")
+    : [];
 
   return (
     <div>
@@ -37,7 +41,7 @@ export default async function RequestsPage() {
         title="My requests"
         description="Ask procurement to restock something or order a new item."
       >
-        <NewRequestDialog items={items} locations={locations} />
+        <NewRequestDialog items={items} locations={locations} zones={zones} />
       </PageHeader>
       <RequestsList requests={requests} />
     </div>

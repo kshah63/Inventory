@@ -360,7 +360,7 @@ export function CatalogueClient({
         <div className="space-y-3">
           {zones.length > 0 && (
             <div>
-              <Label className="mb-1.5 block">Which zone is this for?</Label>
+              <Label className="mb-1.5 block">Which department is this for?</Label>
               <div className="flex flex-wrap gap-1.5">
                 {zones.map((z) => (
                   <Chip key={z} active={zone === z} onClick={() => setZone(zone === z ? null : z)}>
@@ -411,7 +411,7 @@ export function CatalogueClient({
         </DialogFooter>
         {zones.length > 0 && zone === null && (
           <p className="mt-2 text-center text-xs text-muted-foreground">
-            Pick a zone to continue.
+            Pick a department to continue.
           </p>
         )}
       </Dialog>

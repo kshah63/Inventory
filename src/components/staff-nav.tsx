@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, History, Inbox, LayoutDashboard, LogOut, ShoppingBag } from "lucide-react";
+import { BarChart3, Search, History, Inbox, LayoutDashboard, LogOut, ShoppingBag } from "lucide-react";
 import { signOut } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
 
@@ -16,9 +16,11 @@ const LINKS = [
 export function StaffNav({
   userName,
   isAdmin,
+  isDeptHead,
 }: {
   userName: string;
   isAdmin: boolean;
+  isDeptHead?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -49,6 +51,15 @@ export function StaffNav({
         >
           <LayoutDashboard className="h-4 w-4" />
           <span className="hidden sm:inline">Admin</span>
+        </Link>
+      )}
+      {isDeptHead && (
+        <Link
+          href="/admin/reports"
+          className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+        >
+          <BarChart3 className="h-4 w-4" />
+          <span className="hidden sm:inline">Reports</span>
         </Link>
       )}
       <button

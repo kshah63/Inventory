@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import type { BasketDisplayLine } from "./basket";
 
-/** Basket review before checkout: confirm lines and answer "which zone is
- * this for?" (zones are configurable in Admin → Settings). */
+/** Basket review before checkout: confirm lines and answer "which department
+ * is this for?" (the list is configurable in Admin → Settings). */
 export function ReviewSheet({
   open,
   lines,
@@ -71,7 +71,7 @@ export function ReviewSheet({
 
       {needsZone && (
         <div className="mt-5">
-          <p className="mb-2 text-base font-medium">Which zone is this for?</p>
+          <p className="mb-2 text-base font-medium">Which department is this for?</p>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
             {zones.map((z) => (
               <button
@@ -111,7 +111,7 @@ export function ReviewSheet({
       </div>
       {needsZone && zone === null && lines.length > 0 && (
         <p className="mt-2 text-center text-sm text-muted-foreground">
-          Pick a zone to continue.
+          Pick a department to continue.
         </p>
       )}
     </Dialog>

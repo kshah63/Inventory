@@ -15,6 +15,7 @@ export default async function StaffLayout({
   if (profile.role === "kiosk") redirect("/kiosk");
 
   const isAdmin = profile.role === "super_admin" || profile.role === "procurement";
+  const isDeptHead = profile.role === "dept_head";
 
   return (
     <div className="min-h-screen">
@@ -23,7 +24,7 @@ export default async function StaffLayout({
           <Link href="/browse">
             <Logo />
           </Link>
-          <StaffNav userName={profile.full_name} isAdmin={isAdmin} />
+          <StaffNav userName={profile.full_name} isAdmin={isAdmin} isDeptHead={isDeptHead} />
         </div>
       </header>
       <main className="mx-auto max-w-4xl px-4 py-6 pb-24">{children}</main>

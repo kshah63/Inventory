@@ -16,7 +16,7 @@ export default async function UsersPage() {
     supabase
       .from("users")
       .select(
-        "id, full_name, role, department, phone, pin_hash, kiosk_location_id, is_active, created_at"
+        "id, full_name, role, user_no, phone, pin_hash, kiosk_location_id, is_active, created_at"
       )
       .order("full_name"),
     supabase.from("locations").select("id, name, is_active").eq("is_active", true).order("name"),
@@ -28,23 +28,29 @@ export default async function UsersPage() {
     id: u.id as string,
     full_name: u.full_name as string,
     role: u.role as Role,
-    department: (u.department as string | null) ?? null,
+    user_no: (u.user_no as number | null) ?? null,
     phone: (u.phone as string | null) ?? null,
     has_pin: Boolean(u.pin_hash),
     kiosk_location_id: (u.kiosk_location_id as string | null) ?? null,
     is_active: Boolean(u.is_active),
   }));
 
+  const nextUserNo = Math.max(
+    1000,
+    ...sanitized.map((u) => u.user_no ?? 1000)
+  ) + 1;
+
   return (
     <>
       <PageHeader
         title="Users"
-        description="Logins, kiosk PINs, roles, and the kiosk device accounts for each store room."
+        description="Department Admins and Heads with their four-digit User IDs. Procurement and Super Admin accounts are managed from the back end."
       />
       <UsersClient
         users={sanitized}
         locations={(locations ?? []) as Location[]}
         selfId={profile.id}
+        nextUserNo={nextUserNo}
       />
     </>
   );

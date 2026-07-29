@@ -34,6 +34,7 @@ export interface AdminRequest {
   unit: string | null;
   location_name: string;
   requester_name: string;
+  zone: string | null;
 }
 
 const STATUS_ORDER: RequestStatus[] = [
@@ -179,6 +180,7 @@ export function RequestsClient({ requests }: { requests: AdminRequest[] }) {
                     <Badge variant={STATUS_BADGE[r.status]}>
                       {REQUEST_STATUS_LABELS[r.status]}
                     </Badge>
+                    {r.zone && <Badge variant="outline">Dept {r.zone}</Badge>}
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {r.requester_name} · {r.location_name} · {timeAgo(r.created_at)}
