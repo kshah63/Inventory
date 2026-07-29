@@ -2,15 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import {
-  KeyRound,
-  Lock,
-  Pencil,
-  Phone,
-  UserPlus,
-  Copy,
-  Check,
-} from "lucide-react";
+import { Lock, Pencil, Phone, UserPlus, Copy, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
@@ -27,12 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
-import {
-  createLoginUser,
-  resetUserPassword,
-  setUserPin,
-  updateUser,
-} from "@/lib/actions/users";
+import { createLoginUser, resetUserPassword, updateUser } from "@/lib/actions/users";
 import type { Location, Role } from "@/lib/types";
 
 export interface UserListEntry {
@@ -41,7 +28,6 @@ export interface UserListEntry {
   role: Role;
   user_no: number | null;
   phone: string | null;
-  has_pin: boolean;
   kiosk_location_id: string | null;
   is_active: boolean;
 }
@@ -66,7 +52,6 @@ type DialogKind =
   | { kind: "none" }
   | { kind: "add-login" }
   | { kind: "edit"; user: UserListEntry }
-  | { kind: "pin"; user: UserListEntry }
   | { kind: "temp-password"; label: string; password: string };
 
 export function UsersClient({
@@ -109,7 +94,6 @@ export function UsersClient({
               <TableHead>ID</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>WhatsApp</TableHead>
-              <TableHead>Kiosk PIN</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -142,38 +126,21 @@ export function UsersClient({
                     "—"
                   )}
                 </TableCell>
-                <TableCell>
-                  {u.has_pin ? (
-                    <Badge variant="success">Set</Badge>
-                  ) : (
-                    <Badge variant="outline">No PIN</Badge>
-                  )}
-                </TableCell>
                 <TableCell className="text-right">
-                  <div className="inline-flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setDialog({ kind: "pin", user: u })}
-                      title="Set kiosk PIN"
-                    >
-                      <KeyRound /> PIN
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setDialog({ kind: "edit", user: u })}
-                      title="Edit"
-                    >
-                      <Pencil /> Edit
-                    </Button>
-                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDialog({ kind: "edit", user: u })}
+                    title="Edit"
+                  >
+                    <Pencil /> Edit
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
             {people.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
                   No users yet.
                 </TableCell>
               </TableRow>
@@ -202,7 +169,6 @@ export function UsersClient({
           }
         />
       )}
-      {dialog.kind === "pin" && <PinDialog user={dialog.user} onClose={close} />}
       {dialog.kind === "temp-password" && (
         <TempPasswordDialog label={dialog.label} password={dialog.password} onClose={close} />
       )}
@@ -523,62 +489,6 @@ function EditUserDialog({
     </Dialog>
   );
 }
-
-function PinDialog({ user, onClose }: { user: UserListEntry; onClose: () => void }) {
-  const router = useRouter();
-  const { toast } = useToast();
-  const [loading, setLoading] = React.useState(false);
-  const [pin, setPin] = React.useState("");
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!/^[0-9]{4,6}$/.test(pin)) {
-      toast("PIN must be 4–6 digits.", "error");
-      return;
-    }
-    setLoading(true);
-    const result = await setUserPin(user.id, pin);
-    setLoading(false);
-    if (!result.ok) {
-      toast(result.error, "error");
-      return;
-    }
-    toast(`PIN ${user.has_pin ? "updated" : "set"} for ${user.full_name}.`);
-    onClose();
-    router.refresh();
-  }
-
-  return (
-    <Dialog open onClose={onClose} className="max-w-sm">
-      <DialogTitle>
-        {user.has_pin ? "Reset" : "Set"} kiosk PIN — {user.full_name}
-      </DialogTitle>
-      <DialogDescription>
-        4–6 digits. They&apos;ll use it with their name on the store-room tablets.
-      </DialogDescription>
-      <form onSubmit={submit} className="space-y-3">
-        <Input
-          autoFocus
-          inputMode="numeric"
-          placeholder="e.g. 4821"
-          value={pin}
-          onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-          maxLength={6}
-          className="text-center text-lg tracking-[0.4em]"
-        />
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" loading={loading}>
-            Save PIN
-          </Button>
-        </DialogFooter>
-      </form>
-    </Dialog>
-  );
-}
-
 function TempPasswordDialog({
   label,
   password,

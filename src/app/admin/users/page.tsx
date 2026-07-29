@@ -16,21 +16,18 @@ export default async function UsersPage() {
     supabase
       .from("users")
       .select(
-        "id, full_name, role, user_no, phone, pin_hash, kiosk_location_id, is_active, created_at"
+        "id, full_name, role, user_no, phone, kiosk_location_id, is_active, created_at"
       )
       .order("full_name"),
     supabase.from("locations").select("id, name, is_active").eq("is_active", true).order("name"),
   ]);
 
-  // Strip PIN hashes before anything reaches the client — only "is a PIN set"
-  // matters to the UI.
   const sanitized: UserListEntry[] = (users ?? []).map((u) => ({
     id: u.id as string,
     full_name: u.full_name as string,
     role: u.role as Role,
     user_no: (u.user_no as number | null) ?? null,
     phone: (u.phone as string | null) ?? null,
-    has_pin: Boolean(u.pin_hash),
     kiosk_location_id: (u.kiosk_location_id as string | null) ?? null,
     is_active: Boolean(u.is_active),
   }));
