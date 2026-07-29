@@ -22,6 +22,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn, friendlyError, timeAgo, TRANSACTION_TYPE_LABELS } from "@/lib/utils";
 import type { DashboardStats, TransactionRow, TransactionType } from "@/lib/types";
+import { ResetRequestsPanel, type ResetRequest } from "./reset-requests-panel";
 
 export const metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
@@ -34,6 +35,7 @@ const EMPTY_STATS: DashboardStats = {
   pending_orders: 0,
   ready_orders: 0,
   pending_approvals: 0,
+  reset_requests: 0,
   checkouts_today: 0,
   top_movers_week: [],
 };
@@ -55,17 +57,25 @@ export default async function AdminDashboardPage() {
   if (profile?.role === "dept_head") redirect("/admin/reports");
 
   const supabase = await createClient();
-  const [statsRes, txRes] = await Promise.all([
+  const [statsRes, txRes, resetRes] = await Promise.all([
     supabase.rpc("get_dashboard_stats"),
     supabase
       .from("v_transactions")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(10),
+    supabase
+      .from("password_reset_requests")
+      .select(
+        "id, identifier, created_at, matched:users!password_reset_requests_matched_user_fkey(full_name, user_no, role)"
+      )
+      .eq("status", "open")
+      .order("created_at"),
   ]);
 
   const stats = (statsRes.data as unknown as DashboardStats) ?? EMPTY_STATS;
   const recent = (txRes.data ?? []) as unknown as TransactionRow[];
+  const resetRequests = (resetRes.data ?? []) as unknown as ResetRequest[];
   const loadError = statsRes.error?.message ?? txRes.error?.message ?? null;
   const maxMoverQty = Math.max(1, ...stats.top_movers_week.map((m) => m.qty));
 
@@ -91,6 +101,8 @@ export default async function AdminDashboardPage() {
           Couldn&apos;t load some dashboard data: {friendlyError(loadError)}
         </p>
       )}
+
+      <ResetRequestsPanel requests={resetRequests} />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <StatCard

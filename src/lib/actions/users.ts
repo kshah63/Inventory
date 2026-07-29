@@ -22,6 +22,16 @@ async function requireSuperAdmin(): Promise<ActionResult<string>> {
   return { ok: true, data: profile.id };
 }
 
+async function requireProcurement(): Promise<
+  ActionResult<{ id: string; role: string }>
+> {
+  const profile = await getProfile();
+  if (!profile || (profile.role !== "super_admin" && profile.role !== "procurement")) {
+    return { ok: false, error: "You don't have permission to do that." };
+  }
+  return { ok: true, data: { id: profile.id, role: profile.role } };
+}
+
 /** Create a login for a Department Admin or Department Head. Procurement
  * and Super Admin accounts are deliberately NOT creatable from the app —
  * back end only. Returns a one-time temporary password to share. */
@@ -226,6 +236,91 @@ export async function signOutUserEverywhere(userId: string): Promise<ActionResul
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Network error." };
   }
+  return { ok: true, data: undefined };
+}
+
+/** Handle a "forgot password" request from the dashboard queue: sets a new
+ * temporary password on the matched account and marks the request done. */
+export async function fulfillPasswordReset(
+  requestId: string
+): Promise<ActionResult<{ tempPassword: string; label: string }>> {
+  const guard = await requireProcurement();
+  if (!guard.ok) return guard;
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Service key missing." };
+  }
+
+  const { data: request } = await admin
+    .from("password_reset_requests")
+    .select("id, status, matched_user")
+    .eq("id", requestId)
+    .single();
+  if (!request || request.status !== "open") {
+    return { ok: false, error: "That request was already handled." };
+  }
+  if (!request.matched_user) {
+    return {
+      ok: false,
+      error: "No matching account for that request — dismiss it and follow up in person.",
+    };
+  }
+
+  const { data: target } = await admin
+    .from("users")
+    .select("full_name, user_no, role")
+    .eq("id", request.matched_user)
+    .single();
+  if (!target) return { ok: false, error: "Account not found." };
+  if (target.role === "super_admin" && guard.data.role !== "super_admin") {
+    return { ok: false, error: "Only a super admin can reset a super admin's password." };
+  }
+
+  const tempPassword = generateTempPassword();
+  const { error } = await admin.auth.admin.updateUserById(request.matched_user, {
+    password: tempPassword,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  await admin
+    .from("password_reset_requests")
+    .update({ status: "done", handled_by: guard.data.id, handled_at: new Date().toISOString() })
+    .eq("id", requestId);
+
+  revalidatePath("/admin");
+  return {
+    ok: true,
+    data: {
+      tempPassword,
+      label: `${target.full_name}${target.user_no ? ` (ID ${target.user_no})` : ""}`,
+    },
+  };
+}
+
+export async function dismissResetRequest(requestId: string): Promise<ActionResult> {
+  const guard = await requireProcurement();
+  if (!guard.ok) return guard;
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Service key missing." };
+  }
+  const { error } = await admin
+    .from("password_reset_requests")
+    .update({
+      status: "dismissed",
+      handled_by: guard.data.id,
+      handled_at: new Date().toISOString(),
+    })
+    .eq("id", requestId)
+    .eq("status", "open");
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin");
   return { ok: true, data: undefined };
 }
 

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getProfile } from "@/lib/supabase/server";
 import { LogoMark } from "@/components/logo";
 import { LoginForm } from "./login-form";
+import { ForgotPassword } from "./forgot-password";
 
 export const metadata = { title: "Sign in" };
 
@@ -88,16 +89,7 @@ export default async function LoginPage() {
 
           <LoginForm />
 
-          <p className="mt-8 text-sm text-muted-foreground">
-            Forgot your password?{" "}
-            <a
-              href="mailto:procurement@mathvision.com.sg?subject=Password%20reset%20request%20%E2%80%94%20MathVision%20Inventory&body=Hi%20Procurement%2C%0A%0APlease%20reset%20my%20MathVision%20Inventory%20password.%0A%0AMy%20login%20email%3A%20%0AMy%20User%20ID%3A%20%0A%0AThanks!"
-              className="font-medium text-primary underline-offset-2 hover:underline"
-            >
-              Request a new one
-            </a>{" "}
-            — the procurement team will send you a temporary password.
-          </p>
+          <ForgotPassword />
         </div>
       </section>
     </main>

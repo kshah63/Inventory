@@ -40,6 +40,18 @@ export async function signOut(): Promise<void> {
   redirect("/login");
 }
 
+/** "Forgot your password?" on the login page. Always reports success —
+ * whether an account matched is only visible to procurement. */
+export async function requestPasswordReset(identifier: string): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    await supabase.rpc("submit_password_reset", { p_identifier: identifier });
+  } catch {
+    // Deliberately swallowed — the caller always sees success.
+  }
+  return { ok: true, data: undefined };
+}
+
 export async function changeOwnPassword(newPassword: string): Promise<ActionResult> {
   if (newPassword.length < 8) {
     return { ok: false, error: "Password must be at least 8 characters." };

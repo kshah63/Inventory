@@ -150,6 +150,7 @@ export interface DashboardStats {
   pending_orders: number;
   ready_orders: number;
   pending_approvals: number;
+  reset_requests: number;
   checkouts_today: number;
   top_movers_week: { name: string; qty: number }[];
 }
