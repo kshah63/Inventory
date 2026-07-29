@@ -330,6 +330,8 @@ function EditUserDialog({
   const [resetting, setResetting] = React.useState(false);
   const [revoking, setRevoking] = React.useState(false);
   const backendRole = user.role === "super_admin" || user.role === "procurement";
+  // Super admins are protected from each other — only the owner may edit.
+  const locked = user.role === "super_admin" && !isSelf;
   const [form, setForm] = React.useState({
     fullName: user.full_name,
     userNo: user.user_no ? String(user.user_no) : "",
@@ -402,6 +404,7 @@ function EditUserDialog({
           <Input
             id="eu-name"
             required
+            disabled={locked}
             value={form.fullName}
             onChange={(e) => setForm({ ...form, fullName: e.target.value })}
           />
@@ -415,6 +418,7 @@ function EditUserDialog({
                   id="eu-userno"
                   inputMode="numeric"
                   maxLength={4}
+                  disabled={locked}
                   value={form.userNo}
                   onChange={(e) =>
                     setForm({ ...form, userNo: e.target.value.replace(/\D/g, "") })
@@ -426,6 +430,7 @@ function EditUserDialog({
                 <Input
                   id="eu-phone"
                   placeholder="+65…"
+                  disabled={locked}
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 />
@@ -437,7 +442,9 @@ function EditUserDialog({
                 <>
                   <Input value={user.role === "super_admin" ? "Super admin" : "Procurement"} disabled />
                   <p className="text-xs text-muted-foreground">
-                    This role can&apos;t be changed here.
+                    {locked
+                      ? "Super admin accounts can only be changed by their owner."
+                      : "This role can't be changed here."}
                   </p>
                 </>
               ) : (
@@ -480,38 +487,44 @@ function EditUserDialog({
           <Switch
             checked={form.isActive}
             onCheckedChange={(v) => setForm({ ...form, isActive: v })}
-            disabled={isSelf}
+            disabled={isSelf || locked}
           />
           Active {user.role !== "kiosk" && "(deactivated users keep their history)"}
         </label>
         <DialogFooter className="sm:justify-between">
           <div className="flex flex-wrap gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={resetPassword}
-              loading={resetting}
-              title="Generate a new temporary password"
-            >
-              <Lock /> Reset password
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={signOutEverywhere}
-              loading={revoking}
-              title="Revoke every active session for this user"
-            >
-              <LogOut /> Sign out all
-            </Button>
+            {!locked && (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={resetPassword}
+                  loading={resetting}
+                  title="Generate a new temporary password"
+                >
+                  <Lock /> Reset password
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={signOutEverywhere}
+                  loading={revoking}
+                  title="Revoke every active session for this user"
+                >
+                  <LogOut /> Sign out all
+                </Button>
+              </>
+            )}
           </div>
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+              {locked ? "Close" : "Cancel"}
             </Button>
-            <Button type="submit" loading={loading}>
-              Save
-            </Button>
+            {!locked && (
+              <Button type="submit" loading={loading}>
+                Save
+              </Button>
+            )}
           </div>
         </DialogFooter>
       </form>

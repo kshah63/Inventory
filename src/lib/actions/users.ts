@@ -22,6 +22,34 @@ async function requireSuperAdmin(): Promise<ActionResult<string>> {
   return { ok: true, data: profile.id };
 }
 
+/** Super admin accounts are protected from each other: only the owner may
+ * change one. Returns an error result when the target is someone else's
+ * super admin account. */
+async function guardOtherSuperAdmin(
+  targetUserId: string,
+  actorId: string
+): Promise<{ ok: false; error: string } | null> {
+  if (targetUserId === actorId) return null;
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("users")
+      .select("role")
+      .eq("id", targetUserId)
+      .single();
+    if (data?.role === "super_admin") {
+      return {
+        ok: false,
+        error: "Super admin accounts can only be changed by their owner.",
+      };
+    }
+  } catch {
+    // If we can't verify, fail closed for safety.
+    return { ok: false, error: "Couldn't verify that account — try again." };
+  }
+  return null;
+}
+
 async function requireProcurement(): Promise<
   ActionResult<{ id: string; role: string }>
 > {
@@ -211,6 +239,8 @@ export async function setUserPin(userId: string, pin: string): Promise<ActionRes
 export async function signOutUserEverywhere(userId: string): Promise<ActionResult> {
   const guard = await requireSuperAdmin();
   if (!guard.ok) return guard;
+  const blocked = await guardOtherSuperAdmin(userId, guard.data);
+  if (blocked) return blocked;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -275,8 +305,12 @@ export async function fulfillPasswordReset(
     .eq("id", request.matched_user)
     .single();
   if (!target) return { ok: false, error: "Account not found." };
-  if (target.role === "super_admin" && guard.data.role !== "super_admin") {
-    return { ok: false, error: "Only a super admin can reset a super admin's password." };
+  if (target.role === "super_admin" && request.matched_user !== guard.data.id) {
+    return {
+      ok: false,
+      error:
+        "Super admin accounts can only be reset by their owner — they can do it from the Supabase dashboard.",
+    };
   }
 
   const tempPassword = generateTempPassword();
@@ -330,6 +364,8 @@ export async function resetUserPassword(
 ): Promise<ActionResult<{ tempPassword: string }>> {
   const guard = await requireSuperAdmin();
   if (!guard.ok) return guard;
+  const blocked = await guardOtherSuperAdmin(userId, guard.data);
+  if (blocked) return blocked;
 
   let admin;
   try {
