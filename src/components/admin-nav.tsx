@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   AlertTriangle,
   Package,
+  PackageCheck,
   Truck,
   ArrowLeftRight,
   SlidersHorizontal,
@@ -34,6 +35,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/admin/orders", label: "Orders", icon: PackageCheck },
   { href: "/admin/reorder", label: "Reorder", icon: AlertTriangle },
   { href: "/admin/inventory", label: "Inventory", icon: Package },
   { href: "/admin/receive", label: "Receive", icon: Truck },

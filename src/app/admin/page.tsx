@@ -6,6 +6,8 @@ import {
   ClipboardCheck,
   History,
   Inbox,
+  PackageCheck,
+  PackageOpen,
   PackageX,
   ShoppingCart,
   TrendingUp,
@@ -28,6 +30,8 @@ const EMPTY_STATS: DashboardStats = {
   out_of_stock: 0,
   open_requests: 0,
   ordered_requests: 0,
+  pending_orders: 0,
+  ready_orders: 0,
   pending_approvals: 0,
   checkouts_today: 0,
   top_movers_week: [],
@@ -84,7 +88,22 @@ export default async function AdminDashboardPage() {
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <StatCard
+          label="Orders to pack"
+          value={stats.pending_orders ?? 0}
+          sub="pre-orders waiting"
+          icon={PackageOpen}
+          href="/admin/orders"
+          tone={(stats.pending_orders ?? 0) > 0 ? "warning" : undefined}
+        />
+        <StatCard
+          label="Awaiting collection"
+          value={stats.ready_orders ?? 0}
+          sub="packed, not picked up"
+          icon={PackageCheck}
+          href="/admin/orders"
+        />
         <StatCard
           label="Low stock"
           value={stats.low_stock}

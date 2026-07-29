@@ -7,10 +7,15 @@ a live catalog, and proactive reorder alerts.
 
 ## What it does
 
-- **Kiosk checkout** — a wall-mounted tablet in each store room. Staff tap
-  their name, enter a 4–6 digit PIN, tap what they're taking, done — under
-  15 seconds. Sessions auto-expire after 45 seconds idle, PINs are
-  rate-limited, and every withdrawal is logged against a named person.
+- **Order → pack → collect** (the core flow) — the store rooms stay locked.
+  Zone admins shop from their own device (search, cart, pack-of-N
+  quantities, "which zone is this for?"), the procurement team packs each
+  order and marks it ready (that's when stock is decremented, attributed to
+  the requester — nobody self-logs, so nothing gets forgotten or fat-fingered),
+  and the requester collects it after a WhatsApp ping.
+- **Kiosk checkout** (optional, kept for unlocked-room setups) — a
+  wall-mounted tablet flow: tap your name, enter a 4–6 digit PIN, tap what
+  you're taking. Rate-limited PINs, 45-second idle logout.
 - **Immutable ledger** — every checkout, return, receive, transfer, and
   adjustment is a row in an append-only transactions ledger. Stock levels and
   the ledger can never diverge (both are written in a single Postgres

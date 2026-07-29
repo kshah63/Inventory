@@ -1,9 +1,13 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- Migration 0002 — Zone-at-checkout, zone reporting, ordered-requests stat
+-- Migration 0002 — Zones, zone reporting, and the ORDER → PACK → COLLECT flow
 --
--- Incorporates the pilot team's kiosk tool feedback: every checkout records
--- which Zone the supplies are for (replacing per-person departments), and
--- consumption reports can group by zone. Run after 0001 (safe on a live DB).
+-- Pilot learnings baked in:
+--  • Every stock movement records which Zone it was for (replacing
+--    per-person departments); reports group by zone.
+--  • The procurement room stays locked: zone admins pre-order from their own
+--    device (§8 orders), procurement packs and records the checkout, the
+--    requester just collects. No self-logging.
+-- Run the whole file once, after 0001. Safe on a live database.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- 1. Zone column on the ledger (checkouts only; null elsewhere).
@@ -258,6 +262,284 @@ begin
                      where sl.reorder_point > 0 and sl.qty_on_hand = 0),
     'open_requests', (select count(*) from public.requests where status in ('open','acknowledged')),
     'ordered_requests', (select count(*) from public.requests where status = 'ordered'),
+    'pending_approvals', (select count(*) from public.pending_checkouts where status = 'pending'),
+    'checkouts_today', (select coalesce(sum(-qty_delta), 0) from public.transactions
+                        where type = 'checkout'
+                          and created_at >= date_trunc('day', now() at time zone 'Asia/Singapore') at time zone 'Asia/Singapore'),
+    'top_movers_week', (select coalesce(jsonb_agg(x), '[]'::jsonb) from (
+      select i.name, sum(-t.qty_delta) as qty
+      from public.transactions t
+      join public.items i on i.id = t.item_id
+      where t.type = 'checkout' and t.created_at > now() - interval '7 days'
+      group by i.name
+      order by qty desc
+      limit 5
+    ) x)
+  ) into v_result;
+  return v_result;
+end;
+$$;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 8. ORDERS — the revised business process (pilot learning: procurement room
+--    stays locked; zone admins pre-order from their own device, procurement
+--    packs, requester collects). Stock is decremented by procurement at
+--    packing time, attributed to the requester — no self-logging anywhere.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+create table public.orders (
+  id           uuid primary key default gen_random_uuid(),
+  order_no     bigint generated always as identity,
+  requested_by uuid not null references public.users(id),
+  location_id  uuid not null references public.locations(id), -- pickup room
+  zone         text,
+  status       text not null default 'pending'
+               check (status in ('pending','ready','collected','rejected','cancelled')),
+  note         text,        -- requester's note
+  admin_note   text,        -- procurement's note
+  packed_by    uuid references public.users(id),
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now(),
+  ready_at     timestamptz,
+  collected_at timestamptz
+);
+
+create index orders_status_idx on public.orders (status);
+create index orders_requester_idx on public.orders (requested_by, created_at desc);
+
+create trigger orders_touch before update on public.orders
+  for each row execute function public.touch_updated_at();
+
+create table public.order_lines (
+  order_id      uuid not null references public.orders(id) on delete cascade,
+  item_id       uuid not null references public.items(id),
+  qty_requested int not null check (qty_requested > 0),
+  qty_packed    int check (qty_packed is null or qty_packed >= 0),
+  primary key (order_id, item_id)
+);
+
+alter table public.orders enable row level security;
+alter table public.order_lines enable row level security;
+
+-- Requester + admins can read; ALL writes go through the RPCs below.
+create policy orders_read on public.orders for select to authenticated
+  using (requested_by = auth.uid() or public.is_admin());
+create policy order_lines_read on public.order_lines for select to authenticated
+  using (exists (
+    select 1 from public.orders o
+    where o.id = order_id and (o.requested_by = auth.uid() or public.is_admin())
+  ));
+
+-- Staff places an order from their own device.
+-- p_lines: [{"item_id":"...","qty":3}, ...]
+create function public.create_order(
+  p_location_id uuid, p_zone text, p_lines jsonb, p_note text default null
+) returns jsonb
+language plpgsql security definer set search_path = public, extensions
+as $$
+declare
+  v_role text := public.current_user_role();
+  v_order_id uuid;
+  v_order_no bigint;
+  v_line record;
+  v_total int := 0;
+  v_count int := 0;
+begin
+  if v_role not in ('staff','procurement','super_admin') then
+    raise exception 'Not authorized.';
+  end if;
+  if p_lines is null or jsonb_array_length(p_lines) = 0 then
+    raise exception 'Your order is empty.';
+  end if;
+  if not exists (select 1 from public.locations where id = p_location_id and is_active) then
+    raise exception 'Pick a valid store room.';
+  end if;
+
+  insert into public.orders (requested_by, location_id, zone, note)
+  values (auth.uid(), p_location_id, nullif(trim(coalesce(p_zone,'')), ''),
+          nullif(trim(coalesce(p_note,'')), ''))
+  returning id, order_no into v_order_id, v_order_no;
+
+  for v_line in
+    select (e->>'item_id')::uuid as item_id, sum((e->>'qty')::int) as qty
+    from jsonb_array_elements(p_lines) e
+    group by 1
+  loop
+    if v_line.qty is null or v_line.qty <= 0 then
+      raise exception 'Invalid quantity.';
+    end if;
+    if not exists (select 1 from public.items where id = v_line.item_id and is_active) then
+      raise exception 'Item not found.';
+    end if;
+    insert into public.order_lines (order_id, item_id, qty_requested)
+    values (v_order_id, v_line.item_id, v_line.qty);
+    v_total := v_total + v_line.qty;
+    v_count := v_count + 1;
+  end loop;
+
+  return jsonb_build_object(
+    'order_id', v_order_id,
+    'order_no', v_order_no,
+    'total_units', v_total,
+    'line_count', v_count,
+    'requester_name', (select full_name from public.users where id = auth.uid()),
+    'location_name', (select name from public.locations where id = p_location_id)
+  );
+end;
+$$;
+
+-- Requester cancels their own order while it is still pending.
+create function public.cancel_order(p_order_id uuid)
+returns void
+language plpgsql security definer set search_path = public, extensions
+as $$
+begin
+  update public.orders
+  set status = 'cancelled'
+  where id = p_order_id and requested_by = auth.uid() and status = 'pending';
+  if not found then
+    raise exception 'Only your own pending orders can be cancelled.';
+  end if;
+end;
+$$;
+
+-- Procurement packs an order: records the checkout transactions (attributed
+-- to the requester, on_behalf_of the packer, stamped with the order zone)
+-- and marks it ready for collection.
+-- p_lines: [{"item_id":"...","qty":2}, ...] — packed quantities; a line may
+-- be reduced (or 0 = not packed) when stock ran short.
+create function public.pack_order(
+  p_order_id uuid, p_location_id uuid, p_lines jsonb, p_note text default null
+) returns jsonb
+language plpgsql security definer set search_path = public, extensions
+as $$
+declare
+  v_actor uuid := public._require_admin();
+  v_order public.orders;
+  v_line record;
+  v_qty int;
+  v_total int := 0;
+begin
+  select * into v_order from public.orders where id = p_order_id for update;
+  if v_order.id is null then
+    raise exception 'Order not found.';
+  end if;
+  if v_order.status <> 'pending' then
+    raise exception 'Order #% was already handled (%).', v_order.order_no, v_order.status;
+  end if;
+  if not exists (select 1 from public.locations where id = p_location_id and is_active) then
+    raise exception 'Pick a valid store room.';
+  end if;
+
+  for v_line in
+    select (e->>'item_id')::uuid as item_id, sum((e->>'qty')::int) as qty
+    from jsonb_array_elements(coalesce(p_lines, '[]'::jsonb)) e
+    group by 1
+    order by 1
+  loop
+    v_qty := coalesce(v_line.qty, 0);
+    if v_qty < 0 then
+      raise exception 'Packed quantity cannot be negative.';
+    end if;
+    update public.order_lines
+    set qty_packed = v_qty
+    where order_id = p_order_id and item_id = v_line.item_id;
+    if not found then
+      raise exception 'That item is not on this order.';
+    end if;
+    if v_qty > 0 then
+      perform public._apply_transaction(
+        'checkout', v_line.item_id, p_location_id, -v_qty, v_order.requested_by,
+        'Order #' || v_order.order_no, v_actor, null, v_order.zone);
+      v_total := v_total + v_qty;
+    end if;
+  end loop;
+
+  -- Any order line not mentioned in p_lines counts as not packed.
+  update public.order_lines set qty_packed = 0
+  where order_id = p_order_id and qty_packed is null;
+
+  if v_total = 0 then
+    raise exception 'Nothing was packed — reduce quantities or reject the order instead.';
+  end if;
+
+  update public.orders
+  set status = 'ready', packed_by = v_actor, ready_at = now(),
+      location_id = p_location_id,
+      admin_note = nullif(trim(coalesce(p_note,'')), '')
+  where id = p_order_id;
+
+  return jsonb_build_object(
+    'order_no', v_order.order_no,
+    'total_units', v_total,
+    'requester_id', v_order.requested_by,
+    'requester_name', (select full_name from public.users where id = v_order.requested_by),
+    'requester_phone', (select phone from public.users where id = v_order.requested_by),
+    'location_name', (select name from public.locations where id = p_location_id)
+  );
+end;
+$$;
+
+-- Hand-over: ready → collected.
+create function public.collect_order(p_order_id uuid)
+returns void
+language plpgsql security definer set search_path = public, extensions
+as $$
+begin
+  perform public._require_admin();
+  update public.orders
+  set status = 'collected', collected_at = now()
+  where id = p_order_id and status = 'ready';
+  if not found then
+    raise exception 'Only ready orders can be marked collected.';
+  end if;
+end;
+$$;
+
+-- Decline a pending order (nothing was packed, no stock moves).
+create function public.reject_order(p_order_id uuid, p_note text default null)
+returns jsonb
+language plpgsql security definer set search_path = public, extensions
+as $$
+declare
+  v_order public.orders;
+begin
+  perform public._require_admin();
+  select * into v_order from public.orders where id = p_order_id for update;
+  if v_order.id is null or v_order.status <> 'pending' then
+    raise exception 'Only pending orders can be rejected.';
+  end if;
+  update public.orders
+  set status = 'rejected', admin_note = nullif(trim(coalesce(p_note,'')), '')
+  where id = p_order_id;
+  return jsonb_build_object(
+    'order_no', v_order.order_no,
+    'requester_phone', (select phone from public.users where id = v_order.requested_by),
+    'admin_note', nullif(trim(coalesce(p_note,'')), '')
+  );
+end;
+$$;
+
+-- Dashboard: orders to pack / awaiting collection.
+create or replace function public.get_dashboard_stats()
+returns jsonb
+language plpgsql stable security definer set search_path = public, extensions
+as $$
+declare
+  v_result jsonb;
+begin
+  perform public._require_admin();
+  select jsonb_build_object(
+    'low_stock', (select count(*) from public.stock_levels sl
+                  join public.items i on i.id = sl.item_id and i.is_active
+                  where sl.reorder_point > 0 and sl.qty_on_hand <= sl.reorder_point),
+    'out_of_stock', (select count(*) from public.stock_levels sl
+                     join public.items i on i.id = sl.item_id and i.is_active
+                     where sl.reorder_point > 0 and sl.qty_on_hand = 0),
+    'open_requests', (select count(*) from public.requests where status in ('open','acknowledged')),
+    'ordered_requests', (select count(*) from public.requests where status = 'ordered'),
+    'pending_orders', (select count(*) from public.orders where status = 'pending'),
+    'ready_orders', (select count(*) from public.orders where status = 'ready'),
     'pending_approvals', (select count(*) from public.pending_checkouts where status = 'pending'),
     'checkouts_today', (select coalesce(sum(-qty_delta), 0) from public.transactions
                         where type = 'checkout'

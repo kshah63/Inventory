@@ -1,14 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
 import type { CatalogItem, Category, Location } from "@/lib/types";
-import { BrowseClient } from "./browse-client";
+import { ShopClient } from "./shop-client";
 
+export const metadata = { title: "Shop" };
 export const dynamic = "force-dynamic";
 
-export default async function BrowsePage() {
+export default async function ShopPage() {
   const supabase = await createClient();
 
-  const [locationsRes, categoriesRes, itemsRes] = await Promise.all([
+  const [locationsRes, categoriesRes, itemsRes, zonesRes] = await Promise.all([
     supabase
       .from("locations")
       .select("id, name, is_active")
@@ -20,19 +21,28 @@ export default async function BrowsePage() {
       .select("*, category:categories(name), stock_levels(location_id, qty_on_hand)")
       .eq("is_active", true)
       .order("name"),
+    supabase.from("settings").select("value").eq("key", "zones").maybeSingle(),
   ]);
 
   const locations = (locationsRes.data ?? []) as unknown as Location[];
   const categories = (categoriesRes.data ?? []) as unknown as Category[];
   const items = (itemsRes.data ?? []) as unknown as CatalogItem[];
+  const zones = Array.isArray(zonesRes.data?.value)
+    ? (zonesRes.data.value as unknown[]).filter((z): z is string => typeof z === "string")
+    : [];
 
   return (
     <div>
       <PageHeader
-        title="Browse stock"
-        description="Check what's on hand in every room before you walk."
+        title="Order supplies"
+        description="Add what you need, place the order, and the procurement team will pack it for collection."
       />
-      <BrowseClient items={items} locations={locations} categories={categories} />
+      <ShopClient
+        items={items}
+        locations={locations}
+        categories={categories}
+        zones={zones}
+      />
     </div>
   );
 }

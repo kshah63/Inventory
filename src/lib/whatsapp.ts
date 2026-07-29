@@ -291,6 +291,55 @@ export function composeRequestUpdateMessage(info: {
   };
 }
 
+/** New order for procurement to pack. Reuses the mv_approval_needed template
+ * shape so no extra Twilio template is needed. */
+export function composeNewOrderAlert(info: {
+  requester_name: string;
+  order_no: number;
+  total_units: number;
+  location_name: string;
+}): WhatsAppMessage {
+  const link = appLink("/admin/orders");
+  return {
+    body: `🟠 Order #${info.order_no}: ${info.requester_name} pre-ordered ${info.total_units} unit(s) for collection at ${info.location_name}.${link ? `\nPack it: ${link}` : ""}`,
+    variables: {
+      "1": info.requester_name,
+      "2": String(info.total_units),
+      "3": `item(s) in order #${info.order_no}`,
+      "4": info.location_name,
+      "5": link || "-",
+    },
+  };
+}
+
+/** Requester's order is packed / was declined. Reuses the mv_request_update
+ * template shape. */
+export function composeOrderUpdate(info: {
+  order_no: number;
+  total_units: number;
+  status: "ready" | "rejected";
+  location_name?: string;
+  admin_note?: string | null;
+}): WhatsAppMessage {
+  const note = info.admin_note?.trim() || "-";
+  const statusPhrase =
+    info.status === "ready"
+      ? `packed and ready — collect from ${info.location_name ?? "the store room"} ✅`
+      : "declined";
+  return {
+    body:
+      info.status === "ready"
+        ? `✅ Order #${info.order_no} is packed — collect it from ${info.location_name}.${info.admin_note ? ` Note: ${info.admin_note}` : ""}`
+        : `❌ Order #${info.order_no} was declined.${info.admin_note ? ` Note: ${info.admin_note}` : ""}`,
+    variables: {
+      "1": String(info.total_units || 1),
+      "2": `item(s) in order #${info.order_no}`,
+      "3": statusPhrase,
+      "4": note,
+    },
+  };
+}
+
 export function composeDigest(data: {
   low_stock: {
     item_name: string;

@@ -19,6 +19,8 @@ export type RequestStatus =
 
 export type PendingStatus = "pending" | "approved" | "rejected" | "cancelled";
 
+export type OrderStatus = "pending" | "ready" | "collected" | "rejected" | "cancelled";
+
 export interface Location {
   id: string;
   name: string;
@@ -142,9 +144,34 @@ export interface DashboardStats {
   out_of_stock: number;
   open_requests: number;
   ordered_requests: number;
+  pending_orders: number;
+  ready_orders: number;
   pending_approvals: number;
   checkouts_today: number;
   top_movers_week: { name: string; qty: number }[];
+}
+
+export interface OrderRow {
+  id: string;
+  order_no: number;
+  requested_by: string;
+  location_id: string;
+  zone: string | null;
+  status: OrderStatus;
+  note: string | null;
+  admin_note: string | null;
+  packed_by: string | null;
+  created_at: string;
+  updated_at: string;
+  ready_at: string | null;
+  collected_at: string | null;
+}
+
+export interface OrderLineRow {
+  order_id: string;
+  item_id: string;
+  qty_requested: number;
+  qty_packed: number | null;
 }
 
 export interface ConsumptionRow {

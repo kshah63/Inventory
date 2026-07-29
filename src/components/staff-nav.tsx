@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, History, Inbox, LayoutDashboard, LogOut } from "lucide-react";
+import { Search, History, Inbox, LayoutDashboard, LogOut, ShoppingBag } from "lucide-react";
 import { signOut } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "/browse", label: "Browse", icon: Search },
-  { href: "/activity", label: "My activity", icon: History },
+  { href: "/browse", label: "Shop", icon: Search },
+  { href: "/orders", label: "My orders", icon: ShoppingBag },
+  { href: "/activity", label: "Activity", icon: History },
   { href: "/requests", label: "Requests", icon: Inbox },
 ];
 
