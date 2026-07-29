@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Lock, Pencil, Phone, UserPlus, Copy, Check } from "lucide-react";
+import { Lock, LogOut, Pencil, Phone, UserPlus, Copy, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
@@ -19,7 +19,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
-import { createLoginUser, resetUserPassword, updateUser } from "@/lib/actions/users";
+import {
+  createLoginUser,
+  resetUserPassword,
+  signOutUserEverywhere,
+  updateUser,
+} from "@/lib/actions/users";
 import type { Location, Role } from "@/lib/types";
 
 export interface UserListEntry {
@@ -324,6 +329,7 @@ function EditUserDialog({
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(false);
   const [resetting, setResetting] = React.useState(false);
+  const [revoking, setRevoking] = React.useState(false);
   const backendRole = user.role === "super_admin" || user.role === "procurement";
   const [form, setForm] = React.useState({
     fullName: user.full_name,
@@ -373,6 +379,19 @@ function EditUserDialog({
       return;
     }
     onTempPassword(user.full_name, result.data.tempPassword);
+  }
+
+  async function signOutEverywhere() {
+    setRevoking(true);
+    const result = await signOutUserEverywhere(user.id);
+    setRevoking(false);
+    if (!result.ok) {
+      toast(result.error, "error");
+      return;
+    }
+    toast(
+      `Sessions revoked — ${user.full_name}'s open tabs lose access when their current token expires. Deactivate for an instant lockout.`
+    );
   }
 
   return (
@@ -467,15 +486,26 @@ function EditUserDialog({
           Active {user.role !== "kiosk" && "(deactivated users keep their history)"}
         </label>
         <DialogFooter className="sm:justify-between">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={resetPassword}
-            loading={resetting}
-            title="Generate a new temporary password"
-          >
-            <Lock /> Reset password
-          </Button>
+          <div className="flex flex-wrap gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={resetPassword}
+              loading={resetting}
+              title="Generate a new temporary password"
+            >
+              <Lock /> Reset password
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={signOutEverywhere}
+              loading={revoking}
+              title="Revoke every active session for this user"
+            >
+              <LogOut /> Sign out all
+            </Button>
+          </div>
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel

@@ -195,6 +195,40 @@ export async function setUserPin(userId: string, pin: string): Promise<ActionRes
   return { ok: true, data: undefined };
 }
 
+/** Revoke every active session for a user. Their open tabs lose access
+ * once the current access token expires (JWT expiry setting in Supabase,
+ * 1h by default) — pair with Deactivate for an instant data-level lockout. */
+export async function signOutUserEverywhere(userId: string): Promise<ActionResult> {
+  const guard = await requireSuperAdmin();
+  if (!guard.ok) return guard;
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    return { ok: false, error: "SUPABASE_SERVICE_ROLE_KEY is not configured." };
+  }
+
+  try {
+    const res = await fetch(`${url}/auth/v1/admin/users/${userId}/logout`, {
+      method: "POST",
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    });
+    if (!res.ok) {
+      if (res.status === 404) {
+        return {
+          ok: false,
+          error: "This user has no login account — nothing to sign out.",
+        };
+      }
+      const detail = await res.text().catch(() => res.statusText);
+      return { ok: false, error: `Could not revoke sessions: ${detail.slice(0, 200)}` };
+    }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Network error." };
+  }
+  return { ok: true, data: undefined };
+}
+
 /** Reset a login user's password (returns a new temporary password). */
 export async function resetUserPassword(
   userId: string
