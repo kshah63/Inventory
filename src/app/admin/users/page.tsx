@@ -41,7 +41,7 @@ export default async function UsersPage() {
     <>
       <PageHeader
         title="Users"
-        description="Department Admins and Heads with their four-digit User IDs. Procurement and Super Admin accounts are managed from the back end."
+        description="Department Admins and Heads with their four-digit User IDs."
       />
       <UsersClient
         users={sanitized}

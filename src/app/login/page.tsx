@@ -34,7 +34,7 @@ export default async function LoginPage() {
             <span className="leading-tight">
               <span className="block text-xl font-bold tracking-tight">MathVision</span>
               <span className="block text-[11px] font-bold uppercase tracking-[0.25em] text-[#bcc3ff]">
-                Stock &amp; Procurement
+                Inventory
               </span>
             </span>
           </span>
@@ -61,7 +61,7 @@ export default async function LoginPage() {
         {/* Ordering / delivery line art (carton + packing checklist) */}
         <div className="relative z-10 flex items-end justify-between p-10">
           <p className="text-sm text-white/70">
-            MathVision · Stock — Level 8 &amp; Basement store rooms
+            MathVision · Inventory — Level 8 &amp; Basement store rooms
           </p>
           <DeliveryArt className="-mb-6 -mr-2 h-44 w-auto shrink-0 text-white/30 xl:h-56" />
         </div>
@@ -76,21 +76,27 @@ export default async function LoginPage() {
             <span className="leading-tight">
               <span className="block font-bold tracking-tight">MathVision</span>
               <span className="block text-[10px] font-bold uppercase tracking-[0.25em] text-primary">
-                Stock &amp; Procurement
+                Inventory
               </span>
             </span>
           </div>
 
           <h1 className="font-serif text-4xl font-medium tracking-tight">Sign in</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Use the account your super admin set up for you.
+            Sign in with the account created for you.
           </p>
 
           <LoginForm />
 
-          <p className="mt-8 text-xs text-muted-foreground">
-            Forgot your password? A super admin can reset it from the Users
-            screen. Kiosk tablets sign in with their device account.
+          <p className="mt-8 text-sm text-muted-foreground">
+            Forgot your password?{" "}
+            <a
+              href="mailto:procurement@mathvision.com.sg?subject=Password%20reset%20request%20%E2%80%94%20MathVision%20Inventory&body=Hi%20Procurement%2C%0A%0APlease%20reset%20my%20MathVision%20Inventory%20password.%0A%0AMy%20login%20email%3A%20%0AMy%20User%20ID%3A%20%0A%0AThanks!"
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              Request a new one
+            </a>{" "}
+            — the procurement team will send you a temporary password.
           </p>
         </div>
       </section>

@@ -13,8 +13,8 @@ export default async function Home() {
       <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">
         <Logo />
         <p className="max-w-sm text-muted-foreground">
-          This account has been deactivated. Contact a super admin if you think
-          that&apos;s a mistake.
+          This account has been deactivated. Contact the procurement team if
+          you think that&apos;s a mistake.
         </p>
         <form action={signOut}>
           <Button variant="outline">Sign out</Button>

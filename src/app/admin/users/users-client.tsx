@@ -297,8 +297,7 @@ function AddLoginDialog({
         </div>
         <p className="text-xs text-muted-foreground">
           The four-digit User ID stays with the person even when they change
-          departments. Procurement and Super Admin accounts are created from
-          the back end only.
+          departments.
         </p>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>
@@ -438,7 +437,7 @@ function EditUserDialog({
                 <>
                   <Input value={user.role === "super_admin" ? "Super admin" : "Procurement"} disabled />
                   <p className="text-xs text-muted-foreground">
-                    This role is managed from the back end.
+                    This role can&apos;t be changed here.
                   </p>
                 </>
               ) : (

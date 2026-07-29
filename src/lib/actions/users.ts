@@ -17,7 +17,7 @@ function generateTempPassword(): string {
 async function requireSuperAdmin(): Promise<ActionResult<string>> {
   const profile = await getProfile();
   if (!profile || profile.role !== "super_admin") {
-    return { ok: false, error: "Only super admins can manage users." };
+    return { ok: false, error: "You don't have permission to manage users." };
   }
   return { ok: true, data: profile.id };
 }
@@ -36,7 +36,7 @@ export async function createLoginUser(params: {
   const guard = await requireSuperAdmin();
   if (!guard.ok) return guard;
   if (params.role !== "staff" && params.role !== "dept_head") {
-    return { ok: false, error: "That role can only be assigned from the back end." };
+    return { ok: false, error: "That role can't be assigned here." };
   }
   if (
     params.userNo !== undefined &&
@@ -160,7 +160,7 @@ export async function updateUser(params: {
   // Role changes from the app are limited to the two department roles;
   // procurement/super admin assignments happen on the back end only.
   if (params.role && params.role !== "staff" && params.role !== "dept_head") {
-    return { ok: false, error: "That role can only be assigned from the back end." };
+    return { ok: false, error: "That role can't be assigned here." };
   }
   if (
     params.userNo !== undefined &&

@@ -18,8 +18,8 @@ const lora = Lora({
 
 export const metadata: Metadata = {
   title: {
-    default: "MathVision Stock",
-    template: "%s · MathVision Stock",
+    default: "MathVision Inventory",
+    template: "%s · MathVision Inventory",
   },
   description:
     "MathVision Educational Enrichment Centre — procurement & inventory management",
