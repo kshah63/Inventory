@@ -35,6 +35,10 @@ const config: Config = {
           DEFAULT: "hsl(var(--brand))",
           foreground: "hsl(var(--brand-foreground))",
         },
+        navyaccent: {
+          DEFAULT: "hsl(var(--navy))",
+          foreground: "hsl(var(--navy-foreground))",
+        },
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
@@ -63,6 +67,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["var(--font-archivo)", "system-ui", "sans-serif"],
+        serif: ["var(--font-lora)", "Georgia", "serif"],
       },
       borderRadius: {
         lg: "var(--radius)",

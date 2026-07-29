@@ -4,22 +4,26 @@
 
 @layer base {
   :root {
-    /* MathVision brand — royal blue #2E3192 primary, orange #F15A29 accent,
-       exact values from the official logo. Clean & minimal. */
+    /* MathVision brand, inventory arrangement: the invoice app is navy-led
+       with orange accents; Stock flips it — ORANGE-led (#F15A29 family,
+       deepened slightly for AA contrast on buttons) with navy (#2E3192)
+       as ink and accent. Same guide, sibling look, instantly tellable apart. */
     --background: 228 33% 98%;
     --foreground: 235 40% 14%;
     --card: 0 0% 100%;
     --card-foreground: 235 40% 14%;
-    --primary: 238 52% 38%; /* #2E3192 */
+    --primary: 15 85% 46%; /* deepened brand orange */
     --primary-foreground: 0 0% 100%;
     --secondary: 230 27% 94%;
     --secondary-foreground: 236 40% 22%;
     --muted: 230 27% 94%;
     --muted-foreground: 230 12% 44%;
-    --accent: 235 60% 95%;
-    --accent-foreground: 238 52% 38%;
-    --brand: 15 88% 55%; /* #F15A29 */
+    --accent: 18 90% 95%;
+    --accent-foreground: 15 85% 40%;
+    --brand: 15 88% 55%; /* #F15A29 — the true logo orange */
     --brand-foreground: 0 0% 100%;
+    --navy: 238 52% 38%; /* #2E3192 */
+    --navy-foreground: 0 0% 100%;
     --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
     --success: 152 60% 32%;
@@ -28,7 +32,7 @@
     --warning-foreground: 0 0% 100%;
     --border: 228 20% 88%;
     --input: 228 20% 84%;
-    --ring: 238 52% 48%;
+    --ring: 15 85% 48%;
     --radius: 0.625rem;
   }
 
@@ -54,5 +58,18 @@
   }
   .scrollbar-none::-webkit-scrollbar {
     display: none;
+  }
+  /* Subtle blueprint grid, as on the invoice app's login */
+  .brand-grid {
+    background-image:
+      linear-gradient(to right, rgb(255 255 255 / 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.07) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .brand-grid-light {
+    background-image:
+      linear-gradient(to right, rgb(46 49 146 / 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(46 49 146 / 0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
   }
 }
