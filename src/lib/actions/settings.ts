@@ -51,7 +51,7 @@ export async function sendTestWhatsApp(): Promise<ActionResult> {
   // gets exercised by the test too.
   await broadcastToProcurement(
     {
-      body: "✅ MathVision Stock — test message. WhatsApp alerts are working!",
+      body: "✅ MathVision Inventory — test message. WhatsApp alerts are working!",
       variables: {
         "1": "0",
         "2": "test message — WhatsApp alerts are working",

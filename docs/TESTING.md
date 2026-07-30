@@ -1,4 +1,4 @@
-# User acceptance test script — MathVision Stock
+# User acceptance test script — MathVision Inventory
 
 A complete walkthrough of every feature, in the order that makes each test
 set up the next. Time needed: ~45 minutes. The database-level rules (stock

@@ -281,7 +281,7 @@ export function composeRequestUpdateMessage(info: {
   const statusPhrase = statusText[info.status] ?? `is now "${info.status}"`;
   const note = info.admin_note?.trim() || "-";
   return {
-    body: `MathVision Stock: your request for ${info.qty} × ${info.item_label} ${statusPhrase}.${info.admin_note ? ` Note: ${info.admin_note}` : ""}`,
+    body: `MathVision Inventory: your request for ${info.qty} × ${info.item_label} ${statusPhrase}.${info.admin_note ? ` Note: ${info.admin_note}` : ""}`,
     variables: {
       "1": String(info.qty),
       "2": info.item_label,
@@ -367,8 +367,8 @@ export function composeDigest(data: {
   const bodyLines: string[] = [];
   bodyLines.push(
     data.low_stock.length > 0
-      ? `📦 MathVision Stock — ${data.low_stock.length} item${data.low_stock.length === 1 ? "" : "s"} low:`
-      : "📦 MathVision Stock — all stock levels healthy today."
+      ? `📦 MathVision Inventory — ${data.low_stock.length} item${data.low_stock.length === 1 ? "" : "s"} low:`
+      : "📦 MathVision Inventory — all stock levels healthy today."
   );
   for (const row of shown) bodyLines.push(`• ${itemPhrase(row)}`);
   if (data.low_stock.length > 15) bodyLines.push(`…and ${data.low_stock.length - 15} more.`);

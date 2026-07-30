@@ -24,7 +24,8 @@ export function Logo({ className, compact }: { className?: string; compact?: boo
       <LogoMark className="h-8 w-8 shrink-0" />
       {!compact && (
         <span className="text-lg font-bold leading-none tracking-tight">
-          MathVision <span className="font-medium text-muted-foreground">Stock</span>
+          MathVision{" "}
+          <span className="font-medium text-muted-foreground">Inventory</span>
         </span>
       )}
     </span>

@@ -1,4 +1,4 @@
-# MathVision Stock
+# MathVision Inventory
 
 Procurement & inventory management for MathVision Educational Enrichment
 Centre — a single source of truth for the **Level 8** and **Basement** store

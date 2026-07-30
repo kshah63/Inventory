@@ -1,4 +1,4 @@
-# Deployment Guide — MathVision Stock
+# Deployment Guide — MathVision Inventory
 
 End-to-end setup: **Supabase → Vercel → Twilio WhatsApp → kiosk tablets →
 go-live**. Budget ~45 minutes for the first three sections; the WhatsApp
@@ -103,6 +103,13 @@ register five templates once — after that, everything is automatic.
    | `mv_approval_needed` | `🟡 MathVision Stock approval needed: {{1}} is requesting {{2}} unit(s) of {{3}} from the {{4}} store room. Please approve or reject this checkout in the approvals queue: {{5}}` |
    | `mv_approval_decided` | `Update from MathVision Stock: your checkout request for {{1}} × {{2}} has been reviewed by the procurement team. Decision: {{3}}. Note from the team: {{4}}` |
    | `mv_request_update` | `Update from MathVision Stock: your stock request for {{1}} × {{2}} has been updated by the procurement team. New status: {{3}}. Note from the team: {{4}}` |
+
+   > These bodies say "MathVision Stock" because that's how they were
+   > submitted to Meta and approved. The app is called **MathVision
+   > Inventory** everywhere else; renaming an approved template means
+   > duplicating it under a new name, resubmitting, waiting for approval and
+   > swapping in the new HX… SID, so it's a deliberate follow-up rather than
+   > part of the rename.
 
    > The bodies are deliberately wordy: Meta rejects templates whose text is
    > short relative to their variable count ("This template has too many
