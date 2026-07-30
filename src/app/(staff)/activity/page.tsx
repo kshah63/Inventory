@@ -1,5 +1,5 @@
 import { History } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getProfile } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -22,12 +22,18 @@ function qtyLabel(row: TransactionRow) {
 }
 
 export default async function ActivityPage() {
+  const profile = await getProfile();
   const supabase = await createClient();
 
-  // RLS limits staff to their own rows; admins see everything.
+  // Strictly this person's own supplies. Filtered explicitly rather than
+  // leaning on RLS, because reporting roles can read the whole ledger — and
+  // limited to checkouts/returns so procurement's stock operations (receives,
+  // transfers, CSV-import adjustments) never appear here.
   const { data } = await supabase
     .from("v_transactions")
     .select("*")
+    .eq("user_id", profile?.id ?? "")
+    .in("type", ["checkout", "return"])
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -47,14 +53,14 @@ export default async function ActivityPage() {
     <div>
       <PageHeader
         title="My activity"
-        description="Everything you've taken or returned, most recent first."
+        description="Supplies collected on your orders, and anything you've returned."
       />
 
       {rows.length === 0 ? (
         <EmptyState
           icon={History}
           title="No activity yet"
-          description="Checkouts and returns you make at the kiosk will show up here."
+          description="Once procurement packs an order for you, the items show up here."
         />
       ) : (
         <div className="space-y-8">

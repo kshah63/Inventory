@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Search, History, Inbox, LayoutDashboard, LogOut, ShoppingBag } from "lucide-react";
+import {
+  BarChart3,
+  Search,
+  History,
+  Inbox,
+  LayoutDashboard,
+  LogOut,
+  ShoppingBag,
+  UserCircle,
+} from "lucide-react";
 import { signOut } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +20,7 @@ const LINKS = [
   { href: "/orders", label: "My orders", icon: ShoppingBag },
   { href: "/activity", label: "Activity", icon: History },
   { href: "/requests", label: "Requests", icon: Inbox },
+  { href: "/profile", label: "Profile", icon: UserCircle },
 ];
 
 export function StaffNav({
