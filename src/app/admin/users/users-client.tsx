@@ -82,7 +82,7 @@ export function UsersClient({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={() => setDialog({ kind: "add-login" })}>
-          <UserPlus /> Add login user
+          <UserPlus /> Add user
         </Button>
         <label className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
           <Switch checked={showInactive} onCheckedChange={setShowInactive} />
@@ -198,7 +198,6 @@ function AddLoginDialog({
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(false);
   const [form, setForm] = React.useState({
-    email: "",
     fullName: "",
     role: "staff" as "staff" | "dept_head",
     userNo: String(nextUserNo),
@@ -217,7 +216,6 @@ function AddLoginDialog({
     }
     setLoading(true);
     const result = await createLoginUser({
-      email: form.email,
       fullName: form.fullName,
       role: form.role,
       userNo: Number(form.userNo),
@@ -228,16 +226,19 @@ function AddLoginDialog({
       toast(result.error, "error");
       return;
     }
-    onTempPassword(form.email, result.data.tempPassword);
-    setForm({ email: "", fullName: "", role: "staff", userNo: String(nextUserNo), phone: "" });
+    onTempPassword(
+      `${form.fullName.trim()} — User ID ${form.userNo}`,
+      result.data.tempPassword
+    );
+    setForm({ fullName: "", role: "staff", userNo: String(nextUserNo), phone: "" });
     router.refresh();
   }
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Add login user</DialogTitle>
+      <DialogTitle>Add user</DialogTitle>
       <DialogDescription>
-        Creates an account for the app. You&apos;ll get a one-time temporary
-        password to pass on — they can change it in Settings.
+        They sign in with their four-digit User ID. You&apos;ll get a one-time
+        temporary password to pass on — they can change it in Settings.
       </DialogDescription>
       <form onSubmit={submit} className="space-y-3">
         <div className="space-y-1.5">
@@ -247,16 +248,6 @@ function AddLoginDialog({
             required
             value={form.fullName}
             onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="nu-email">Email</Label>
-          <Input
-            id="nu-email"
-            type="email"
-            required
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -296,8 +287,8 @@ function AddLoginDialog({
           />
         </div>
         <p className="text-xs text-muted-foreground">
-          The four-digit User ID stays with the person even when they change
-          departments.
+          The User ID is how they sign in, and it stays with them even when
+          they change departments.
         </p>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>
@@ -546,8 +537,9 @@ function TempPasswordDialog({
     <Dialog open onClose={onClose} className="max-w-md">
       <DialogTitle>Temporary password</DialogTitle>
       <DialogDescription>
-        Share this with <strong>{label}</strong> now — it won&apos;t be shown
-        again. They should change it after signing in (Settings → Account).
+        Give these sign-in details to <strong>{label}</strong> now — the
+        password won&apos;t be shown again. They should change it after signing
+        in (Settings → Account).
       </DialogDescription>
       <div className="flex items-center gap-2">
         <code className="flex-1 rounded-md border bg-muted px-3 py-2.5 font-mono text-base">

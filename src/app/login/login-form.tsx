@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 
 export function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = React.useState("");
+  const [identifier, setIdentifier] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -18,7 +18,7 @@ export function LoginForm() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const result = await signIn(email, password);
+    const result = await signIn(identifier, password);
     if (!result.ok) {
       setError(result.error);
       setLoading(false);
@@ -31,17 +31,20 @@ export function LoginForm() {
   return (
     <form onSubmit={onSubmit} className="mt-8 space-y-5">
       <div className="space-y-1.5">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="identifier">User ID</Label>
         <Input
-          id="email"
-          type="email"
-          autoComplete="email"
+          id="identifier"
+          type="text"
+          autoComplete="username"
           required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@mathvision.sg"
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
+          placeholder="1042"
           className="h-12 rounded-lg bg-white text-base shadow-sm"
         />
+        <p className="text-xs text-muted-foreground">
+          Your four-digit ID. Procurement and super admins: use your email.
+        </p>
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="password">Password</Label>

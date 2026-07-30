@@ -62,7 +62,7 @@ export default async function LoginPage() {
         {/* Ordering / delivery line art (carton + packing checklist) */}
         <div className="relative z-10 flex items-end justify-between p-10">
           <p className="text-sm text-white/70">
-            MathVision · Inventory — Level 8 &amp; Basement store rooms
+            MathVision · Inventory
           </p>
           <DeliveryArt className="-mb-6 -mr-2 h-44 w-auto shrink-0 text-white/30 xl:h-56" />
         </div>
@@ -84,7 +84,7 @@ export default async function LoginPage() {
 
           <h1 className="font-serif text-4xl font-medium tracking-tight">Sign in</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Sign in with the account created for you.
+            Sign in with the User ID you were given.
           </p>
 
           <LoginForm />

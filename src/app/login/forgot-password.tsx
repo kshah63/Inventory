@@ -67,14 +67,14 @@ export function ForgotPassword() {
             </DialogDescription>
             <form onSubmit={submit} className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="fp-id">Your email or 4-digit User ID</Label>
+                <Label htmlFor="fp-id">Your User ID or email</Label>
                 <Input
                   id="fp-id"
                   autoFocus
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="you@mathvision.sg or 1042"
+                  placeholder="1042"
                   className="h-11"
                 />
               </div>

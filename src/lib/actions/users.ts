@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient, getProfile } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { idToLoginEmail, isIdLoginEmail } from "@/lib/user-login";
 import type { ActionResult, Role } from "@/lib/types";
 
 function generateTempPassword(): string {
@@ -64,12 +65,10 @@ async function requireProcurement(): Promise<
  * and Super Admin accounts are deliberately NOT creatable from the app —
  * back end only. Returns a one-time temporary password to share. */
 export async function createLoginUser(params: {
-  email: string;
   fullName: string;
   role: "staff" | "dept_head";
-  userNo?: number;
+  userNo: number;
   phone?: string;
-  pin?: string;
 }): Promise<ActionResult<{ tempPassword: string }>> {
   const guard = await requireSuperAdmin();
   if (!guard.ok) return guard;
@@ -77,16 +76,18 @@ export async function createLoginUser(params: {
     return { ok: false, error: "That role can't be assigned here." };
   }
   if (
-    params.userNo !== undefined &&
-    (!Number.isInteger(params.userNo) || params.userNo < 1000 || params.userNo > 9999)
+    !Number.isInteger(params.userNo) ||
+    params.userNo < 1000 ||
+    params.userNo > 9999
   ) {
     return { ok: false, error: "User ID must be a four-digit number." };
   }
-
-  const email = params.email.trim().toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    return { ok: false, error: "Enter a valid email address." };
+  if (!params.fullName.trim()) {
+    return { ok: false, error: "Name is required." };
   }
+
+  // Department teams sign in with their User ID; Supabase needs an address.
+  const email = idToLoginEmail(params.userNo);
 
   let admin;
   try {
@@ -101,32 +102,20 @@ export async function createLoginUser(params: {
     password: tempPassword,
     email_confirm: true,
     user_metadata: { full_name: params.fullName.trim() },
-    app_metadata: {
-      role: params.role,
-      ...(params.userNo !== undefined ? { user_no: params.userNo } : {}),
-    },
+    app_metadata: { role: params.role, user_no: params.userNo },
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    if (/already/i.test(error.message)) {
+      return { ok: false, error: `User ID ${params.userNo} is already in use.` };
+    }
+    return { ok: false, error: error.message };
+  }
 
   // The handle_new_user trigger created the profile; enrich it.
   await admin
     .from("users")
     .update({ phone: params.phone?.trim() || null })
     .eq("id", created.user.id);
-
-  if (params.pin) {
-    const supabase = await createClient();
-    const { error: pinError } = await supabase.rpc("set_user_pin", {
-      p_user_id: created.user.id,
-      p_pin: params.pin,
-    });
-    if (pinError) {
-      return {
-        ok: true,
-        data: { tempPassword },
-      };
-    }
-  }
 
   revalidatePath("/admin/users");
   return { ok: true, data: { tempPassword } };
@@ -206,6 +195,41 @@ export async function updateUser(params: {
   ) {
     return { ok: false, error: "User ID must be a four-digit number." };
   }
+  // An ID-login account's address is derived from its User ID — move the
+  // login first so the two can never drift apart.
+  if (params.userNo !== undefined) {
+    try {
+      const admin = createAdminClient();
+      const { data: current } = await admin
+        .from("users")
+        .select("user_no")
+        .eq("id", params.userId)
+        .maybeSingle();
+      if (current && current.user_no !== params.userNo) {
+        const { data: authUser } = await admin.auth.admin.getUserById(params.userId);
+        if (isIdLoginEmail(authUser?.user?.email)) {
+          const { error: emailError } = await admin.auth.admin.updateUserById(
+            params.userId,
+            { email: idToLoginEmail(params.userNo), email_confirm: true }
+          );
+          if (emailError) {
+            return {
+              ok: false,
+              error: /already/i.test(emailError.message)
+                ? `User ID ${params.userNo} is already in use.`
+                : `Couldn't move the login to ID ${params.userNo}: ${emailError.message}`,
+            };
+          }
+        }
+      }
+    } catch (e) {
+      return {
+        ok: false,
+        error: e instanceof Error ? e.message : "Couldn't update the login ID.",
+      };
+    }
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_user_profile", {
     p_user_id: params.userId,
