@@ -166,7 +166,7 @@ export function NewRequestDialog({ zones }: { zones: string[] }) {
               id="request-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brand, size, colour, what it's for, how urgent…"
+              placeholder="Brand, size, colour, what it's for…"
               maxLength={1000}
             />
           </div>
