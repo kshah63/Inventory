@@ -37,7 +37,7 @@ a live catalog, and proactive reorder alerts.
   gracefully (skipped + logged) when Twilio isn't configured.
 - **Admin suite** — receive/transfer/adjust, stocktake mode with variance
   reports, full inventory grid with CSV import/export (idempotent on SKU),
-  consumption reports (by user/item/category/department), filterable audit
+  consumption reports (by user/item/category/zone), filterable audit
   log, and user management.
 
 ## Stack

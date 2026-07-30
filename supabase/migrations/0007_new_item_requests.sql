@@ -1,9 +1,9 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- Migration 0007 — Requests are for NEW items only; individual departments
+-- Migration 0007 — Requests are for NEW items only; individual zones
 --
 --  • Requests gain a description, a product link and a photo, and no longer
 --    need a store room (everything is delivered to the procurement room).
---  • Departments are individual numbers 3–22 instead of grouped ranges.
+--  • Zones are individual numbers 3–22 instead of grouped ranges.
 -- Run once, after 0006. Safe on a live database.
 -- ═══════════════════════════════════════════════════════════════════════════
 
@@ -15,7 +15,7 @@ alter table public.requests add column if not exists photo_url text;
 -- Deliveries all land in the procurement room, so the store room is optional.
 alter table public.requests alter column location_id drop not null;
 
--- 2. Departments 3 … 22, individually.
+-- 2. Zones 3 … 22, individually.
 update public.settings
 set value = (select jsonb_agg(g::text order by g) from generate_series(3, 22) g),
     updated_at = now()

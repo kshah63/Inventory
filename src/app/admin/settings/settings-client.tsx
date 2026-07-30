@@ -40,7 +40,7 @@ export function SettingsClient({
   const [draft, setDraft] = React.useState("");
   const [savingRecipients, setSavingRecipients] = React.useState(false);
 
-  // Departments (asked on orders and requests)
+  // Zones (asked on orders and requests)
   const [zones, setZones] = React.useState(initialZones);
   const [zoneDraft, setZoneDraft] = React.useState("");
   const [savingZones, setSavingZones] = React.useState(false);
@@ -298,10 +298,10 @@ export function SettingsClient({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <MapPin className="h-4 w-4 text-muted-foreground" />
-            Departments
+            Zones
           </CardTitle>
           <CardDescription>
-            Orders and requests ask &ldquo;which department is this for?&rdquo; —
+            Orders and requests ask &ldquo;which zone is this for?&rdquo; —
             these are the choices, and consumption reports group by them.
             Remove all entries to skip the question.
           </CardDescription>
@@ -309,7 +309,7 @@ export function SettingsClient({
         <CardContent className="space-y-3">
           {zones.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No departments configured — orders and requests won&apos;t ask.
+              No zones configured — orders and requests won&apos;t ask.
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -338,7 +338,7 @@ export function SettingsClient({
               value={zoneDraft}
               onChange={(e) => setZoneDraft(e.target.value)}
               className="max-w-xs"
-              aria-label="New department"
+              aria-label="New zone"
             />
             <Button type="submit" variant="outline" loading={savingZones}>
               <Plus /> Add

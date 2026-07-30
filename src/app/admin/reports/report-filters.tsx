@@ -32,7 +32,7 @@ export function ReportFilters({ range, by }: { range: number; by: ReportGroupBy 
       >
         <option value="item">By item</option>
         <option value="user">By user</option>
-        <option value="zone">By department</option>
+        <option value="zone">By zone</option>
         <option value="category">By category</option>
       </Select>
     </div>

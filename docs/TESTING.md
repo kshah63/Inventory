@@ -48,9 +48,9 @@ Sign in as Priya Test (temp password) in a private window.
 | --- | --- | --- |
 | 2.1 | Lands on **/browse** (Catalogue) | Total availability per item; search + category chips work; no store-room picker anywhere in the order flow |
 | 2.2 | **My activity** | Only Priya's checkouts/returns, grouped by day |
-| 2.3 | **Requests** → Request a new item: name, description, product link, a photo, qty 2, department 14 | Listed as *Open* with the photo thumbnail, description and working link; cancel it — it disappears |
+| 2.3 | **Requests** → Request a new item: name, description, product link, a photo, qty 2, zone 14 | Listed as *Open* with the photo thumbnail, description and working link; cancel it — it disappears |
 | 2.3a | Same form — check there is no catalogue dropdown and no Level 8/Basement field | Callout at the top points catalogue items back to **Catalogue**; only new-item fields are shown |
-| 2.4 | Place a catalogue order and pick a department | Departments are the bare numbers 3–22; order lands in the procurement queue tagged with that department |
+| 2.4 | Place a catalogue order and pick a zone | Zones are the bare numbers 3–22; order lands in the procurement queue tagged with that zone |
 | 2.5 | Type `/admin` in the URL bar | Bounced back to /browse — staff can't see admin screens |
 | 2.6 | **Profile** → change password, then sign out and back in with the new one | Change succeeds; the old password no longer works. (If a password is forgotten instead, "Request a new password" on the login screen puts it in procurement's dashboard queue.) |
 
@@ -69,7 +69,7 @@ Sign in as Priya Test (temp password) in a private window.
 | 3.9 | Select reorder rows → **Copy as WhatsApp message** | Formatted order list on the clipboard |
 | 3.10 | **Approvals**: approve the toner request from 1.10 | Stock decremented, checkout attributed to Priya in the audit log, Priya gets a WhatsApp (phone on file); History tab shows the decision |
 | 3.11 | **Requests**: open Priya's new-item request | Photo thumbnail, description and product link all visible; move it Open → Ordered with a note — Priya's /requests shows the new status + note and a WhatsApp update arrives |
-| 3.12 | **Reports**: switch group-by User/Item/Category/Department, ranges 7/30/90 | Charts + ranked tables respond; "by user" is the fairness view |
+| 3.12 | **Reports**: switch group-by User/Item/Category/Zone, ranges 7/30/90 | Charts + ranked tables respond; "by user" is the fairness view |
 | 3.13 | **Audit log**: filter by type/location/user/item/date; export CSV | Filters compose; pagination works; CSV downloads |
 | 3.14 | **Users**: reset Priya's password; deactivate her | Old session can't act (deactivated notice); her name shows as "Former staff — Priya Test" in history views. Reactivate after |
 
@@ -88,7 +88,8 @@ Sign in as Priya Test (temp password) in a private window.
 - Staff account → `/admin/inventory` → redirected to /browse.
 - Sign out → any admin URL → login page.
 - (DB level — RLS, ledger immutability, PIN brute force — is covered by
-  `supabase/tests/01_smoke_test.sql`, 33 assertions, all passing.)
+  `supabase/tests/01_smoke_test.sql`, 36 assertions, plus
+  `02_requests_and_zones.sql`, 8 more; all passing.)
 
 ## Known limitations (by design, per the spec's phasing)
 

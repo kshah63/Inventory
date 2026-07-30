@@ -84,7 +84,7 @@ export function RequestsList({ requests }: { requests: RequestWithJoins[] }) {
                   </Badge>
                 </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {req.zone ? `Department ${req.zone} · ` : ""}
+                  {req.zone ? `Zone ${req.zone} · ` : ""}
                   {timeAgo(req.created_at)}
                 </p>
 

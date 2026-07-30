@@ -200,7 +200,7 @@ export function RequestsClient({ requests }: { requests: AdminRequest[] }) {
                       <Badge variant={STATUS_BADGE[r.status]}>
                         {REQUEST_STATUS_LABELS[r.status]}
                       </Badge>
-                      {r.zone && <Badge variant="outline">Dept {r.zone}</Badge>}
+                      {r.zone && <Badge variant="outline">Zone {r.zone}</Badge>}
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {r.requester_name} · {timeAgo(r.created_at)}
@@ -255,7 +255,7 @@ export function RequestsClient({ requests }: { requests: AdminRequest[] }) {
             </DialogTitle>
             <DialogDescription>
               Requested by {active.requester_name}
-              {active.zone ? ` for department ${active.zone}` : ""}. They get a WhatsApp
+              {active.zone ? ` for zone ${active.zone}` : ""}. They get a WhatsApp
               update if their number is on file.
             </DialogDescription>
             <div className="space-y-4">

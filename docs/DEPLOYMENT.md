@@ -23,12 +23,12 @@ lead time.
 
    | File | What it adds |
    | --- | --- |
-   | `0002_zones_and_packs.sql` | Departments on the ledger, pack sizes, the pre-order/pack/collect flow |
+   | `0002_zones_and_packs.sql` | Zones on the ledger, pack sizes, the pre-order/pack/collect flow |
    | `0003_roles_user_ids_departments.sql` | Department Head role, four-digit user IDs |
    | `0004_password_reset_requests.sql` | The in-app "forgot my password" queue |
    | `0005_procurement_super_admin.sql` | Gives `procurement@mathvision.com.sg` super-admin powers |
    | `0006_login_status.sql` | Shows which profiles have a login |
-   | `0007_new_item_requests.sql` | Request photos/links/descriptions, departments 3–22, the `request-photos` bucket |
+   | `0007_new_item_requests.sql` | Request photos/links/descriptions, zones 3–22, the `request-photos` bucket |
 
 4. *(Optional)* Run [`supabase/seed_demo.sql`](../supabase/seed_demo.sql) for
    a sample catalog to click around with. Skip if you'll import your real

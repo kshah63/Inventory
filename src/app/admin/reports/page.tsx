@@ -32,7 +32,7 @@ const GROUP_LABELS: Record<ReportGroupBy, string> = {
   user: "user",
   item: "item",
   category: "category",
-  zone: "department",
+  zone: "zone",
 };
 
 function param(v: string | string[] | undefined): string {

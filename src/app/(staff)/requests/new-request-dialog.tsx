@@ -82,7 +82,7 @@ export function NewRequestDialog({ zones }: { zones: string[] }) {
       return;
     }
     if (zones.length > 0 && !zone) {
-      toast("Pick which department this is for.", "error");
+      toast("Pick which zone this is for.", "error");
       return;
     }
 
@@ -158,10 +158,9 @@ export function NewRequestDialog({ zones }: { zones: string[] }) {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="request-description">
-              Describe it{" "}
-              <span className="font-normal text-muted-foreground">(optional)</span>
-            </Label>
+            {/* Presented as expected, not enforced — a blank description
+                shouldn't block a request from reaching procurement. */}
+            <Label htmlFor="request-description">Describe it</Label>
             <Textarea
               id="request-description"
               value={description}
@@ -247,7 +246,7 @@ export function NewRequestDialog({ zones }: { zones: string[] }) {
 
           {zones.length > 0 && (
             <div className="space-y-1.5">
-              <Label>Which department is this for?</Label>
+              <Label>Which zone is this for?</Label>
               <div className="flex flex-wrap gap-1.5">
                 {zones.map((z) => (
                   <button

@@ -1,22 +1,22 @@
--- Migration 0007 acceptance: new-item requests and per-number departments.
+-- Migration 0007 acceptance: new-item requests and per-number zones.
 -- Run after 01_smoke_test.sql on the same database (it reuses those actors).
 \set ON_ERROR_STOP on
 set client_min_messages = notice;
 
--- ═══ Departments are individual numbers 3 … 22 ═══
+-- ═══ Zones are individual numbers 3 … 22 ═══
 select public.t_assert(
   (select jsonb_array_length(value) from public.settings where key = 'zones') = 20,
-  'settings.zones holds 20 departments');
+  'settings.zones holds 20 zones');
 select public.t_assert(
   (select value from public.settings where key = 'zones')
     @> '["3","10","22"]'::jsonb,
-  'departments are bare numbers (3, 10, 22)');
+  'zones are stored as bare numbers (3, 10, 22)');
 select public.t_assert(
   not exists (
     select 1 from jsonb_array_elements_text(
       (select value from public.settings where key = 'zones')) z
     where z ilike 'zone%'),
-  'no department is still labelled "Zone …"');
+  'no stored value keeps the old "Zone 15-16" style');
 
 -- ═══ A new-item request: no catalogue item, no store room, richer detail ═══
 -- Cleared first so the file can be re-run against the same database.
@@ -64,4 +64,4 @@ select public.t_assert(
   'request-photos read and insert policies are in place');
 
 reset test.uid;
-select 'REQUESTS + DEPARTMENTS TESTS PASSED' as result;
+select 'REQUESTS + ZONES TESTS PASSED' as result;

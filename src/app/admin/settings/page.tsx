@@ -28,7 +28,7 @@ export default async function SettingsPage() {
     <>
       <PageHeader
         title="Settings"
-        description="WhatsApp notifications, departments, and your account."
+        description="WhatsApp notifications, zones, and your account."
       />
       <SettingsClient
         initialRecipients={recipients}
