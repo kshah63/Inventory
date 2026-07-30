@@ -12,7 +12,7 @@ export default async function UsersPage() {
   if (!profile || profile.role !== "super_admin") redirect("/admin");
 
   const supabase = await createClient();
-  const [{ data: users }, { data: locations }] = await Promise.all([
+  const [{ data: users }, { data: locations }, { data: logins }] = await Promise.all([
     supabase
       .from("users")
       .select(
@@ -20,7 +20,13 @@ export default async function UsersPage() {
       )
       .order("full_name"),
     supabase.from("locations").select("id, name, is_active").eq("is_active", true).order("name"),
+    supabase.rpc("get_login_status"),
   ]);
+
+  // Profiles with no auth account can't sign in and have no password to reset.
+  const withLogin = new Set(
+    ((logins ?? []) as unknown as { id: string }[]).map((r) => r.id)
+  );
 
   const sanitized: UserListEntry[] = (users ?? []).map((u) => ({
     id: u.id as string,
@@ -28,6 +34,7 @@ export default async function UsersPage() {
     role: u.role as Role,
     user_no: (u.user_no as number | null) ?? null,
     phone: (u.phone as string | null) ?? null,
+    has_login: withLogin.has(u.id as string),
     kiosk_location_id: (u.kiosk_location_id as string | null) ?? null,
     is_active: Boolean(u.is_active),
   }));

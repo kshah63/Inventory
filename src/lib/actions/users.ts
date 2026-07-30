@@ -121,6 +121,107 @@ export async function createLoginUser(params: {
   return { ok: true, data: { tempPassword } };
 }
 
+/** Give an existing profile a login, keeping their history: creates the auth
+ * account with the SAME id as the profile, so nothing is orphaned. Used for
+ * people who were added before ID logins existed. */
+export async function createLoginForExistingUser(
+  userId: string
+): Promise<ActionResult<{ tempPassword: string; label: string }>> {
+  const guard = await requireSuperAdmin();
+  if (!guard.ok) return guard;
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    return { ok: false, error: "SUPABASE_SERVICE_ROLE_KEY is not configured." };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Service key missing." };
+  }
+
+  // Already has a login?
+  const { data: existing } = await admin.auth.admin.getUserById(userId);
+  if (existing?.user) {
+    return { ok: false, error: "This person already has a login." };
+  }
+
+  const { data: profile } = await admin
+    .from("users")
+    .select("full_name, user_no, role")
+    .eq("id", userId)
+    .single();
+  if (!profile) return { ok: false, error: "Profile not found." };
+  if (profile.role === "kiosk") {
+    return { ok: false, error: "Kiosk devices don't use ID logins." };
+  }
+
+  // Make sure they have a User ID to sign in with.
+  let userNo = profile.user_no as number | null;
+  if (!userNo) {
+    const { data: nextNo } = await admin.rpc("get_next_user_no");
+    userNo = typeof nextNo === "number" ? nextNo : null;
+    if (!userNo) return { ok: false, error: "Couldn't allocate a User ID." };
+    const { error: noError } = await admin
+      .from("users")
+      .update({ user_no: userNo })
+      .eq("id", userId);
+    if (noError) return { ok: false, error: noError.message };
+  }
+
+  const tempPassword = generateTempPassword();
+  // Create the auth account with the profile's own id so their existing
+  // history stays attached. GoTrue accepts an explicit id on admin create.
+  const res = await fetch(`${url}/auth/v1/admin/users`, {
+    method: "POST",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      id: userId,
+      email: idToLoginEmail(userNo),
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { full_name: profile.full_name },
+      app_metadata: { role: profile.role, user_no: userNo },
+    }),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => res.statusText);
+    if (/already|duplicate/i.test(detail)) {
+      return { ok: false, error: `User ID ${userNo} is already in use by another login.` };
+    }
+    return { ok: false, error: `Couldn't create the login: ${detail.slice(0, 200)}` };
+  }
+
+  // If this Supabase version ignored our id, the new account would be
+  // detached from their history — undo it rather than leave a duplicate.
+  const created = (await res.json().catch(() => null)) as { id?: string } | null;
+  if (created?.id && created.id !== userId) {
+    await admin.auth.admin.deleteUser(created.id).catch(() => {});
+    return {
+      ok: false,
+      error:
+        "This Supabase project won't link a login to an existing profile. Add them as a new user instead.",
+    };
+  }
+
+  revalidatePath("/admin/users");
+  return {
+    ok: true,
+    data: {
+      tempPassword,
+      label: `${profile.full_name} — User ID ${userNo}`,
+    },
+  };
+}
+
 /** Create a kiosk device account pinned to a location. */
 export async function createKioskDevice(params: {
   email: string;

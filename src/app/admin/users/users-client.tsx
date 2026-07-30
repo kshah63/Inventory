@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Lock, LogOut, Pencil, Phone, UserPlus, Copy, Check } from "lucide-react";
+import { KeyRound, Lock, LogOut, Pencil, Phone, UserPlus, Copy, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
 import {
+  createLoginForExistingUser,
   createLoginUser,
   resetUserPassword,
   signOutUserEverywhere,
@@ -35,6 +36,9 @@ export interface UserListEntry {
   phone: string | null;
   kiosk_location_id: string | null;
   is_active: boolean;
+  /** False when the profile has no account in Supabase Auth — they can't
+   * sign in yet and have no password to reset. */
+  has_login: boolean;
 }
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -113,6 +117,11 @@ export function UsersClient({
                   {!u.is_active && (
                     <Badge variant="secondary" className="ml-2">
                       Deactivated
+                    </Badge>
+                  )}
+                  {u.is_active && !u.has_login && (
+                    <Badge variant="outline" className="ml-2">
+                      No login
                     </Badge>
                   )}
                 </TableCell>
@@ -320,6 +329,7 @@ function EditUserDialog({
   const [loading, setLoading] = React.useState(false);
   const [resetting, setResetting] = React.useState(false);
   const [revoking, setRevoking] = React.useState(false);
+  const [creatingLogin, setCreatingLogin] = React.useState(false);
   const backendRole = user.role === "super_admin" || user.role === "procurement";
   // Super admins are protected from each other — only the owner may edit.
   const locked = user.role === "super_admin" && !isSelf;
@@ -359,6 +369,18 @@ function EditUserDialog({
     }
     toast("Saved.");
     onClose();
+    router.refresh();
+  }
+
+  async function createLogin() {
+    setCreatingLogin(true);
+    const result = await createLoginForExistingUser(user.id);
+    setCreatingLogin(false);
+    if (!result.ok) {
+      toast(result.error, "error");
+      return;
+    }
+    onTempPassword(result.data.label, result.data.tempPassword);
     router.refresh();
   }
 
@@ -474,6 +496,13 @@ function EditUserDialog({
             </Select>
           </div>
         )}
+        {!user.has_login && user.role !== "kiosk" && (
+          <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
+            This person has no login yet, so they can&apos;t sign in and have no
+            password to reset. Use <strong>Create login</strong> below — their
+            history stays attached.
+          </p>
+        )}
         <label className="flex items-center gap-2 pt-1 text-sm">
           <Switch
             checked={form.isActive}
@@ -484,7 +513,18 @@ function EditUserDialog({
         </label>
         <DialogFooter className="sm:justify-between">
           <div className="flex flex-wrap gap-1">
-            {!locked && (
+            {!locked && !user.has_login && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={createLogin}
+                loading={creatingLogin}
+                title="Create a login so this person can sign in"
+              >
+                <KeyRound /> Create login
+              </Button>
+            )}
+            {!locked && user.has_login && (
               <>
                 <Button
                   type="button"
