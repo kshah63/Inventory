@@ -13,9 +13,13 @@ export interface ConfigCheck {
   keyRef: string | null;
   /** Whether the key's project matches the URL's project (null = can't tell). */
   refMatch: boolean | null;
-  /** Result of an actual authenticated call to Supabase. */
+  /** Result of an authenticated call to the Auth admin API. */
   liveOk: boolean;
   liveStatus: number | null;
+  /** Result of the same key against the database API — separates "this key
+   * isn't valid for this project" from "Auth won't accept this key kind". */
+  restOk: boolean;
+  restStatus: number | null;
   /** Plain-English verdict with the fix. */
   verdict: string;
 }
@@ -62,19 +66,35 @@ export async function checkSupabaseConfig(): Promise<ActionResult<ConfigCheck>> 
   const refMatch =
     projectRef && keyRef ? projectRef.toLowerCase() === keyRef.toLowerCase() : null;
 
-  // Live check: this endpoint only answers to a service-role credential.
+  // Probe 1 — Auth admin API (what password resets and sign-out-all use).
   let liveOk = false;
   let liveStatus: number | null = null;
+  // Probe 2 — database API. Any key valid for this project is accepted here,
+  // so a 401 means the key doesn't belong to this project at all.
+  let restOk = false;
+  let restStatus: number | null = null;
+
   if (url && key) {
+    const headers = { apikey: key, Authorization: `Bearer ${key}` };
     try {
       const res = await fetch(`${url}/auth/v1/admin/users?page=1&per_page=1`, {
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        headers,
         cache: "no-store",
       });
       liveStatus = res.status;
       liveOk = res.ok;
     } catch {
       liveStatus = null;
+    }
+    try {
+      const res = await fetch(`${url}/rest/v1/settings?select=key&limit=1`, {
+        headers,
+        cache: "no-store",
+      });
+      restStatus = res.status;
+      restOk = res.ok;
+    } catch {
+      restStatus = null;
     }
   }
 
@@ -91,9 +111,12 @@ export async function checkSupabaseConfig(): Promise<ActionResult<ConfigCheck>> 
     verdict = `This key belongs to Supabase project "${keyRef}", but the app points at "${projectRef}" — it's the other project's key. Copy the key from the ${projectRef} project, then redeploy.`;
   } else if (liveOk) {
     verdict = "All good — Supabase accepts this key. Password resets and sign-out-all will work.";
+  } else if ((liveStatus === 401 || liveStatus === 403) && restOk) {
+    verdict =
+      `The key is valid for project "${projectRef}", but Supabase Auth won't accept this key type for admin calls. Fix: in Supabase → Project Settings → API Keys, open Legacy API keys and copy the service_role key (the long eyJ… one), put that in SUPABASE_SERVICE_ROLE_KEY, and redeploy. If legacy keys are disabled, enable them first.`;
   } else if (liveStatus === 401 || liveStatus === 403) {
     verdict =
-      "Supabase rejected this key. If your project has migrated to the new API keys, legacy keys may be disabled — use the sb_secret_… key. Otherwise re-copy the service_role key (no spaces or line breaks) and redeploy.";
+      `Supabase rejected this key for project "${projectRef}" everywhere, so it isn't this project's key — most likely it was copied from your other Supabase project, or truncated on paste. Copy the secret key from the ${projectRef} project and redeploy.`;
   } else if (liveStatus === null) {
     verdict = "Couldn't reach Supabase at all — check NEXT_PUBLIC_SUPABASE_URL and that the project isn't paused.";
   } else {
@@ -110,6 +133,8 @@ export async function checkSupabaseConfig(): Promise<ActionResult<ConfigCheck>> 
       refMatch,
       liveOk,
       liveStatus,
+      restOk,
+      restStatus,
       verdict,
     },
   };

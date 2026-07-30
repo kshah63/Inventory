@@ -104,11 +104,20 @@ export function ConnectionCheck() {
                 </>
               )}
 
-              <dt className="text-muted-foreground">Supabase response</dt>
+              <dt className="text-muted-foreground">Auth admin API</dt>
               <dd>
                 {result.liveStatus === null
                   ? "no response"
                   : `HTTP ${result.liveStatus}${result.liveOk ? " — accepted" : " — rejected"}`}
+              </dd>
+
+              <dt className="text-muted-foreground">Database API</dt>
+              <dd>
+                {result.restStatus === null
+                  ? "no response"
+                  : `HTTP ${result.restStatus}${
+                      result.restOk ? " — accepted (key is valid for this project)" : " — rejected"
+                    }`}
               </dd>
             </dl>
 
