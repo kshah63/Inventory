@@ -16,14 +16,28 @@ lead time.
    → **Run**. This creates the schema, stock-mutation functions, RLS
    policies, the `item-photos` storage bucket, realtime publication, and
    seeds the two locations (Level 8, Basement) + categories.
-3. *(Optional)* Run [`supabase/seed_demo.sql`](../supabase/seed_demo.sql) for
+3. Run the remaining migration files in
+   [`supabase/migrations/`](../supabase/migrations) **in numerical order**
+   (`0002` → `0007`), one at a time, same way. Each is safe to run on a live
+   database and only needs running once:
+
+   | File | What it adds |
+   | --- | --- |
+   | `0002_zones_and_packs.sql` | Departments on the ledger, pack sizes, the pre-order/pack/collect flow |
+   | `0003_roles_user_ids_departments.sql` | Department Head role, four-digit user IDs |
+   | `0004_password_reset_requests.sql` | The in-app "forgot my password" queue |
+   | `0005_procurement_super_admin.sql` | Gives `procurement@mathvision.com.sg` super-admin powers |
+   | `0006_login_status.sql` | Shows which profiles have a login |
+   | `0007_new_item_requests.sql` | Request photos/links/descriptions, departments 3–22, the `request-photos` bucket |
+
+4. *(Optional)* Run [`supabase/seed_demo.sql`](../supabase/seed_demo.sql) for
    a sample catalog to click around with. Skip if you'll import your real
    stocktake CSV right away.
-4. **Authentication → Sign In / Up**: turn **off** "Allow new users to sign
+5. **Authentication → Sign In / Up**: turn **off** "Allow new users to sign
    up". Accounts are created from the app's Users screen (or the Supabase
    dashboard) — this keeps strangers out, since the first-ever account is
    auto-promoted to super admin.
-5. **Project Settings → API**: copy these three values for later:
+6. **Project Settings → API**: copy these three values for later:
    - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
    - `anon` `public` key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `service_role` key → `SUPABASE_SERVICE_ROLE_KEY` (server-only secret)
@@ -41,9 +55,9 @@ lead time.
 
    | Variable | Value |
    | --- | --- |
-   | `NEXT_PUBLIC_SUPABASE_URL` | from step 1.5 |
-   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | from step 1.5 |
-   | `SUPABASE_SERVICE_ROLE_KEY` | from step 1.5 (mark as secret) |
+   | `NEXT_PUBLIC_SUPABASE_URL` | from step 1.6 |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | from step 1.6 |
+   | `SUPABASE_SERVICE_ROLE_KEY` | from step 1.6 (mark as secret) |
    | `NEXT_PUBLIC_APP_URL` | your production URL, e.g. `https://stock.mathvision.sg` |
    | `CRON_SECRET` | `openssl rand -hex 32` |
    | `TWILIO_ACCOUNT_SID` | section 3 (can add later) |

@@ -10,37 +10,77 @@ import {
 } from "@/lib/whatsapp";
 import type { ActionResult, RequestStatus } from "@/lib/types";
 
-/** Staff (own device) creates a request — RLS enforces requested_by = self. */
+/** Request an item that isn't in the catalogue. RLS enforces
+ * requested_by = self. */
 export async function createRequest(params: {
-  itemId: string | null;
-  freeText: string | null;
+  itemName: string;
+  description?: string;
+  productUrl?: string;
+  photoUrl?: string;
   qty: number;
-  locationId: string;
   zone?: string | null;
-  note?: string;
 }): Promise<ActionResult> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in." };
-  if (!params.itemId && !params.freeText?.trim()) {
-    return { ok: false, error: "Pick an item or describe what you need." };
+
+  const itemName = params.itemName.trim();
+  if (!itemName) return { ok: false, error: "Tell us what you need." };
+  if (!params.qty || params.qty <= 0) {
+    return { ok: false, error: "Quantity must be at least 1." };
   }
-  if (!params.qty || params.qty <= 0) return { ok: false, error: "Quantity must be positive." };
+
+  const url = params.productUrl?.trim();
+  if (url && !/^https?:\/\/\S+$/i.test(url)) {
+    return { ok: false, error: "The product link should start with http:// or https://" };
+  }
 
   const { error } = await supabase.from("requests").insert({
     requested_by: user.id,
-    item_id: params.itemId,
-    free_text_item: params.freeText?.trim() || null,
+    item_id: null,
+    free_text_item: itemName,
+    description: params.description?.trim() || null,
+    product_url: url || null,
+    photo_url: params.photoUrl || null,
     qty: params.qty,
-    location_id: params.locationId,
     zone: params.zone?.trim() || null,
-    note: params.note?.trim() || null,
   });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/requests");
   return { ok: true, data: undefined };
+}
+
+/** Upload a photo of a requested item and return its public URL. Called
+ * before the request row is created. */
+export async function uploadRequestPhoto(
+  formData: FormData
+): Promise<ActionResult<{ url: string }>> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const file = formData.get("photo") as File | null;
+  if (!file || file.size === 0) return { ok: false, error: "No photo selected." };
+  if (file.size > 5 * 1024 * 1024) return { ok: false, error: "Photo must be under 5MB." };
+  if (!file.type.startsWith("image/")) {
+    return { ok: false, error: "That file isn't an image." };
+  }
+
+  const ext = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const path = `${user.id}/${Date.now()}.${ext}`;
+  const { error } = await supabase.storage
+    .from("request-photos")
+    .upload(path, file, { upsert: false, contentType: file.type });
+  if (error) return { ok: false, error: error.message };
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("request-photos").getPublicUrl(path);
+  return { ok: true, data: { url: publicUrl } };
 }
 
 export async function cancelOwnRequest(requestId: string): Promise<ActionResult> {

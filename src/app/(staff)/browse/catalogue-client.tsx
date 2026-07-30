@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
@@ -46,7 +45,6 @@ export function CatalogueClient({
   // Order review
   const [reviewOpen, setReviewOpen] = React.useState(false);
   const [zone, setZone] = React.useState<string | null>(null);
-  const [locationId, setLocationId] = React.useState(locations[0]?.id ?? "");
   const [note, setNote] = React.useState("");
   const [placing, setPlacing] = React.useState(false);
 
@@ -98,14 +96,37 @@ export function CatalogueClient({
     setPerPack(false);
   };
 
+  const stockLabel = (item: CatalogItem, locationId_: string) =>
+    item.stock_levels.find((sl) => sl.location_id === locationId_)?.qty_on_hand ?? 0;
+
+  // Everything is collected from the procurement room, so nobody picks a store
+  // room any more. We tag the order with whichever room holds most of what was
+  // asked for; procurement confirms the room it actually packs from.
+  const sourceLocationId = React.useMemo(() => {
+    if (locations.length === 0) return "";
+    let best = locations[0].id;
+    let bestQty = -1;
+    for (const l of locations) {
+      const onHand = cart.reduce((n, line) => {
+        const item = items.find((i) => i.id === line.item_id);
+        return n + (item ? stockLabel(item, l.id) : 0);
+      }, 0);
+      if (onHand > bestQty) {
+        bestQty = onHand;
+        best = l.id;
+      }
+    }
+    return best;
+  }, [cart, items, locations]);
+
   async function placeOrder() {
-    if (!locationId) {
-      toast("Pick a collection room.", "error");
+    if (!sourceLocationId) {
+      toast("No store room is set up yet — ask procurement.", "error");
       return;
     }
     setPlacing(true);
     const result = await createOrder({
-      locationId,
+      locationId: sourceLocationId,
       zone,
       lines: cart,
       note: note.trim() || undefined,
@@ -123,9 +144,6 @@ export function CatalogueClient({
     router.push("/orders");
     router.refresh();
   }
-
-  const stockLabel = (item: CatalogItem, locationId_: string) =>
-    item.stock_levels.find((sl) => sl.location_id === locationId_)?.qty_on_hand ?? 0;
 
   return (
     <div className={cn("space-y-4", cart.length > 0 && "pb-24")}>
@@ -199,18 +217,17 @@ export function CatalogueClient({
                   </span>
                   <span className="text-[11px] text-muted-foreground">{item.sku}</span>
                   <span className="mt-1 text-xs">
-                    {locations.map((l, i) => {
-                      const n = stockLabel(item, l.id);
-                      return (
-                        <span key={l.id}>
-                          {i > 0 && <span className="text-muted-foreground"> · </span>}
-                          <span className="text-muted-foreground">{l.name}: </span>
-                          <span className={cn("font-semibold", n === 0 ? "text-destructive" : "text-success")}>
-                            {n}
-                          </span>
-                        </span>
+                    {(() => {
+                      const n = totalStock(item);
+                      return n === 0 ? (
+                        <span className="font-semibold text-destructive">Out of stock</span>
+                      ) : (
+                        <>
+                          <span className="font-semibold text-success">{n}</span>
+                          <span className="text-muted-foreground"> in stock</span>
+                        </>
                       );
-                    })}
+                    })()}
                   </span>
                 </div>
               </button>
@@ -264,10 +281,9 @@ export function CatalogueClient({
             <DialogDescription>
               {selected.sku}
               {" · "}
-              {locations
-                .map((l) => `${l.name}: ${stockLabel(selected, l.id)}`)
-                .join(" · ")}{" "}
-              {selected.unit}
+              {available === 0
+                ? "Out of stock"
+                : `${available} ${selected.unit} in stock`}
               {selected.requires_approval && (
                 <span className="mt-1 block text-warning">
                   Subject to procurement approval when packing.
@@ -333,7 +349,8 @@ export function CatalogueClient({
       <Dialog open={reviewOpen} onClose={placing ? () => {} : () => setReviewOpen(false)}>
         <DialogTitle>Place order</DialogTitle>
         <DialogDescription>
-          Procurement packs it and you&apos;ll be notified when it&apos;s ready to collect.
+          Procurement packs it and you&apos;ll be notified when it&apos;s ready to
+          collect from the procurement room.
         </DialogDescription>
 
         <ul className="mb-4 divide-y rounded-lg border">
@@ -370,20 +387,6 @@ export function CatalogueClient({
               </div>
             </div>
           )}
-          <div className="space-y-1.5">
-            <Label htmlFor="order-room">Collect from</Label>
-            <Select
-              id="order-room"
-              value={locationId}
-              onChange={(e) => setLocationId(e.target.value)}
-            >
-              {locations.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </Select>
-          </div>
           <div className="space-y-1.5">
             <Label htmlFor="order-note">
               Note <span className="font-normal text-muted-foreground">(optional)</span>

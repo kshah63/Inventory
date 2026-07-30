@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Inbox, Trash2 } from "lucide-react";
+import { ExternalLink, Inbox, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -13,7 +13,6 @@ import type { RequestRow, RequestStatus } from "@/lib/types";
 
 export interface RequestWithJoins extends RequestRow {
   items: { name: string; unit: string } | null;
-  locations: { name: string } | null;
 }
 
 const STATUS_VARIANT: Record<
@@ -49,7 +48,7 @@ export function RequestsList({ requests }: { requests: RequestWithJoins[] }) {
       <EmptyState
         icon={Inbox}
         title="No requests yet"
-        description='Use "New request" to ask procurement for a restock or a new item.'
+        description="Nothing asked for so far. If we don't stock something you need, use Request a new item."
       />
     );
   }
@@ -60,27 +59,53 @@ export function RequestsList({ requests }: { requests: RequestWithJoins[] }) {
         const itemLabel = req.items?.name ?? req.free_text_item ?? "Item";
         return (
           <li key={req.id} className="rounded-lg border bg-card p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="font-medium">
-                  {req.qty} × {itemLabel}
-                  {req.items?.unit && (
-                    <span className="font-normal text-muted-foreground">
-                      {" "}
-                      ({req.items.unit})
-                    </span>
-                  )}
-                  {!req.items && req.free_text_item && (
-                    <span className="font-normal text-muted-foreground"> (new item)</span>
-                  )}
-                </p>
+            <div className="flex items-start gap-3">
+              {req.photo_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={req.photo_url}
+                  alt={itemLabel}
+                  className="h-16 w-16 shrink-0 rounded-md border object-cover"
+                />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-medium">
+                    {req.qty} × {itemLabel}
+                    {req.items?.unit && (
+                      <span className="font-normal text-muted-foreground">
+                        {" "}
+                        ({req.items.unit})
+                      </span>
+                    )}
+                  </p>
+                  <Badge variant={STATUS_VARIANT[req.status]} className="shrink-0">
+                    {REQUEST_STATUS_LABELS[req.status] ?? req.status}
+                  </Badge>
+                </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  For {req.locations?.name ?? "—"} · {timeAgo(req.created_at)}
+                  {req.zone ? `Department ${req.zone} · ` : ""}
+                  {timeAgo(req.created_at)}
                 </p>
+
+                {req.description && (
+                  <p className="mt-2 whitespace-pre-line text-sm text-muted-foreground">
+                    {req.description}
+                  </p>
+                )}
+
+                {req.product_url && (
+                  <a
+                    href={req.product_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex max-w-full items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">View the product</span>
+                  </a>
+                )}
               </div>
-              <Badge variant={STATUS_VARIANT[req.status]} className="shrink-0">
-                {REQUEST_STATUS_LABELS[req.status] ?? req.status}
-              </Badge>
             </div>
 
             {req.note && (

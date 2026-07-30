@@ -103,8 +103,11 @@ export interface RequestRow {
   requested_by: string;
   item_id: string | null;
   free_text_item: string | null;
+  description: string | null;
+  product_url: string | null;
+  photo_url: string | null;
   qty: number;
-  location_id: string;
+  location_id: string | null;
   zone: string | null;
   status: RequestStatus;
   note: string | null;
