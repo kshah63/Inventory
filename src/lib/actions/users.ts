@@ -111,11 +111,35 @@ export async function createLoginUser(params: {
     return { ok: false, error: error.message };
   }
 
-  // The handle_new_user trigger created the profile; enrich it.
-  await admin
+  // Supabase Auth writes app_metadata in a second step, AFTER the row that
+  // fires handle_new_user — so the trigger never sees the role or the User ID
+  // asked for here, and falls back to Department Admin and the next number in
+  // sequence. (user_metadata does arrive in time, which is why the name is
+  // always right.) Write the profile ourselves rather than trusting it.
+  const { data: profile, error: profileError } = await admin
     .from("users")
-    .update({ phone: params.phone?.trim() || null })
-    .eq("id", created.user.id);
+    .update({
+      full_name: params.fullName.trim(),
+      role: params.role,
+      user_no: params.userNo,
+      phone: params.phone?.trim() || null,
+    })
+    .eq("id", created.user.id)
+    .select("role, user_no")
+    .single();
+
+  // A login whose role or ID isn't what was asked for is worse than no login
+  // at all — it looks correct in the list and fails silently. Undo it.
+  if (profileError || profile?.role !== params.role || profile?.user_no !== params.userNo) {
+    await admin.auth.admin.deleteUser(created.user.id).catch(() => {});
+    const message = profileError?.message ?? "";
+    return {
+      ok: false,
+      error: /duplicate|unique/i.test(message)
+        ? `User ID ${params.userNo} already belongs to someone else.`
+        : message || "Couldn't save the role and User ID — nothing was created.",
+    };
+  }
 
   revalidatePath("/admin/users");
   return { ok: true, data: { tempPassword } };
@@ -244,7 +268,7 @@ export async function createKioskDevice(params: {
   }
 
   const tempPassword = generateTempPassword();
-  const { error } = await admin.auth.admin.createUser({
+  const { data: created, error } = await admin.auth.admin.createUser({
     email,
     password: tempPassword,
     email_confirm: true,
@@ -252,6 +276,17 @@ export async function createKioskDevice(params: {
     app_metadata: { role: "kiosk", kiosk_location_id: params.locationId },
   });
   if (error) return { ok: false, error: error.message };
+
+  // Same reason as createLoginUser: app_metadata lands too late for the
+  // trigger, so the device would come out as a Department Admin.
+  const { error: profileError } = await admin
+    .from("users")
+    .update({ role: "kiosk", kiosk_location_id: params.locationId, user_no: null })
+    .eq("id", created.user.id);
+  if (profileError) {
+    await admin.auth.admin.deleteUser(created.user.id).catch(() => {});
+    return { ok: false, error: profileError.message };
+  }
 
   revalidatePath("/admin/users");
   return { ok: true, data: { tempPassword } };
