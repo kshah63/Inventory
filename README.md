@@ -2,8 +2,8 @@
 
 Procurement & inventory management for MathVision Educational Enrichment
 Centre — a single source of truth for the **Level 8** and **Basement** store
-rooms, replacing WhatsApp asks and cupboard raiding with self-serve kiosks,
-a live catalog, and proactive reorder alerts.
+rooms, replacing WhatsApp asks and cupboard raiding with a live catalogue,
+pre-ordering from your own device, and proactive reorder alerts.
 
 ## What it does
 
@@ -13,17 +13,14 @@ a live catalog, and proactive reorder alerts.
   order and marks it ready (that's when stock is decremented, attributed to
   the requester — nobody self-logs, so nothing gets forgotten or fat-fingered),
   and the requester collects it after a WhatsApp ping.
-- **Kiosk checkout** (optional, kept for unlocked-room setups) — a
-  wall-mounted tablet flow: tap your name, enter a 4–6 digit PIN, tap what
-  you're taking. Rate-limited PINs, 45-second idle logout.
 - **Immutable ledger** — every checkout, return, receive, transfer, and
   adjustment is a row in an append-only transactions ledger. Stock levels and
   the ledger can never diverge (both are written in a single Postgres
   function with row locks — concurrent "last unit" checkouts are handled
   gracefully).
 - **Approval flow** — items flagged `requires_approval` (toner, high-value)
-  can't be taken directly; the kiosk files an approval request, procurement
-  gets a WhatsApp ping, and one tap approves + records the checkout.
+  can't just be packed; procurement gets a WhatsApp ping and one tap approves
+  and records the checkout.
 - **Requests** — out-of-stock or brand-new items become structured requests
   with statuses (open → acknowledged → ordered → fulfilled), replacing the
   WhatsApp channel. Requesters are notified on status changes.
@@ -56,13 +53,12 @@ a live catalog, and proactive reorder alerts.
 
 ```
 supabase/
-  migrations/0001_init.sql   # full schema, RPCs, RLS, seeds — run in Supabase
+  migrations/                # 0001 schema + RPCs + RLS, then 0002…0008 in order
   seed_demo.sql              # optional sample catalog
   templates/catalog_template.csv
 src/
   app/
-    kiosk/                   # tablet kiosk (picker → PIN → shop → done)
-    (staff)/                 # browse / activity / requests (staff devices)
+    (staff)/                 # catalogue / orders / activity / requests / profile
     admin/                   # dashboard, reorder, inventory, ops, reports…
     api/cron/daily-digest/   # Vercel cron → WhatsApp digest
   lib/
@@ -74,8 +70,8 @@ src/
 
 ## Getting started
 
-Full step-by-step deployment guide (Supabase → Vercel → Twilio → kiosk
-tablets → go-live): **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+Full step-by-step deployment guide (Supabase → Vercel → Twilio → users →
+go-live): **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
 
 Local development:
 
@@ -93,11 +89,10 @@ The first account to sign in becomes the super admin automatically.
   are deliberately **no** insert/update policies on `stock_levels` or
   `transactions` — clients cannot write them directly, and the ledger has a
   belt-and-braces trigger blocking updates/deletes.
-- Kiosk tablets sign in with a device account (role `kiosk`) that can only
-  read the catalog and call the kiosk RPCs. Staff identity comes from a
-  PIN-verified, short-lived session token bound to that device — the device
-  account is never the actor of record.
-- PINs are bcrypt-hashed in Postgres (`pgcrypto`), rate-limited
-  (5 failures → 60 s lockout), and attempts are logged.
+- Everyone signs in as themselves — Department Admins and Heads with a
+  four-digit User ID, procurement and super admins with an email address.
+  Shared devices and PIN sign-in were removed in migration `0008`.
+- Procurement and super admin roles are assigned in Supabase, never from the
+  app, and no super admin can change another's account.
 - Staff see their own history and requests; procurement/super admins see
   everything (enforced by RLS, not just UI).

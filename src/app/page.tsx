@@ -24,8 +24,6 @@ export default async function Home() {
   }
 
   switch (profile.role) {
-    case "kiosk":
-      redirect("/kiosk");
     case "super_admin":
     case "procurement":
       redirect("/admin");

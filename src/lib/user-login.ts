@@ -17,3 +17,12 @@ export function idToLoginEmail(userNo: number | string): string {
 export function isIdLoginEmail(email: string | null | undefined): boolean {
   return Boolean(email && email.toLowerCase().endsWith(`@${ID_LOGIN_DOMAIN}`));
 }
+
+/** The ID someone actually signs in with, read back off their login address.
+ * This is the source of truth for signing in — the profile's user_no is only
+ * what we display, and the two can drift apart. */
+export function loginEmailToId(email: string | null | undefined): number | null {
+  if (!isIdLoginEmail(email)) return null;
+  const local = email!.split("@")[0];
+  return isUserId(local) ? Number(local) : null;
+}

@@ -1,6 +1,6 @@
 # Deployment Guide — MathVision Inventory
 
-End-to-end setup: **Supabase → Vercel → Twilio WhatsApp → kiosk tablets →
+End-to-end setup: **Supabase → Vercel → Twilio WhatsApp → users →
 go-live**. Budget ~45 minutes for the first three sections; the WhatsApp
 production sender (optional at launch) is the only step with external
 lead time.
@@ -10,7 +10,7 @@ lead time.
 ## 1. Supabase (database + auth)
 
 1. Create a project at [supabase.com](https://supabase.com) (choose the
-   Singapore region — `ap-southeast-1` — for snappy kiosks).
+   Singapore region — `ap-southeast-1` — so the app feels local).
 2. Open **SQL Editor** → paste the entire contents of
    [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql)
    → **Run**. This creates the schema, stock-mutation functions, RLS
@@ -18,7 +18,7 @@ lead time.
    seeds the two locations (Level 8, Basement) + categories.
 3. Run the remaining migration files in
    [`supabase/migrations/`](../supabase/migrations) **in numerical order**
-   (`0002` → `0007`), one at a time, same way. Each is safe to run on a live
+   (`0002` → `0008`), one at a time, same way. Each is safe to run on a live
    database and only needs running once:
 
    | File | What it adds |
@@ -29,6 +29,7 @@ lead time.
    | `0005_procurement_super_admin.sql` | Gives `procurement@mathvision.com.sg` super-admin powers |
    | `0006_login_status.sql` | Shows which profiles have a login |
    | `0007_new_item_requests.sql` | Request photos/links/descriptions, zones 3–22, the `request-photos` bucket |
+   | `0008_remove_kiosks.sql` | Removes kiosk devices, PIN sign-in and the sessions behind them |
 
 4. *(Optional)* Run [`supabase/seed_demo.sql`](../supabase/seed_demo.sql) for
    a sample catalog to click around with. Skip if you'll import your real
@@ -70,7 +71,7 @@ lead time.
 4. **Bootstrap your super admin**: create your own account first —
    Supabase dashboard → Authentication → Users → **Add user** (email +
    password, check "Auto Confirm User") — then sign in at your Vercel URL.
-   The first non-kiosk account ever created is automatically promoted to
+   The first account ever created is automatically promoted to
    **super admin**. Every later account defaults to staff/whatever role the
    Users screen assigns.
 
@@ -161,42 +162,21 @@ sends the `join <code>` message once; set
 `TWILIO_WHATSAPP_FROM=whatsapp:+14155238886` and leave the ContentSid vars
 unset. Recipients must re-join every 72 hours.
 
-## 4. Users, PINs & kiosk tablets
+## 4. Users
 
-### People
+**Admin → Users** (super admin only). Everyone works from their own phone or
+laptop — there are no shared tablets.
 
-**Admin → Users** (super admin only):
-
-- **Login users** (procurement/admins/staff who need the web app on their
-  own devices): "Add login user" creates the account and shows a one-time
-  temporary password to pass on. Role: `procurement` for the central team,
-  `staff` for office admins.
-- **Kiosk-only staff** (people who only ever use the wall tablet): "Add
-  staff member" with just a name + PIN — no email needed. They appear on
-  the kiosk picker immediately.
-- Set/reset **PINs** (4–6 digits) from the same screen. Only users with a
-  PIN show up on the kiosk picker.
+- **Add user** creates the account and shows a one-time temporary password to
+  pass on. They sign in with their four-digit **User ID**, and change the
+  password themselves under **Profile**.
+- Roles: **Department Admin** orders for their zone; **Department Head** does
+  the same and can also read Reports and the audit log. Procurement and super
+  admin accounts are made in Supabase, not here.
 - Add each person's WhatsApp number (`+65…`) if they should receive request
-  status / approval notifications.
-
-### Kiosk device accounts
-
-On **Admin → Users → "Add kiosk device"**: one per store room, e.g.
-`kiosk-level8@mathvision.sg` and `kiosk-basement@mathvision.sg`, each pinned
-to its location. The account's only powers are reading the catalog and
-calling the checkout/return RPCs (enforced by RLS, not just UI).
-
-### Tablet setup (any ~10" Android tablet or iPad)
-
-1. Open the app URL in the browser, sign in with the kiosk device account —
-   it lands on `/kiosk` automatically and stays signed in.
-2. Add to home screen, then lock it down:
-   - **iPad**: Settings → Accessibility → **Guided Access** (triple-click to
-     pin the app), disable auto-lock while charging.
-   - **Android**: screen pinning, or a kiosk launcher (e.g. Fully Kiosk).
-3. Keep it plugged in and wall-mounted by the door with a small
-   **"Log what you take"** sign. The app requests a screen wake-lock, and
-   returns to the name picker after 45 s idle.
+  status and approval notifications.
+- If someone forgets their password they can ask for a new one from the login
+  screen; the request lands on procurement's dashboard.
 
 ## 5. Go-live checklist
 
@@ -208,10 +188,10 @@ calling the checkout/return RPCs (enforced by RLS, not just UI).
    is idempotent on SKU.)
 3. Flag the case-by-case approval items (toner, high-value) with
    **Requires approval** in Inventory, and put them in the locked cabinet.
-4. Create all staff (PINs) and both kiosk device accounts; mount tablets.
+4. Add everyone on **Admin → Users** and pass on their temporary passwords.
 5. Add procurement numbers in **Settings** and send a test WhatsApp.
-6. Walk each team through the 15-second flow once: *name → PIN → tap items →
-   Done*.
+6. Walk each team through the flow once: *Catalogue → add items → pick a zone
+   → Place order*, then collect from the procurement room when it's packed.
 
 ## Troubleshooting
 
@@ -219,7 +199,6 @@ calling the checkout/return RPCs (enforced by RLS, not just UI).
 | --- | --- |
 | WhatsApp not arriving | Admin → Settings → recipients set? Twilio env vars deployed? Sandbox joined (72h)? Check the `notifications_log` table in Supabase for the exact error. |
 | Digest didn't fire | Vercel → Project → Cron Jobs → check the last run of `/api/cron/daily-digest`; confirm `CRON_SECRET` matches. |
-| "This kiosk has no location assigned" | Admin → Users → edit the kiosk device → set its location. |
-| Kiosk picker is empty | Only active users **with a PIN** appear — set PINs on the Users screen. |
+| Someone can't sign in with their ID | Admin → Users → check the ID column. A "signs in as" badge means the login is on a different number — open Edit, re-save the ID they should have, and the two are brought back together. |
 | First user isn't super admin | Promote manually: SQL Editor → `update public.users set role = 'super_admin' where id = (select id from auth.users where email = 'you@…');` |
 | Item photos not loading | The `item-photos` bucket is created by the migration; confirm it exists and is public (Storage → buckets). |

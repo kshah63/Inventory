@@ -12,7 +12,6 @@ export default async function StaffLayout({
   const profile = await getProfile();
   if (!profile) redirect("/login");
   if (!profile.is_active) redirect("/");
-  if (profile.role === "kiosk") redirect("/kiosk");
 
   const isAdmin = profile.role === "super_admin" || profile.role === "procurement";
   const isDeptHead = profile.role === "dept_head";

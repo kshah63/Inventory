@@ -9,7 +9,7 @@ interface DialogProps {
   onClose: () => void;
   children: React.ReactNode;
   className?: string;
-  /** Hide the corner close button (e.g. kiosk PIN pad supplies its own). */
+  /** Hide the corner close button when the content supplies its own. */
   hideClose?: boolean;
 }
 

@@ -247,7 +247,7 @@ export function ItemDialog({
                 Active
               </Label>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Inactive items are hidden from the kiosk and catalog but keep their
+                Inactive items are hidden from the catalogue but keep their
                 history.
               </p>
             </div>
@@ -273,7 +273,7 @@ export function ItemDialog({
             <Input id="item-photo" ref={fileRef} type="file" accept="image/*" />
           </div>
           <p className="text-xs text-muted-foreground">
-            Optional, up to 5MB. Shown on the kiosk to help staff pick the right item.
+            Optional, up to 5MB. Shown in the catalogue to help people pick the right item.
           </p>
         </div>
       </div>

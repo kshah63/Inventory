@@ -246,71 +246,6 @@ export async function createLoginForExistingUser(
   };
 }
 
-/** Create a kiosk device account pinned to a location. */
-export async function createKioskDevice(params: {
-  email: string;
-  locationId: string;
-  locationName: string;
-}): Promise<ActionResult<{ tempPassword: string }>> {
-  const guard = await requireSuperAdmin();
-  if (!guard.ok) return guard;
-
-  const email = params.email.trim().toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    return { ok: false, error: "Enter a valid email address." };
-  }
-
-  let admin;
-  try {
-    admin = createAdminClient();
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Service key missing." };
-  }
-
-  const tempPassword = generateTempPassword();
-  const { data: created, error } = await admin.auth.admin.createUser({
-    email,
-    password: tempPassword,
-    email_confirm: true,
-    user_metadata: { full_name: `Kiosk — ${params.locationName}` },
-    app_metadata: { role: "kiosk", kiosk_location_id: params.locationId },
-  });
-  if (error) return { ok: false, error: error.message };
-
-  // Same reason as createLoginUser: app_metadata lands too late for the
-  // trigger, so the device would come out as a Department Admin.
-  const { error: profileError } = await admin
-    .from("users")
-    .update({ role: "kiosk", kiosk_location_id: params.locationId, user_no: null })
-    .eq("id", created.user.id);
-  if (profileError) {
-    await admin.auth.admin.deleteUser(created.user.id).catch(() => {});
-    return { ok: false, error: profileError.message };
-  }
-
-  revalidatePath("/admin/users");
-  return { ok: true, data: { tempPassword } };
-}
-
-/** Create a kiosk-only staff member (PIN user with no email login). */
-export async function createPinOnlyStaff(params: {
-  fullName: string;
-  department?: string;
-  phone?: string;
-  pin: string;
-}): Promise<ActionResult> {
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("create_staff_member", {
-    p_full_name: params.fullName,
-    p_department: params.department ?? null,
-    p_phone: params.phone ?? null,
-    p_pin: params.pin,
-  });
-  if (error) return { ok: false, error: error.message };
-  revalidatePath("/admin/users");
-  return { ok: true, data: undefined };
-}
-
 export async function updateUser(params: {
   userId: string;
   fullName?: string;
@@ -318,7 +253,6 @@ export async function updateUser(params: {
   role?: Role;
   userNo?: number;
   isActive?: boolean;
-  kioskLocationId?: string;
 }): Promise<ActionResult> {
   // Role changes from the app are limited to the two department roles;
   // procurement/super admin assignments happen on the back end only.
@@ -336,26 +270,25 @@ export async function updateUser(params: {
   if (params.userNo !== undefined) {
     try {
       const admin = createAdminClient();
-      const { data: current } = await admin
-        .from("users")
-        .select("user_no")
-        .eq("id", params.userId)
-        .maybeSingle();
-      if (current && current.user_no !== params.userNo) {
-        const { data: authUser } = await admin.auth.admin.getUserById(params.userId);
-        if (isIdLoginEmail(authUser?.user?.email)) {
-          const { error: emailError } = await admin.auth.admin.updateUserById(
-            params.userId,
-            { email: idToLoginEmail(params.userNo), email_confirm: true }
-          );
-          if (emailError) {
-            return {
-              ok: false,
-              error: /already/i.test(emailError.message)
-                ? `User ID ${params.userNo} is already in use.`
-                : `Couldn't move the login to ID ${params.userNo}: ${emailError.message}`,
-            };
-          }
+      const { data: authUser } = await admin.auth.admin.getUserById(params.userId);
+      const currentEmail = authUser?.user?.email?.toLowerCase() ?? null;
+      const targetEmail = idToLoginEmail(params.userNo);
+      // Only move a login that is on a different ID. Someone can already be
+      // signing in with the target ID while their profile shows another
+      // number — asking Auth to set the address it already has reads as a
+      // collision and would block the very edit that fixes the mismatch.
+      if (isIdLoginEmail(currentEmail) && currentEmail !== targetEmail) {
+        const { error: emailError } = await admin.auth.admin.updateUserById(
+          params.userId,
+          { email: targetEmail, email_confirm: true }
+        );
+        if (emailError) {
+          return {
+            ok: false,
+            error: /already/i.test(emailError.message)
+              ? `User ID ${params.userNo} is already in use by another login.`
+              : `Couldn't move the login to ID ${params.userNo}: ${emailError.message}`,
+          };
         }
       }
     } catch (e) {
@@ -374,19 +307,8 @@ export async function updateUser(params: {
     p_phone: params.phone ?? null,
     p_role: params.role ?? null,
     p_is_active: params.isActive ?? null,
-    p_kiosk_location_id: params.kioskLocationId ?? null,
+    p_kiosk_location_id: null,
     p_user_no: params.userNo ?? null,
-  });
-  if (error) return { ok: false, error: error.message };
-  revalidatePath("/admin/users");
-  return { ok: true, data: undefined };
-}
-
-export async function setUserPin(userId: string, pin: string): Promise<ActionResult> {
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("set_user_pin", {
-    p_user_id: userId,
-    p_pin: pin,
   });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/users");

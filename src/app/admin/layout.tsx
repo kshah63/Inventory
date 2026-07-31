@@ -10,7 +10,6 @@ export default async function AdminLayout({
   const profile = await getProfile();
   if (!profile) redirect("/login");
   if (!profile.is_active) redirect("/");
-  if (profile.role === "kiosk") redirect("/kiosk");
   if (
     profile.role !== "super_admin" &&
     profile.role !== "procurement" &&

@@ -439,7 +439,7 @@ function CategoryDialog({ open, onClose }: { open: boolean; onClose: () => void 
     <Dialog open={open} onClose={onClose} className="max-w-sm">
       <DialogTitle>New category</DialogTitle>
       <DialogDescription>
-        Categories group items on the kiosk and in reports.
+        Categories group items in the catalogue and in reports.
       </DialogDescription>
       <div className="space-y-1.5">
         <Label htmlFor="category-name">Name</Label>

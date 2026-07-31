@@ -53,12 +53,6 @@ export function timeAgo(iso: string): string {
 /** Map a raised Postgres error message to a friendly string. */
 export function friendlyError(message: string | undefined | null): string {
   if (!message) return "Something went wrong. Please try again.";
-  if (message === "SESSION_EXPIRED") return "Your kiosk session expired — please tap your name again.";
-  if (message === "PIN_INVALID") return "Wrong PIN. Please try again.";
-  if (message.startsWith("PIN_LOCKED:")) {
-    const secs = message.split(":")[1];
-    return `Too many attempts. Try again in ${secs} seconds.`;
-  }
   return message;
 }
 

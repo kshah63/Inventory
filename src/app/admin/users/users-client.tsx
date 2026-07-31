@@ -26,7 +26,7 @@ import {
   signOutUserEverywhere,
   updateUser,
 } from "@/lib/actions/users";
-import type { Location, Role } from "@/lib/types";
+import type { Role } from "@/lib/types";
 
 export interface UserListEntry {
   id: string;
@@ -34,11 +34,14 @@ export interface UserListEntry {
   role: Role;
   user_no: number | null;
   phone: string | null;
-  kiosk_location_id: string | null;
   is_active: boolean;
   /** False when the profile has no account in Supabase Auth — they can't
    * sign in yet and have no password to reset. */
   has_login: boolean;
+  /** The ID they actually type at sign-in, read off their login address.
+   * Normally the same as user_no; when it isn't, user_no is only a label and
+   * this is the number that works. */
+  signs_in_as: number | null;
 }
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -65,12 +68,10 @@ type DialogKind =
 
 export function UsersClient({
   users,
-  locations,
   selfId,
   nextUserNo,
 }: {
   users: UserListEntry[];
-  locations: Location[];
   selfId: string;
   nextUserNo: number;
 }) {
@@ -78,6 +79,7 @@ export function UsersClient({
   const [showInactive, setShowInactive] = React.useState(false);
 
   const visible = users.filter((u) => showInactive || u.is_active);
+  // Retired kiosk devices (kept only for their ledger history) stay hidden.
   const people = visible.filter((u) => u.role !== "kiosk");
 
   const close = () => setDialog({ kind: "none" });
@@ -127,6 +129,11 @@ export function UsersClient({
                 </TableCell>
                 <TableCell className="font-mono tabular-nums">
                   {u.user_no ?? "—"}
+                  {u.signs_in_as !== null && u.signs_in_as !== u.user_no && (
+                    <Badge variant="warning" className="ml-2 font-sans">
+                      signs in as {u.signs_in_as}
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell>
                   <Badge variant={ROLE_BADGE[u.role]}>{ROLE_LABELS[u.role]}</Badge>
@@ -175,7 +182,6 @@ export function UsersClient({
       {dialog.kind === "edit" && (
         <EditUserDialog
           user={dialog.user}
-          locations={locations}
           isSelf={dialog.user.id === selfId}
           onClose={close}
           onTempPassword={(label, password) =>
@@ -313,13 +319,11 @@ function AddLoginDialog({
 }
 function EditUserDialog({
   user,
-  locations,
   isSelf,
   onClose,
   onTempPassword,
 }: {
   user: UserListEntry;
-  locations: Location[];
   isSelf: boolean;
   onClose: () => void;
   onTempPassword: (label: string, password: string) => void;
@@ -339,12 +343,11 @@ function EditUserDialog({
     phone: user.phone ?? "",
     role: user.role,
     isActive: user.is_active,
-    kioskLocationId: user.kiosk_location_id ?? "",
   });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (user.role !== "kiosk" && form.userNo && !/^[1-9][0-9]{3}$/.test(form.userNo)) {
+    if (form.userNo && !/^[1-9][0-9]{3}$/.test(form.userNo)) {
       toast("User ID must be a four-digit number.", "error");
       return;
     }
@@ -356,11 +359,8 @@ function EditUserDialog({
       // Back-end-managed roles (procurement / super admin) are never sent —
       // the picker only offers the two department roles.
       role: backendRole ? undefined : (form.role as Role),
-      userNo:
-        user.role !== "kiosk" && form.userNo ? Number(form.userNo) : undefined,
+      userNo: form.userNo ? Number(form.userNo) : undefined,
       isActive: form.isActive,
-      kioskLocationId:
-        user.role === "kiosk" && form.kioskLocationId ? form.kioskLocationId : undefined,
     });
     setLoading(false);
     if (!result.ok) {
@@ -422,81 +422,63 @@ function EditUserDialog({
             onChange={(e) => setForm({ ...form, fullName: e.target.value })}
           />
         </div>
-        {user.role !== "kiosk" && (
-          <>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="eu-userno">User ID</Label>
-                <Input
-                  id="eu-userno"
-                  inputMode="numeric"
-                  maxLength={4}
-                  disabled={locked}
-                  value={form.userNo}
-                  onChange={(e) =>
-                    setForm({ ...form, userNo: e.target.value.replace(/\D/g, "") })
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="eu-phone">WhatsApp number</Label>
-                <Input
-                  id="eu-phone"
-                  placeholder="+65…"
-                  disabled={locked}
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="eu-role">Role</Label>
-              {backendRole ? (
-                <>
-                  <Input value={user.role === "super_admin" ? "Super admin" : "Procurement"} disabled />
-                  <p className="text-xs text-muted-foreground">
-                    {locked
-                      ? "Super admin accounts can only be changed by their owner."
-                      : "This role can't be changed here."}
-                  </p>
-                </>
-              ) : (
-                <Select
-                  id="eu-role"
-                  value={form.role}
-                  disabled={isSelf}
-                  onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
-                >
-                  <option value="staff">Department Admin</option>
-                  <option value="dept_head">Department Head</option>
-                </Select>
-              )}
-              {isSelf && !backendRole && (
-                <p className="text-xs text-muted-foreground">
-                  You can&apos;t change your own role.
-                </p>
-              )}
-            </div>
-          </>
-        )}
-        {user.role === "kiosk" && (
+        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="eu-loc">Store room</Label>
-            <Select
-              id="eu-loc"
-              value={form.kioskLocationId}
-              onChange={(e) => setForm({ ...form, kioskLocationId: e.target.value })}
-            >
-              <option value="">— not set —</option>
-              {locations.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </Select>
+            <Label htmlFor="eu-userno">User ID</Label>
+            <Input
+              id="eu-userno"
+              inputMode="numeric"
+              maxLength={4}
+              disabled={locked}
+              value={form.userNo}
+              onChange={(e) =>
+                setForm({ ...form, userNo: e.target.value.replace(/\D/g, "") })
+              }
+            />
           </div>
-        )}
-        {!user.has_login && user.role !== "kiosk" && (
+          <div className="space-y-1.5">
+            <Label htmlFor="eu-phone">WhatsApp number</Label>
+            <Input
+              id="eu-phone"
+              placeholder="+65…"
+              disabled={locked}
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="eu-role">Role</Label>
+          {backendRole ? (
+            <>
+              <Input
+                value={user.role === "super_admin" ? "Super admin" : "Procurement"}
+                disabled
+              />
+              <p className="text-xs text-muted-foreground">
+                {locked
+                  ? "Super admin accounts can only be changed by their owner."
+                  : "This role can't be changed here."}
+              </p>
+            </>
+          ) : (
+            <Select
+              id="eu-role"
+              value={form.role}
+              disabled={isSelf}
+              onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
+            >
+              <option value="staff">Department Admin</option>
+              <option value="dept_head">Department Head</option>
+            </Select>
+          )}
+          {isSelf && !backendRole && (
+            <p className="text-xs text-muted-foreground">
+              You can&apos;t change your own role.
+            </p>
+          )}
+        </div>
+        {!user.has_login && (
           <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
             This person has no login yet, so they can&apos;t sign in and have no
             password to reset. Use <strong>Create login</strong> below — their
@@ -509,7 +491,7 @@ function EditUserDialog({
             onCheckedChange={(v) => setForm({ ...form, isActive: v })}
             disabled={isSelf || locked}
           />
-          Active {user.role !== "kiosk" && "(deactivated users keep their history)"}
+          Active (deactivated users keep their history)
         </label>
         <DialogFooter className="sm:justify-between">
           <div className="flex flex-wrap gap-1">
