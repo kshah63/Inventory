@@ -20,9 +20,16 @@ select public.t_assert(
 select public.t_assert(
   (select count(*) from information_schema.columns
    where table_schema = 'public' and table_name = 'users'
-     and column_name in ('pin_hash','pin_failed_attempts','pin_locked_until',
-                         'kiosk_location_id')) = 0,
-  'the PIN and kiosk columns are dropped from users');
+     and column_name in ('pin_hash','pin_failed_attempts','pin_locked_until')) = 0,
+  'the PIN columns are dropped from users');
+
+-- Deliberately kept: dropping a column a running deploy still selects logs
+-- everyone out until the new build ships.
+select public.t_assert(
+  exists (select 1 from information_schema.columns
+          where table_schema = 'public' and table_name = 'users'
+            and column_name = 'kiosk_location_id'),
+  'users.kiosk_location_id is left in place, unused');
 
 select public.t_assert(
   not exists (select 1 from public.users where role = 'kiosk' and is_active),

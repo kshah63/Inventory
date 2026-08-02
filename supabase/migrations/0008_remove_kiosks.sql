@@ -151,11 +151,18 @@ begin
 end;
 $$;
 
--- 6. The kiosk columns go last, once nothing reads them.
+-- 6. The PIN columns go last, once nothing reads them.
 alter table public.users drop column if exists pin_hash;
 alter table public.users drop column if exists pin_failed_attempts;
 alter table public.users drop column if exists pin_locked_until;
-alter table public.users drop column if exists kiosk_location_id;
+
+-- users.kiosk_location_id is deliberately left in place, unused. Dropping a
+-- column that a running deploy still selects turns every profile lookup into
+-- an error, which the app reads as "not signed in" — everyone gets bounced
+-- back to the login page until the new build goes out. Leaving it makes this
+-- migration safe to run before or after the deploy. If it was already
+-- dropped, `add column if not exists` puts it back harmlessly.
+alter table public.users add column if not exists kiosk_location_id uuid;
 
 -- 7. Stop new kiosk accounts appearing. If a retired profile had to be kept
 --    for its history, the old check stays so that row remains valid.

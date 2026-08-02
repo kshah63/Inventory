@@ -38,10 +38,16 @@ export const getProfile = cache(async (): Promise<UserProfile | null> => {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("users")
-    .select("id, full_name, role, user_no, department, phone, kiosk_location_id, is_active, created_at")
+    .select("id, full_name, role, user_no, department, phone, is_active, created_at")
     .eq("id", user.id)
     .single();
+  if (error) {
+    // Every page treats "no profile" as "not signed in", so a failure here
+    // logs someone out with no explanation. Say why in the server logs.
+    console.error("getProfile failed for", user.id, "—", error.message);
+    return null;
+  }
   return (data as UserProfile) ?? null;
 });

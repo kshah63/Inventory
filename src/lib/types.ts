@@ -63,7 +63,6 @@ export interface UserProfile {
   user_no: number | null;
   department: string | null;
   phone: string | null;
-  kiosk_location_id: string | null;
   is_active: boolean;
   created_at: string;
 }
