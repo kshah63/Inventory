@@ -64,22 +64,55 @@ export default async function AdminDashboardPage() {
       .select("*")
       .order("created_at", { ascending: false })
       .limit(10),
+    // Two plain queries rather than an embedded join: the join names a
+    // foreign-key constraint, and there are two of them from this table to
+    // users, so a rename or a stale schema cache silently empties the queue.
     supabase
       .from("password_reset_requests")
-      .select(
-        "id, identifier, created_at, matched:users!password_reset_requests_matched_user_fkey(full_name, user_no, role)"
-      )
+      .select("id, identifier, created_at, matched_user")
       .eq("status", "open")
       .order("created_at"),
   ]);
 
   const stats = (statsRes.data as unknown as DashboardStats) ?? EMPTY_STATS;
   const recent = (txRes.data ?? []) as unknown as TransactionRow[];
-  const resetRequests = (resetRes.data ?? []) as unknown as ResetRequest[];
+
+  const resetRows = (resetRes.data ?? []) as unknown as {
+    id: string;
+    identifier: string;
+    created_at: string;
+    matched_user: string | null;
+  }[];
+  const matchedIds = [...new Set(resetRows.map((r) => r.matched_user).filter(Boolean))];
+  const peopleRes = matchedIds.length
+    ? await supabase
+        .from("users")
+        .select("id, full_name, user_no, role")
+        .in("id", matchedIds as string[])
+    : null;
+  const peopleById = new Map(
+    ((peopleRes?.data ?? []) as unknown as {
+      id: string;
+      full_name: string;
+      user_no: number | null;
+      role: string;
+    }[]).map((u) => [u.id, u])
+  );
+  const resetRequests: ResetRequest[] = resetRows.map((r) => ({
+    id: r.id,
+    identifier: r.identifier,
+    created_at: r.created_at,
+    matched: r.matched_user ? peopleById.get(r.matched_user) ?? null : null,
+  }));
+
   // The reset panel renders nothing when the queue is empty, so a broken
   // query looks exactly like "no requests" — surface it here instead.
   const loadError =
-    statsRes.error?.message ?? txRes.error?.message ?? resetRes.error?.message ?? null;
+    statsRes.error?.message ??
+    txRes.error?.message ??
+    resetRes.error?.message ??
+    peopleRes?.error?.message ??
+    null;
   const maxMoverQty = Math.max(1, ...stats.top_movers_week.map((m) => m.qty));
 
   return (
@@ -102,6 +135,21 @@ export default async function AdminDashboardPage() {
       {loadError && (
         <p className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
           Couldn&apos;t load some dashboard data: {friendlyError(loadError)}
+        </p>
+      )}
+
+      {/* The count comes from a different query to the list. When they
+          disagree, someone is waiting on a password and the queue can't
+          show them — say so rather than look empty. */}
+      {stats.reset_requests > 0 && resetRequests.length === 0 && (
+        <p className="mb-6 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
+          {stats.reset_requests} password reset request
+          {stats.reset_requests === 1 ? " is" : "s are"} waiting, but the queue
+          couldn&apos;t be read. You can still set a new password from{" "}
+          <Link href="/admin/users" className="font-medium underline">
+            Users
+          </Link>{" "}
+          → Edit → Reset password.
         </p>
       )}
 
