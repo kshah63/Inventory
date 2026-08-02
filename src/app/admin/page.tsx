@@ -76,7 +76,10 @@ export default async function AdminDashboardPage() {
   const stats = (statsRes.data as unknown as DashboardStats) ?? EMPTY_STATS;
   const recent = (txRes.data ?? []) as unknown as TransactionRow[];
   const resetRequests = (resetRes.data ?? []) as unknown as ResetRequest[];
-  const loadError = statsRes.error?.message ?? txRes.error?.message ?? null;
+  // The reset panel renders nothing when the queue is empty, so a broken
+  // query looks exactly like "no requests" — surface it here instead.
+  const loadError =
+    statsRes.error?.message ?? txRes.error?.message ?? resetRes.error?.message ?? null;
   const maxMoverQty = Math.max(1, ...stats.top_movers_week.map((m) => m.qty));
 
   return (

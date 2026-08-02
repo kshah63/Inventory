@@ -88,14 +88,30 @@ export async function signOut(): Promise<void> {
   redirect("/login");
 }
 
-/** "Forgot your password?" on the login page. Always reports success —
- * whether an account matched is only visible to procurement. */
+/** "Forgot your password?" on the login page. Whether an account matched is
+ * only visible to procurement — but a request that never reached the queue
+ * has to say so, or someone waits for a password nobody was told about. */
 export async function requestPasswordReset(identifier: string): Promise<ActionResult> {
   try {
     const supabase = await createClient();
-    await supabase.rpc("submit_password_reset", { p_identifier: identifier });
-  } catch {
-    // Deliberately swallowed — the caller always sees success.
+    const { error } = await supabase.rpc("submit_password_reset", {
+      p_identifier: identifier,
+    });
+    if (error) {
+      console.error("submit_password_reset failed —", error.message);
+      return {
+        ok: false,
+        error:
+          "Couldn't file the request just now. Please ask the procurement team directly.",
+      };
+    }
+  } catch (e) {
+    console.error("submit_password_reset threw —", e);
+    return {
+      ok: false,
+      error:
+        "Couldn't file the request just now. Please ask the procurement team directly.",
+    };
   }
   return { ok: true, data: undefined };
 }

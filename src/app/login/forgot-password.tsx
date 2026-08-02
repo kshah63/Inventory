@@ -15,11 +15,13 @@ export function ForgotPassword() {
   const [identifier, setIdentifier] = React.useState("");
   const [sending, setSending] = React.useState(false);
   const [sent, setSent] = React.useState(false);
+  const [failed, setFailed] = React.useState<string | null>(null);
 
   function close() {
     if (sending) return;
     setOpen(false);
     setSent(false);
+    setFailed(null);
     setIdentifier("");
   }
 
@@ -27,9 +29,14 @@ export function ForgotPassword() {
     e.preventDefault();
     if (!identifier.trim()) return;
     setSending(true);
-    await requestPasswordReset(identifier);
+    setFailed(null);
+    const result = await requestPasswordReset(identifier);
     setSending(false);
-    setSent(true);
+    if (result.ok) {
+      setSent(true);
+    } else {
+      setFailed(result.error);
+    }
   }
 
   return (
@@ -66,6 +73,11 @@ export function ForgotPassword() {
               Tell us who you are and the procurement team will reset it.
             </DialogDescription>
             <form onSubmit={submit} className="space-y-4">
+              {failed && (
+                <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                  {failed}
+                </p>
+              )}
               <div className="space-y-1.5">
                 <Label htmlFor="fp-id">Your User ID or email</Label>
                 <Input
