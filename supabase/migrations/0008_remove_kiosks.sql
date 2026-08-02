@@ -44,12 +44,11 @@ where u.role = 'kiosk'
   and not exists (select 1 from public.requests r where r.requested_by = u.id)
   and not exists (select 1 from public.orders o where o.requested_by = u.id);
 
--- 4. Any that the ledger still points at are retired instead.
+-- 4. Any that the ledger still points at are retired instead. The PIN
+--    columns aren't cleared here — they're dropped outright below, and
+--    naming them would stop this file re-running.
 update public.users
 set is_active = false,
-    pin_hash = null,
-    pin_failed_attempts = 0,
-    pin_locked_until = null,
     kiosk_location_id = null
 where role = 'kiosk';
 

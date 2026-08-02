@@ -6,7 +6,7 @@
 -- one click. No email involved. Run once, after 0003.
 -- ═══════════════════════════════════════════════════════════════════════════
 
-create table public.password_reset_requests (
+create table if not exists public.password_reset_requests (
   id           uuid primary key default gen_random_uuid(),
   identifier   text not null,                      -- what the person typed (email or User ID)
   matched_user uuid references public.users(id),   -- resolved server-side; null = no match
@@ -17,14 +17,17 @@ create table public.password_reset_requests (
   handled_at   timestamptz
 );
 
-create index prr_status_idx on public.password_reset_requests (status, created_at);
+create index if not exists prr_status_idx
+  on public.password_reset_requests (status, created_at);
 
 alter table public.password_reset_requests enable row level security;
 
 -- Procurement + super admins read and update; creation goes through the
 -- SECURITY DEFINER function below (no anon table access at all).
+drop policy if exists prr_admin_read on public.password_reset_requests;
 create policy prr_admin_read on public.password_reset_requests
   for select to authenticated using (public.is_admin());
+drop policy if exists prr_admin_update on public.password_reset_requests;
 create policy prr_admin_update on public.password_reset_requests
   for update to authenticated using (public.is_admin()) with check (public.is_admin());
 

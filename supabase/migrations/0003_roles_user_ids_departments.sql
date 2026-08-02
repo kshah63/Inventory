@@ -239,7 +239,7 @@ end;
 $$;
 
 drop function if exists public.update_user_profile(uuid, text, text, text, text, boolean, uuid);
-create function public.update_user_profile(
+create or replace function public.update_user_profile(
   p_user_id uuid,
   p_full_name text default null,
   p_department text default null,

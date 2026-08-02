@@ -27,7 +27,7 @@ create policy settings_zones_read on public.settings
 -- 3. _apply_transaction learns an optional zone (ledger rows are immutable,
 --    so the value must be written at insert time).
 drop function if exists public._apply_transaction(text, uuid, uuid, int, uuid, text, uuid, uuid);
-create function public._apply_transaction(
+create or replace function public._apply_transaction(
   p_type text,
   p_item_id uuid,
   p_location_id uuid,
@@ -93,7 +93,7 @@ revoke execute on function public._apply_transaction(text, uuid, uuid, int, uuid
 
 -- 4. kiosk_checkout asks "which zone is this for?" and stamps every line.
 drop function if exists public.kiosk_checkout(uuid, jsonb);
-create function public.kiosk_checkout(p_token uuid, p_lines jsonb, p_zone text default null)
+create or replace function public.kiosk_checkout(p_token uuid, p_lines jsonb, p_zone text default null)
 returns jsonb
 language plpgsql security definer set search_path = public, extensions
 as $$
@@ -201,7 +201,7 @@ grant select on public.v_transactions to authenticated;
 
 -- 6. Consumption report can group by zone.
 drop function if exists public.report_consumption(timestamptz, timestamptz, text);
-create function public.report_consumption(
+create or replace function public.report_consumption(
   p_from timestamptz, p_to timestamptz, p_group_by text
 ) returns table (group_key text, group_label text, total_qty bigint, tx_count bigint)
 language plpgsql stable security definer set search_path = public, extensions
@@ -287,7 +287,7 @@ $$;
 --    packing time, attributed to the requester — no self-logging anywhere.
 -- ═══════════════════════════════════════════════════════════════════════════
 
-create table public.orders (
+create table if not exists public.orders (
   id           uuid primary key default gen_random_uuid(),
   order_no     bigint generated always as identity,
   requested_by uuid not null references public.users(id),
@@ -304,13 +304,13 @@ create table public.orders (
   collected_at timestamptz
 );
 
-create index orders_status_idx on public.orders (status);
-create index orders_requester_idx on public.orders (requested_by, created_at desc);
+create index if not exists orders_status_idx on public.orders (status);
+create index if not exists orders_requester_idx on public.orders (requested_by, created_at desc);
 
 create trigger orders_touch before update on public.orders
   for each row execute function public.touch_updated_at();
 
-create table public.order_lines (
+create table if not exists public.order_lines (
   order_id      uuid not null references public.orders(id) on delete cascade,
   item_id       uuid not null references public.items(id),
   qty_requested int not null check (qty_requested > 0),
@@ -322,8 +322,10 @@ alter table public.orders enable row level security;
 alter table public.order_lines enable row level security;
 
 -- Requester + admins can read; ALL writes go through the RPCs below.
+drop policy if exists orders_read on public.orders;
 create policy orders_read on public.orders for select to authenticated
   using (requested_by = auth.uid() or public.is_admin());
+drop policy if exists order_lines_read on public.order_lines;
 create policy order_lines_read on public.order_lines for select to authenticated
   using (exists (
     select 1 from public.orders o
@@ -332,7 +334,7 @@ create policy order_lines_read on public.order_lines for select to authenticated
 
 -- Staff places an order from their own device.
 -- p_lines: [{"item_id":"...","qty":3}, ...]
-create function public.create_order(
+create or replace function public.create_order(
   p_location_id uuid, p_zone text, p_lines jsonb, p_note text default null
 ) returns jsonb
 language plpgsql security definer set search_path = public, extensions
@@ -389,7 +391,7 @@ end;
 $$;
 
 -- Requester cancels their own order while it is still pending.
-create function public.cancel_order(p_order_id uuid)
+create or replace function public.cancel_order(p_order_id uuid)
 returns void
 language plpgsql security definer set search_path = public, extensions
 as $$
@@ -408,7 +410,7 @@ $$;
 -- and marks it ready for collection.
 -- p_lines: [{"item_id":"...","qty":2}, ...] — packed quantities; a line may
 -- be reduced (or 0 = not packed) when stock ran short.
-create function public.pack_order(
+create or replace function public.pack_order(
   p_order_id uuid, p_location_id uuid, p_lines jsonb, p_note text default null
 ) returns jsonb
 language plpgsql security definer set search_path = public, extensions
@@ -481,7 +483,7 @@ end;
 $$;
 
 -- Hand-over: ready → collected.
-create function public.collect_order(p_order_id uuid)
+create or replace function public.collect_order(p_order_id uuid)
 returns void
 language plpgsql security definer set search_path = public, extensions
 as $$
@@ -497,7 +499,7 @@ end;
 $$;
 
 -- Decline a pending order (nothing was packed, no stock moves).
-create function public.reject_order(p_order_id uuid, p_note text default null)
+create or replace function public.reject_order(p_order_id uuid, p_note text default null)
 returns jsonb
 language plpgsql security definer set search_path = public, extensions
 as $$
