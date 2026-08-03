@@ -171,6 +171,9 @@ export interface OrderRow {
   updated_at: string;
   ready_at: string | null;
   collected_at: string | null;
+  status_changed_at: string | null;
+  status_changed_by: string | null;
+  seen_at: string | null;
 }
 
 export interface OrderLineRow {

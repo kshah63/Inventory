@@ -27,10 +27,13 @@ export function StaffNav({
   userName,
   isAdmin,
   isDeptHead,
+  unreadOrders = 0,
 }: {
   userName: string;
   isAdmin: boolean;
   isDeptHead?: boolean;
+  /** Orders procurement has moved on since this person last looked. */
+  unreadOrders?: number;
 }) {
   const pathname = usePathname();
 
@@ -38,12 +41,13 @@ export function StaffNav({
     <nav className="flex items-center gap-1">
       {LINKS.map((link) => {
         const active = pathname.startsWith(link.href);
+        const unread = link.href === "/orders" ? unreadOrders : 0;
         return (
           <Link
             key={link.href}
             href={link.href}
             className={cn(
-              "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors",
+              "relative flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors",
               active
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -51,6 +55,21 @@ export function StaffNav({
           >
             <link.icon className="h-4 w-4" />
             <span className="hidden sm:inline">{link.label}</span>
+            {unread > 0 && (
+              <span
+                aria-label={`${unread} updated`}
+                className={cn(
+                  "ml-0.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1 text-xs font-semibold tabular-nums",
+                  // On the active tab the background is already primary, so
+                  // the badge inverts to stay visible.
+                  active
+                    ? "bg-primary-foreground text-primary"
+                    : "bg-primary text-primary-foreground"
+                )}
+              >
+                {unread}
+              </span>
+            )}
           </Link>
         );
       })}

@@ -18,6 +18,10 @@ no catalogue item and no store room.
 accepted, one over it is refused, and the cap can't be beaten by splitting the
 same item across two lines of one order.
 
+`05_order_read_state.sql` covers migration 0010: placing your own order isn't
+news, procurement packing it is, opening My orders clears the marker, a later
+change raises it again, and nobody sees a marker for someone else's order.
+
 `03_no_kiosks.sql` covers migration 0008: the kiosk functions, tables and
 columns are gone, no active device is left, and the paths that touched those
 columns — new accounts, role and User ID changes — still work. Run the first
@@ -34,6 +38,8 @@ psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0008_remove_kiosks.sql
 psql -d mvtest -f 03_no_kiosks.sql                           # expect: NO-KIOSK TESTS PASSED
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0009_order_limits.sql
 psql -d mvtest -f 04_order_limits.sql                        # expect: ORDER LIMIT TESTS PASSED
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0010_order_read_state.sql
+psql -d mvtest -f 05_order_read_state.sql                    # expect: ORDER READ-STATE TESTS PASSED
 ```
 
 The shim replaces `auth.uid()` with a `test.uid` session setting so tests can

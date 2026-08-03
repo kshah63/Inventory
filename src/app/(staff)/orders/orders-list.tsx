@@ -9,7 +9,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 import { cancelOrder } from "@/lib/actions/orders";
-import { formatDateTime, timeAgo } from "@/lib/utils";
+import { cn, formatDateTime, timeAgo } from "@/lib/utils";
 import type { OrderRow, OrderStatus } from "@/lib/types";
 
 export interface StaffOrder extends OrderRow {
@@ -41,7 +41,15 @@ const STATUS_BADGE: Record<
   cancelled: "outline",
 };
 
-export function OrdersList({ orders }: { orders: StaffOrder[] }) {
+export function OrdersList({
+  orders,
+  updatedIds = [],
+}: {
+  orders: StaffOrder[];
+  /** Orders that moved on since this person last looked. */
+  updatedIds?: string[];
+}) {
+  const updated = React.useMemo(() => new Set(updatedIds), [updatedIds]);
   const router = useRouter();
   const { toast } = useToast();
   const [cancelling, setCancelling] = React.useState<string | null>(null);
@@ -76,10 +84,18 @@ export function OrdersList({ orders }: { orders: StaffOrder[] }) {
     <div className="space-y-3">
       {orders.map((order) => {
         const packed = order.status !== "pending" && order.status !== "cancelled";
+        const isNew = updated.has(order.id);
         return (
-          <div key={order.id} className="rounded-lg border bg-card p-4 shadow-sm">
+          <div
+            key={order.id}
+            className={cn(
+              "rounded-lg border bg-card p-4 shadow-sm",
+              isNew && "border-primary/50 ring-1 ring-primary/20"
+            )}
+          >
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-semibold">Order #{order.order_no}</span>
+              {isNew && <Badge>Updated</Badge>}
               <Badge variant={STATUS_BADGE[order.status]}>
                 {STATUS_LABEL[order.status]}
               </Badge>

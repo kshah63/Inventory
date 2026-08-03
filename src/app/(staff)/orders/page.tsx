@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
 import type { OrderRow } from "@/lib/types";
 import { OrdersList, type StaffOrder } from "./orders-list";
+import { MarkOrdersSeen } from "./mark-seen";
 
 export const metadata = { title: "My orders" };
 export const dynamic = "force-dynamic";
@@ -26,13 +27,22 @@ export default async function MyOrdersPage() {
     }[];
   })[] as StaffOrder[];
 
+  // Changed since this person last looked — and not by them. Worked out here
+  // so the flags survive the render that clears them.
+  const isUpdated = (o: StaffOrder) =>
+    o.status_changed_at !== null &&
+    o.status_changed_by !== o.requested_by &&
+    o.status_changed_at > (o.seen_at ?? o.created_at);
+  const updatedIds = orders.filter(isUpdated).map((o) => o.id);
+
   return (
     <div>
       <PageHeader
         title="My orders"
         description="Placed from the Catalogue — collect once procurement marks them ready."
       />
-      <OrdersList orders={orders} />
+      <OrdersList orders={orders} updatedIds={updatedIds} />
+      <MarkOrdersSeen unread={updatedIds.length} />
     </div>
   );
 }
