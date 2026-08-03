@@ -2,7 +2,17 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Check, Package, Search, SearchX, ShieldAlert, ShoppingBag, X } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Package,
+  Search,
+  SearchX,
+  ShieldAlert,
+  ShoppingBag,
+  X,
+} from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +24,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { createOrder } from "@/lib/actions/orders";
 import type { BasketLine, CatalogItem, Category, Location } from "@/lib/types";
+
+/** Three rows of three on a laptop. */
+const PAGE_SIZE = 9;
 
 function totalStock(item: CatalogItem): number {
   return item.stock_levels.reduce((n, sl) => n + sl.qty_on_hand, 0);
@@ -36,6 +49,7 @@ export function CatalogueClient({
   const [query, setQuery] = React.useState("");
   const [categoryId, setCategoryId] = React.useState<string | null>(null);
   const [cart, setCart] = React.useState<BasketLine[]>([]);
+  const [page, setPage] = React.useState(0);
 
   // Item dialog
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
@@ -57,6 +71,17 @@ export function CatalogueClient({
     });
   }, [items, query, categoryId]);
 
+  // Nine at a time — three rows of three on a laptop — so the whole page fits
+  // without scrolling and you step through the catalogue instead.
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageItems = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+
+  // A new search or category starts again at the first page.
+  React.useEffect(() => {
+    setPage(0);
+  }, [query, categoryId]);
+
   const usedCategoryIds = React.useMemo(
     () => new Set(items.map((i) => i.category_id)),
     [items]
@@ -74,7 +99,10 @@ export function CatalogueClient({
   const packSize = selected?.pack_size ?? null;
   const packChoice = packSize != null && packSize > 1 && available >= packSize;
   const usePack = perPack && packChoice && packSize != null;
-  const maxUnits = Math.max(1, available);
+  // Procurement can cap how much of an item one order may take, so a single
+  // person can't clear the shelf.
+  const perOrderCap = selected?.max_per_checkout ?? null;
+  const maxUnits = Math.max(1, Math.min(available || 1, perOrderCap ?? Infinity));
   const effectiveMax = usePack ? Math.max(1, Math.floor(maxUnits / packSize)) : maxUnits;
   const clampedQty = Math.max(1, Math.min(qty, effectiveMax));
   const baseQty = usePack ? clampedQty * packSize : clampedQty;
@@ -147,31 +175,34 @@ export function CatalogueClient({
 
   return (
     <div className={cn("space-y-4", cart.length > 0 && "pb-24")}>
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search items or codes…"
-          className="h-11 pl-10"
-          aria-label="Search items"
-        />
-      </div>
+      {/* Search and categories stay put while you page through the shelves. */}
+      <div className="sticky top-0 z-30 -mx-4 space-y-3 bg-background/95 px-4 pb-3 pt-1 backdrop-blur sm:-mx-6 sm:px-6">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search items or codes…"
+            className="h-11 pl-10"
+            aria-label="Search items"
+          />
+        </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        <Chip active={categoryId === null} onClick={() => setCategoryId(null)}>
-          All
-        </Chip>
-        {visibleCategories.map((c) => (
-          <Chip
-            key={c.id}
-            active={categoryId === c.id}
-            onClick={() => setCategoryId(categoryId === c.id ? null : c.id)}
-          >
-            {c.name}
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <Chip active={categoryId === null} onClick={() => setCategoryId(null)}>
+            All
           </Chip>
-        ))}
+          {visibleCategories.map((c) => (
+            <Chip
+              key={c.id}
+              active={categoryId === c.id}
+              onClick={() => setCategoryId(categoryId === c.id ? null : c.id)}
+            >
+              {c.name}
+            </Chip>
+          ))}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -182,7 +213,7 @@ export function CatalogueClient({
         />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {filtered.map((item) => {
+          {pageItems.map((item) => {
             const inCart = cartQty.get(item.id) ?? 0;
             return (
               <button
@@ -236,6 +267,32 @@ export function CatalogueClient({
         </div>
       )}
 
+      {/* Pager — step through the catalogue nine at a time */}
+      {filtered.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={safePage === 0}
+            aria-label="Previous page"
+          >
+            <ChevronLeft /> Back
+          </Button>
+          <span className="text-sm tabular-nums text-muted-foreground">
+            {safePage * PAGE_SIZE + 1}–{safePage * PAGE_SIZE + pageItems.length} of{" "}
+            {filtered.length}
+          </span>
+          <Button
+            variant="outline"
+            onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+            disabled={safePage >= pageCount - 1}
+            aria-label="Next page"
+          >
+            Next <ChevronRight />
+          </Button>
+        </div>
+      )}
+
       {/* Cart bar */}
       {cart.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 px-4 py-3 shadow-lg backdrop-blur">
@@ -284,6 +341,12 @@ export function CatalogueClient({
               {available === 0
                 ? "Out of stock"
                 : `${available} ${selected.unit} in stock`}
+              {perOrderCap !== null && (
+                <span className="mt-1 block">
+                  Up to {perOrderCap} {selected.unit} per order, so there&apos;s
+                  enough to go round.
+                </span>
+              )}
               {selected.requires_approval && (
                 <span className="mt-1 block text-warning">
                   Subject to procurement approval when packing.

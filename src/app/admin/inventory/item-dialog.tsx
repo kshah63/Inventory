@@ -197,7 +197,7 @@ export function ItemDialog({
             )}
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="item-max">Max per checkout</Label>
+            <Label htmlFor="item-max">Max per order</Label>
             <Input
               id="item-max"
               type="number"
@@ -207,8 +207,12 @@ export function ItemDialog({
               placeholder="Empty = no cap"
               className="tabular-nums"
             />
+            <p className="text-xs text-muted-foreground">
+              The most one person can order at a time, so nobody clears the
+              shelf. Empty means no cap.
+            </p>
             {maxInvalid && (
-              <p className="text-xs text-destructive">Max per checkout must be a positive number.</p>
+              <p className="text-xs text-destructive">Max per order must be a positive number.</p>
             )}
           </div>
         </div>

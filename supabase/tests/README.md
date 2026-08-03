@@ -14,6 +14,10 @@ read other users' history).
 3–22, and a request can carry a description, a product link and a photo with
 no catalogue item and no store room.
 
+`04_order_limits.sql` covers migration 0009: an order at the per-item cap is
+accepted, one over it is refused, and the cap can't be beaten by splitting the
+same item across two lines of one order.
+
 `03_no_kiosks.sql` covers migration 0008: the kiosk functions, tables and
 columns are gone, no active device is left, and the paths that touched those
 columns — new accounts, role and User ID changes — still work. Run the first
@@ -28,6 +32,8 @@ psql -d mvtest -f 01_smoke_test.sql                          # expect: ALL SMOKE
 psql -d mvtest -f 02_requests_and_zones.sql                  # expect: REQUESTS + ZONES TESTS PASSED
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0008_remove_kiosks.sql
 psql -d mvtest -f 03_no_kiosks.sql                           # expect: NO-KIOSK TESTS PASSED
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0009_order_limits.sql
+psql -d mvtest -f 04_order_limits.sql                        # expect: ORDER LIMIT TESTS PASSED
 ```
 
 The shim replaces `auth.uid()` with a `test.uid` session setting so tests can

@@ -7,7 +7,7 @@ math, race conditions, RLS) are already covered by the automated suite in
 
 ## Setup (once)
 
-- Migrations `0001` → `0008` + (optionally) `seed_demo.sql` run in Supabase.
+- Migrations `0001` → `0009` + (optionally) `seed_demo.sql` run in Supabase.
 - You are signed in as the super admin.
 - On **Admin → Users**, add "Priya Test" — role *Department Admin*, User ID
   `1901`, with a WhatsApp-able phone number. Note the temporary password.
@@ -28,6 +28,8 @@ temporary password.
 | 1.2 | **My activity** | Only Priya's checkouts/returns, grouped by day |
 | 1.3 | **Requests** → Request a new item: name, description, product link, a photo, qty 2, zone 14 | Listed as *Open* with the photo thumbnail, description and working link; cancel it — it disappears |
 | 1.3a | Same form — check there is no catalogue dropdown and no Level 8/Basement field | Callout at the top points catalogue items back to **Catalogue**; only new-item fields are shown |
+| 1.3b | Catalogue: page through with **Back** / **Next**; scroll down mid-page | Nine items per page; the search box and category chips stay pinned at the top |
+| 1.3c | Open an item procurement capped (Inventory → Max per order), try to exceed it | The quantity stops at the cap and the dialog says how many are allowed per order |
 | 1.4 | Place a catalogue order and pick a zone | Zones are the bare numbers 3–22; order lands in the procurement queue tagged with that zone |
 | 1.5 | Type `/admin` in the URL bar | Bounced back to /browse — staff can't see admin screens |
 | 1.6 | **Profile** → change password, then sign out and back in with the new one | Change succeeds; the old password no longer works. (If a password is forgotten instead, "Request a new password" on the login screen puts it in procurement's dashboard queue.) |
@@ -40,6 +42,7 @@ temporary password.
 | 2.2 | **Transfer**: 5 × pens, Level 8 → Basement | Both rooms update; audit shows paired transfer_out/transfer_in |
 | 2.3 | **Adjust**: −2 with empty note | Blocked until a reason is entered |
 | 2.4 | **Stocktake**: Level 8, count 3 items (one deliberately off by −2) | Variance report shows the −2; adjustment row in audit; stocktake listed under "Past stocktakes" |
+| 2.4b | **Inventory** → edit an item → set **Max per order** to 5 | Grid shows a "Max 5 per order" badge; ordering 6 of it is refused |
 | 2.5 | **Inventory**: create an item with photo; set its reorder/par inline | Appears in the catalogue; photo renders |
 | 2.6 | Deactivate that item | Gone from the catalogue; its history remains in the audit log |
 | 2.7 | **Export CSV** → edit a qty in the file → **Import CSV** | Preview shows the change; import reports "updated N, stock adjusted 1"; re-import → "stock adjusted 0" (idempotent) |
@@ -66,7 +69,8 @@ temporary password.
 - Signed out → any admin URL → login page.
 - (DB level — RLS and ledger immutability — is covered by
   `supabase/tests/01_smoke_test.sql` (36 assertions), plus
-  `02_requests_and_zones.sql` (8) and `03_no_kiosks.sql` (7); all passing.)
+  `02_requests_and_zones.sql` (8), `03_no_kiosks.sql` (8) and
+  `04_order_limits.sql` (6); all passing.)
 
 ## Known limitations (by design, per the spec's phasing)
 

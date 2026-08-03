@@ -242,7 +242,9 @@ export function InventoryGrid({
                       </span>
                       {item.requires_approval && <Badge variant="warning">Approval</Badge>}
                       {item.max_per_checkout !== null && (
-                        <Badge variant="outline">Max {item.max_per_checkout}</Badge>
+                        <Badge variant="outline" title="Most one person can order at a time">
+                          Max {item.max_per_checkout} per order
+                        </Badge>
                       )}
                       {!item.is_active && <Badge variant="secondary">Inactive</Badge>}
                     </div>
