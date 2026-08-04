@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function CataloguePage() {
   const supabase = await createClient();
 
-  const [locationsRes, categoriesRes, itemsRes, zonesRes] = await Promise.all([
+  const [locationsRes, categoriesRes, itemsRes, zonesRes, aliasRes] = await Promise.all([
     supabase
       .from("locations")
       .select("id, name, is_active")
@@ -22,6 +22,7 @@ export default async function CataloguePage() {
       .eq("is_active", true)
       .order("name"),
     supabase.from("settings").select("value").eq("key", "zones").maybeSingle(),
+    supabase.from("item_aliases").select("item_id, alias"),
   ]);
 
   const locations = (locationsRes.data ?? []) as unknown as Location[];
@@ -30,6 +31,13 @@ export default async function CataloguePage() {
   const zones = Array.isArray(zonesRes.data?.value)
     ? (zonesRes.data.value as unknown[]).filter((z): z is string => typeof z === "string")
     : [];
+
+  // The names people actually use, taught by procurement when they resolve a
+  // request from stock. Searching should know them as well as the item names.
+  const aliases: Record<string, string[]> = {};
+  for (const row of (aliasRes.data ?? []) as { item_id: string; alias: string }[]) {
+    (aliases[row.item_id] ??= []).push(row.alias);
+  }
 
   return (
     <div>
@@ -42,6 +50,7 @@ export default async function CataloguePage() {
         locations={locations}
         categories={categories}
         zones={zones}
+        aliases={aliases}
       />
     </div>
   );

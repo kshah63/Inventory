@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
+import { matchesWords, queryWords, relevance, searchableText } from "@/lib/search";
 import { createOrder } from "@/lib/actions/orders";
 import { NewRequestDialog } from "@/app/(staff)/requests/new-request-dialog";
 import type {
@@ -44,11 +45,14 @@ export function CatalogueClient({
   locations,
   categories,
   zones,
+  aliases = {},
 }: {
   items: CatalogItem[];
   locations: Location[];
   categories: Category[];
   zones: string[];
+  /** Extra names per item, learned from requests procurement resolved. */
+  aliases?: Record<string, string[]>;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -69,14 +73,36 @@ export function CatalogueClient({
   const [note, setNote] = React.useState("");
   const [placing, setPlacing] = React.useState(false);
 
+  // Precomputed once: name, code and any learned aliases, lowercased.
+  const haystacks = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const item of items) {
+      map.set(item.id, searchableText(item, aliases[item.id]));
+    }
+    return map;
+  }, [items, aliases]);
+
   const filtered = React.useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return items.filter((item) => {
+    // Words, not a phrase — "pen blue" and "blue pen" find the same item.
+    const words = queryWords(query);
+    const hits = items.filter((item) => {
       if (categoryId && item.category_id !== categoryId) return false;
-      if (!q) return true;
-      return item.name.toLowerCase().includes(q) || item.sku.toLowerCase().includes(q);
+      if (words.length === 0) return true;
+      return matchesWords(haystacks.get(item.id) ?? "", words);
     });
-  }, [items, query, categoryId]);
+    if (words.length === 0) return hits;
+    // Best answers first, so they land on the first page rather than
+    // wherever the alphabet puts them.
+    return [...hits].sort((a, b) => {
+      const byScore =
+        relevance(b, haystacks.get(b.id) ?? "", query, words) -
+        relevance(a, haystacks.get(a.id) ?? "", query, words);
+      if (byScore !== 0) return byScore;
+      // Then the plainer name: "BLUE PEN 0.7MM" before "BLUE PEN REFILL BOX".
+      if (a.name.length !== b.name.length) return a.name.length - b.name.length;
+      return a.name.localeCompare(b.name);
+    });
+  }, [items, query, categoryId, haystacks]);
 
   // Nine at a time — three rows of three on a laptop — so the whole page fits
   // without scrolling and you step through the catalogue instead.
