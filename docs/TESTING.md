@@ -7,7 +7,7 @@ math, race conditions, RLS) are already covered by the automated suite in
 
 ## Setup (once)
 
-- Migrations `0001` → `0011` + (optionally) `seed_demo.sql` run in Supabase.
+- Migrations `0001` → `0012` + (optionally) `seed_demo.sql` run in Supabase.
 - You are signed in as the super admin.
 - On **Admin → Users**, add "Priya Test" — role *Department Admin*, User ID
   `1901`, with a WhatsApp-able phone number. Note the temporary password.
@@ -29,6 +29,7 @@ temporary password.
 | 1.1 | Lands on **Order** (/browse) | Total availability per item; search + category chips work; no store-room picker anywhere in the order flow |
 | 1.2 | **My orders** → **Collected** tab | Only Priya's own collected items, grouped by day |
 | 1.3pre | **Order** → *Request a new item* → type "sticky notes" (something you stock) | Matches appear under the field — "We stock these already" — with **Order this**, which adds it to the order instead |
+| 1.3pre2 | Same field: type the words backwards, e.g. "pen blue" then "blue pen" | Both find the same item; so does a plural like "pens blue" |
 | 1.3 | **Order** → Request a new item: name, description, product link, a photo, qty 2, zone 14 | Listed as *Open* with the photo thumbnail, description and working link; cancel it — it disappears |
 | 1.3a | Same form — check there is no catalogue dropdown and no Level 8/Basement field | Only new-item fields are shown |
 | 1.3b | Order: page through with **Back** / **Next**; scroll down mid-page | Nine items per page; the search box and category chips stay pinned at the top |
@@ -77,7 +78,7 @@ temporary password.
   `supabase/tests/01_smoke_test.sql` (36 assertions), plus
   `02_requests_and_zones.sql` (8), `03_no_kiosks.sql` (8),
   `04_order_limits.sql` (6), `05_order_read_state.sql` (7) and
-  `06_stock_matching.sql` (15); all passing.)
+  `06_stock_matching.sql` (20); all passing.)
 
 ## Known limitations (by design, per the spec's phasing)
 

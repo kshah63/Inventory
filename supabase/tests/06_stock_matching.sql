@@ -1,5 +1,5 @@
--- Migration 0011 acceptance: catch "we already stock that" before it becomes
--- a request, and resolve the ones that slip through. Run after 0011.
+-- Migrations 0011 + 0012 acceptance: catch "we already stock that" before it
+-- becomes a request, and resolve the ones that slip through. Run after 0012.
 -- Re-runnable.
 \set ON_ERROR_STOP on
 set client_min_messages = notice;
@@ -27,6 +27,32 @@ select public.t_assert(
 select public.t_assert(
   (select count(*) from public.search_catalogue('a')) = 0,
   'a single letter matches nothing — no suggestion beats a bad one');
+
+-- ═══ Word order is the typist's business, not ours ═══
+select public.t_assert(
+  exists (select 1 from public.search_catalogue('blue pen')
+          where name = 'Ballpoint pen (blue)'),
+  'words in our order find the item');
+
+select public.t_assert(
+  exists (select 1 from public.search_catalogue('pen blue')
+          where name = 'Ballpoint pen (blue)'),
+  'the same words in any order find the same item');
+
+select public.t_assert(
+  (select item_id from public.search_catalogue('pen blue') limit 1)
+    = (select item_id from public.search_catalogue('blue pen') limit 1),
+  'and both rank it first');
+
+select public.t_assert(
+  exists (select 1 from public.search_catalogue('pens blue')
+          where name = 'Ballpoint pen (blue)'),
+  'a plural still finds the singular');
+
+select public.t_assert(
+  exists (select 1 from public.search_catalogue('black marker')
+          where name = 'Whiteboard marker (black)'),
+  'reordered words rank the right colour first');
 
 select public.t_assert(
   (select count(*) from public.search_catalogue('xyzzy nonexistent widget')) = 0,

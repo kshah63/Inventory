@@ -22,8 +22,8 @@ same item across two lines of one order.
 news, procurement packing it is, opening My orders clears the marker, a later
 change raises it again, and nobody sees a marker for someone else's order.
 
-`06_stock_matching.sql` covers migration 0011: names, typos and different
-wording all find the right item, a single letter and a genuine unknown find
+`06_stock_matching.sql` covers migrations 0011 and 0012: names, typos,
+reordered words and plurals all find the right item, a single letter and a genuine unknown find
 nothing, aliases are learned and de-duplicated, resolving a request from stock
 raises an order for the requester, and staff can do neither.
 
@@ -46,6 +46,7 @@ psql -d mvtest -f 04_order_limits.sql                        # expect: ORDER LIM
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0010_order_read_state.sql
 psql -d mvtest -f 05_order_read_state.sql                    # expect: ORDER READ-STATE TESTS PASSED
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0011_stock_matching.sql
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0012_word_order_search.sql
 psql -d mvtest -f 06_stock_matching.sql                      # expect: STOCK MATCHING TESTS PASSED
 ```
 
