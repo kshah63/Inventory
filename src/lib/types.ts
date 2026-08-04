@@ -111,6 +111,7 @@ export interface RequestRow {
   status: RequestStatus;
   note: string | null;
   admin_note: string | null;
+  fulfilled_item_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -228,6 +229,18 @@ export interface CheckoutResult {
 export interface CatalogItem extends Item {
   category: { name: string } | null;
   stock_levels: { location_id: string; qty_on_hand: number }[];
+}
+
+/** A catalogue item that looks like what someone is asking for. */
+export interface CatalogueMatch {
+  item_id: string;
+  sku: string;
+  name: string;
+  unit: string;
+  qty_on_hand: number;
+  max_per_order: number | null;
+  matched_alias: string | null;
+  score: number;
 }
 
 export type ActionResult<T = undefined> =

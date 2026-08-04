@@ -22,6 +22,11 @@ same item across two lines of one order.
 news, procurement packing it is, opening My orders clears the marker, a later
 change raises it again, and nobody sees a marker for someone else's order.
 
+`06_stock_matching.sql` covers migration 0011: names, typos and different
+wording all find the right item, a single letter and a genuine unknown find
+nothing, aliases are learned and de-duplicated, resolving a request from stock
+raises an order for the requester, and staff can do neither.
+
 `03_no_kiosks.sql` covers migration 0008: the kiosk functions, tables and
 columns are gone, no active device is left, and the paths that touched those
 columns — new accounts, role and User ID changes — still work. Run the first
@@ -40,6 +45,8 @@ psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0009_order_limits.sql
 psql -d mvtest -f 04_order_limits.sql                        # expect: ORDER LIMIT TESTS PASSED
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0010_order_read_state.sql
 psql -d mvtest -f 05_order_read_state.sql                    # expect: ORDER READ-STATE TESTS PASSED
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0011_stock_matching.sql
+psql -d mvtest -f 06_stock_matching.sql                      # expect: STOCK MATCHING TESTS PASSED
 ```
 
 The shim replaces `auth.uid()` with a `test.uid` session setting so tests can

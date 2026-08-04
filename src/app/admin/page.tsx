@@ -14,8 +14,7 @@ import {
   Truck,
   type LucideIcon,
 } from "lucide-react";
-import { redirect } from "next/navigation";
-import { createClient, getProfile } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -53,9 +52,6 @@ const TYPE_BADGE: Record<
 };
 
 export default async function AdminDashboardPage() {
-  const profile = await getProfile();
-  if (profile?.role === "dept_head") redirect("/admin/reports");
-
   const supabase = await createClient();
   const [statsRes, txRes, resetRes] = await Promise.all([
     supabase.rpc("get_dashboard_stats"),

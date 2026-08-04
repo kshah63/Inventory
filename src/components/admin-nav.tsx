@@ -54,19 +54,14 @@ const FOOTER_NAV: NavItem[] = [{ href: "/admin/settings", label: "Settings", ico
 export function AdminNav({
   userName,
   isSuperAdmin,
-  reportingOnly,
 }: {
   userName: string;
   isSuperAdmin: boolean;
-  /** Department Heads: read-only oversight — Reports and Audit log only. */
-  reportingOnly?: boolean;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
 
-  const items = reportingOnly
-    ? NAV.filter((i) => i.href === "/admin/reports" || i.href === "/admin/audit")
-    : [...NAV, ...(isSuperAdmin ? SUPER_NAV : []), ...FOOTER_NAV];
+  const items = [...NAV, ...(isSuperAdmin ? SUPER_NAV : []), ...FOOTER_NAV];
 
   const linkClass = (href: string, exact?: boolean) => {
     const active = exact ? pathname === href : pathname.startsWith(href);

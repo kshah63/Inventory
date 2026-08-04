@@ -8,7 +8,25 @@ import {
   composeRequestUpdateMessage,
   sendWhatsApp,
 } from "@/lib/whatsapp";
-import type { ActionResult, RequestStatus } from "@/lib/types";
+import type { ActionResult, CatalogueMatch, RequestStatus } from "@/lib/types";
+
+/** What someone is typing, matched against the catalogue: names, item codes
+ * and the aliases procurement has taught it. Nothing here blocks a request —
+ * it only offers what we already have. */
+export async function searchCatalogue(query: string): Promise<CatalogueMatch[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("search_catalogue", {
+    p_query: q,
+    p_limit: 3,
+  });
+  if (error) {
+    console.error("search_catalogue failed —", error.message);
+    return [];
+  }
+  return (data ?? []) as CatalogueMatch[];
+}
 
 /** Request an item that isn't in the catalogue. RLS enforces
  * requested_by = self. */
@@ -81,6 +99,61 @@ export async function uploadRequestPhoto(
     data: { publicUrl },
   } = supabase.storage.from("request-photos").getPublicUrl(path);
   return { ok: true, data: { url: publicUrl } };
+}
+
+/** Procurement recognises a request as something already on the shelf: it
+ * becomes a real order for the person who asked, and the request closes.
+ * Optionally teaches the matcher the words they used. */
+export async function fulfilRequestFromStock(params: {
+  requestId: string;
+  itemId: string;
+  qty: number;
+  note?: string;
+  rememberAlias?: string;
+}): Promise<ActionResult<{ order_no: number; item_name: string }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("fulfil_request_from_stock", {
+    p_request_id: params.requestId,
+    p_item_id: params.itemId,
+    p_qty: params.qty,
+    p_note: params.note ?? null,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  const info = data as {
+    order_no: number;
+    item_name: string;
+    qty: number;
+    requester_phone: string | null;
+    requested_text: string;
+  };
+
+  // The words that person used now find this item for everyone else.
+  const alias = params.rememberAlias?.trim();
+  if (alias) {
+    const { error: aliasError } = await supabase.rpc("add_item_alias", {
+      p_item_id: params.itemId,
+      p_alias: alias,
+    });
+    if (aliasError) console.error("add_item_alias failed —", aliasError.message);
+  }
+
+  if (info.requester_phone) {
+    await sendWhatsApp(
+      info.requester_phone,
+      composeRequestUpdateMessage({
+        item_label: info.item_name,
+        qty: info.qty,
+        status: "fulfilled",
+        admin_note: `We had it in stock — order #${info.order_no} is being packed.`,
+      }),
+      "request_update"
+    ).catch(() => {});
+  }
+
+  revalidatePath("/admin/requests");
+  revalidatePath("/orders");
+  return { ok: true, data: { order_no: info.order_no, item_name: info.item_name } };
 }
 
 export async function cancelOwnRequest(requestId: string): Promise<ActionResult> {

@@ -18,7 +18,7 @@ lead time.
    seeds the two locations (Level 8, Basement) + categories.
 3. Run the remaining migration files in
    [`supabase/migrations/`](../supabase/migrations) **in numerical order**
-   (`0002` → `0010`), one at a time, same way. Each is safe to run on a live
+   (`0002` → `0011`), one at a time, same way. Each is safe to run on a live
    database and only needs running once:
 
    | File | What it adds |
@@ -32,6 +32,7 @@ lead time.
    | `0008_remove_kiosks.sql` | Removes kiosk devices, PIN sign-in and the sessions behind them |
    | `0009_order_limits.sql` | Enforces each item's max-per-order so one person can't take the shelf |
    | `0010_order_read_state.sql` | Unread marker on My orders when procurement moves an order on |
+   | `0011_stock_matching.sql` | Suggests what we already stock as people type a request, and lets procurement resolve one from stock |
 
 4. *(Optional)* Run [`supabase/seed_demo.sql`](../supabase/seed_demo.sql) for
    a sample catalog to click around with. Skip if you'll import your real

@@ -278,6 +278,10 @@ function AddLoginDialog({
               <option value="staff">Department Admin</option>
               <option value="dept_head">Department Head</option>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              Both order the same way. Department Head is held for reporting
+              access, which is switched off for now.
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="nu-userno">User ID</Label>
@@ -471,6 +475,12 @@ function EditUserDialog({
               <option value="staff">Department Admin</option>
               <option value="dept_head">Department Head</option>
             </Select>
+          )}
+          {!backendRole && (
+            <p className="text-xs text-muted-foreground">
+              Both order the same way. Department Head is held for reporting
+              access, which is switched off for now.
+            </p>
           )}
           {isSelf && !backendRole && (
             <p className="text-xs text-muted-foreground">

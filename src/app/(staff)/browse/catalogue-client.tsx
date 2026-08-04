@@ -23,7 +23,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { createOrder } from "@/lib/actions/orders";
-import type { BasketLine, CatalogItem, Category, Location } from "@/lib/types";
+import { NewRequestDialog } from "@/app/(staff)/requests/new-request-dialog";
+import type {
+  BasketLine,
+  CatalogItem,
+  CatalogueMatch,
+  Category,
+  Location,
+} from "@/lib/types";
 
 /** Three rows of three on a laptop. */
 const PAGE_SIZE = 9;
@@ -118,6 +125,15 @@ export function CatalogueClient({
     });
   };
 
+  /** From the request form: they meant something we already stock. */
+  const addMatchToCart = (match: CatalogueMatch) => {
+    const cap = match.max_per_order ?? Infinity;
+    const already = cartQty.get(match.item_id) ?? 0;
+    const next = Math.min(already + 1, cap);
+    setCartLine(match.item_id, next);
+    toast(`${match.name} added to your order.`, "success");
+  };
+
   const openItem = (item: CatalogItem) => {
     setSelectedId(item.id);
     setQty(cartQty.get(item.id) ?? 1);
@@ -203,6 +219,16 @@ export function CatalogueClient({
             </Chip>
           ))}
         </div>
+      </div>
+
+      {/* Asking for something new starts in the same place as looking for
+          something old — and the form checks the shelves as you type. */}
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+        <span>
+          {filtered.length} {filtered.length === 1 ? "item" : "items"}
+          {query.trim() && ` matching “${query.trim()}”`}
+        </span>
+        <NewRequestDialog zones={zones} onOrderInstead={addMatchToCart} />
       </div>
 
       {filtered.length === 0 ? (

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ExternalLink, Inbox } from "lucide-react";
+import { ArrowRight, ExternalLink, Inbox, PackageCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +21,7 @@ import { useToast } from "@/components/ui/toast";
 import { updateRequestStatus } from "@/lib/actions/requests";
 import { friendlyError, timeAgo, REQUEST_STATUS_LABELS } from "@/lib/utils";
 import type { RequestStatus } from "@/lib/types";
+import { StockMatchDialog } from "./stock-match-dialog";
 
 export interface AdminRequest {
   id: string;
@@ -105,6 +106,7 @@ export function RequestsClient({ requests }: { requests: AdminRequest[] }) {
   const [newStatus, setNewStatus] = React.useState<RequestStatus>("acknowledged");
   const [adminNote, setAdminNote] = React.useState("");
   const [saving, setSaving] = React.useState(false);
+  const [matching, setMatching] = React.useState<AdminRequest | null>(null);
 
   const counts = React.useMemo(() => {
     const c: Record<string, number> = { all: requests.length };
@@ -233,18 +235,32 @@ export function RequestsClient({ requests }: { requests: AdminRequest[] }) {
                     )}
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0 self-start"
-                  onClick={() => openDialog(r)}
-                >
-                  Update status <ArrowRight />
-                </Button>
+                <div className="flex shrink-0 flex-wrap gap-2 self-start">
+                  {r.status !== "fulfilled" && r.status !== "rejected" && (
+                    <Button size="sm" onClick={() => setMatching(r)}>
+                      <PackageCheck /> We stock this
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => openDialog(r)}>
+                    Update status <ArrowRight />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
+      )}
+
+      {matching && (
+        <StockMatchDialog
+          request={{
+            id: matching.id,
+            label: matching.free_text_item ?? matching.item_name ?? "",
+            qty: matching.qty,
+            requester: matching.requester_name,
+          }}
+          onClose={() => setMatching(null)}
+        />
       )}
 
       <Dialog open={active !== null} onClose={closeDialog} className="max-w-md">

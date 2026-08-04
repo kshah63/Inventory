@@ -17,7 +17,6 @@ export default async function StaffLayout({
   if (!profile.is_active) redirect("/");
 
   const isAdmin = profile.role === "super_admin" || profile.role === "procurement";
-  const isDeptHead = profile.role === "dept_head";
 
   // Orders procurement has moved on since this person last looked.
   const supabase = await createClient();
@@ -34,7 +33,6 @@ export default async function StaffLayout({
           <StaffNav
             userName={profile.full_name}
             isAdmin={isAdmin}
-            isDeptHead={isDeptHead}
             unreadOrders={unreadOrders}
           />
         </div>

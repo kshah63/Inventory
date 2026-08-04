@@ -2,19 +2,27 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus, Info, Link2, Plus, X } from "lucide-react";
+import { Check, ImagePlus, Info, Link2, PackageCheck, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
-import { createRequest, uploadRequestPhoto } from "@/lib/actions/requests";
+import { createRequest, searchCatalogue, uploadRequestPhoto } from "@/lib/actions/requests";
 import { cn, friendlyError } from "@/lib/utils";
+import type { CatalogueMatch } from "@/lib/types";
 
 /** Requests are only for items the catalogue doesn't carry — catalogue items
  * are ordered from the Catalogue page instead. */
-export function NewRequestDialog({ zones }: { zones: string[] }) {
+export function NewRequestDialog({
+  zones,
+  onOrderInstead,
+}: {
+  zones: string[];
+  /** Adds a catalogue item to the order instead of raising a request. */
+  onOrderInstead?: (match: CatalogueMatch) => void;
+}) {
   const router = useRouter();
   const { toast } = useToast();
 
@@ -27,9 +35,31 @@ export function NewRequestDialog({ zones }: { zones: string[] }) {
   const [qty, setQty] = React.useState("1");
   const [zone, setZone] = React.useState<string | null>(null);
 
+  const [matches, setMatches] = React.useState<CatalogueMatch[]>([]);
+  const [dismissedMatches, setDismissedMatches] = React.useState(false);
+
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
   const fileInput = React.useRef<HTMLInputElement>(null);
+
+  // Look for what they're describing while they type. Debounced so it
+  // follows a pause rather than every keystroke.
+  React.useEffect(() => {
+    const q = itemName.trim();
+    if (q.length < 2) {
+      setMatches([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const found = await searchCatalogue(q);
+      if (!cancelled) setMatches(found);
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [itemName]);
 
   function clearPhoto() {
     setPhotoFile(null);
@@ -46,6 +76,8 @@ export function NewRequestDialog({ zones }: { zones: string[] }) {
     setProductUrl("");
     setQty("1");
     setZone(null);
+    setMatches([]);
+    setDismissedMatches(false);
     clearPhoto();
   }
 
@@ -136,9 +168,8 @@ export function NewRequestDialog({ zones }: { zones: string[] }) {
         <div className="mb-5 flex items-start gap-2 rounded-md border border-primary/30 bg-accent p-3 text-sm">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <p>
-            Already in the catalogue? Order it from <strong>Catalogue</strong>{" "}
-            instead — it&apos;s much quicker. Use this form only for items we
-            don&apos;t carry.
+            Type what you need — if we already stock it, it&apos;ll show up
+            below and you can order it straight away.
           </p>
         </div>
 
@@ -150,12 +181,63 @@ export function NewRequestDialog({ zones }: { zones: string[] }) {
               autoFocus
               required
               value={itemName}
-              onChange={(e) => setItemName(e.target.value)}
+              onChange={(e) => {
+                setItemName(e.target.value);
+                setDismissedMatches(false);
+              }}
               placeholder="e.g. A3 laminating pouches"
               maxLength={200}
               className="h-11"
             />
           </div>
+
+          {/* What we already have that sounds like it. Never blocks the
+              request — it just saves a wait when we had it all along. */}
+          {matches.length > 0 && !dismissedMatches && onOrderInstead && (
+            <div className="space-y-2 rounded-md border border-success/40 bg-success/5 p-3">
+              <p className="flex items-center gap-1.5 text-sm font-medium">
+                <PackageCheck className="h-4 w-4 text-success" />
+                We stock {matches.length === 1 ? "this" : "these"} already
+              </p>
+              <ul className="space-y-1.5">
+                {matches.map((m) => (
+                  <li
+                    key={m.item_id}
+                    className="flex items-center gap-3 rounded-md bg-card px-3 py-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{m.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {m.sku} ·{" "}
+                        {m.qty_on_hand > 0
+                          ? `${m.qty_on_hand} ${m.unit} in stock`
+                          : "out of stock"}
+                        {m.matched_alias && ` · also called "${m.matched_alias}"`}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        onOrderInstead(m);
+                        setOpen(false);
+                        reset();
+                      }}
+                    >
+                      <Check /> Order this
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => setDismissedMatches(true)}
+                className="text-xs font-medium text-muted-foreground underline-offset-2 hover:underline"
+              >
+                None of these — carry on with my request
+              </button>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             {/* Presented as expected, not enforced — a blank description

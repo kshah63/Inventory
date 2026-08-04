@@ -10,11 +10,9 @@ export default async function AdminLayout({
   const profile = await getProfile();
   if (!profile) redirect("/login");
   if (!profile.is_active) redirect("/");
-  if (
-    profile.role !== "super_admin" &&
-    profile.role !== "procurement" &&
-    profile.role !== "dept_head"
-  ) {
+  // Department Heads had read-only Reports and the audit log; that's paused
+  // for now, so admin screens are procurement and super admin only.
+  if (profile.role !== "super_admin" && profile.role !== "procurement") {
     redirect("/browse");
   }
 
@@ -23,7 +21,6 @@ export default async function AdminLayout({
       <AdminNav
         userName={profile.full_name}
         isSuperAdmin={profile.role === "super_admin"}
-        reportingOnly={profile.role === "dept_head"}
       />
       <main className="flex-1 p-4 pb-20 lg:p-8 lg:pb-8 overflow-x-hidden">
         <div className="mx-auto max-w-6xl">{children}</div>
