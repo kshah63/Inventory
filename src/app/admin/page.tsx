@@ -170,9 +170,9 @@ export default async function AdminDashboardPage() {
         <StatCard
           label="Low stock"
           value={stats.low_stock}
-          sub="at or below reorder point"
+          sub="at or below the reorder level"
           icon={AlertTriangle}
-          href="/admin/reorder"
+          href="/admin/inventory?stock=low"
           tone={stats.low_stock > 0 ? "warning" : undefined}
         />
         <StatCard
@@ -180,6 +180,7 @@ export default async function AdminDashboardPage() {
           value={stats.out_of_stock}
           sub="items at zero"
           icon={PackageX}
+          href="/admin/inventory?stock=out"
           tone={stats.out_of_stock > 0 ? "destructive" : undefined}
         />
         <StatCard

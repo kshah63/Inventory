@@ -32,6 +32,7 @@ import {
 import { useToast } from "@/components/ui/toast";
 import { saveCategory, setStockParams } from "@/lib/actions/inventory";
 import { cn, friendlyError } from "@/lib/utils";
+import { matchesWords, queryWords, searchableText } from "@/lib/search";
 import type { Category, Item, Location } from "@/lib/types";
 import { ItemDialog } from "./item-dialog";
 import { ImportDialog } from "./import-dialog";
@@ -51,18 +52,43 @@ function stockAt(item: InventoryItem, locationId: string) {
   return item.stock_levels.find((s) => s.location_id === locationId) ?? null;
 }
 
+type StockFilter = "all" | "out" | "low" | "in";
+
+const STOCK_FILTERS: { key: StockFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "out", label: "Out of stock" },
+  { key: "low", label: "Low" },
+  { key: "in", label: "In stock" },
+];
+
+/** Out if nothing anywhere; low if any room is at or below its reorder
+ * point; otherwise in stock. Matches how the dashboard counts. */
+function stockState(item: InventoryItem): Exclude<StockFilter, "all"> {
+  const rows = item.stock_levels ?? [];
+  const total = rows.reduce((n, s) => n + s.qty_on_hand, 0);
+  if (total === 0) return "out";
+  if (rows.some((s) => s.reorder_point > 0 && s.qty_on_hand <= s.reorder_point))
+    return "low";
+  return "in";
+}
+
 export function InventoryGrid({
   items,
   categories,
   locations,
+  initialStockFilter,
 }: {
   items: InventoryItem[];
   categories: Category[];
   locations: Location[];
+  initialStockFilter?: StockFilter;
 }) {
   const [search, setSearch] = React.useState("");
   const [categoryId, setCategoryId] = React.useState("");
   const [showInactive, setShowInactive] = React.useState(false);
+  const [stockFilter, setStockFilter] = React.useState<StockFilter>(
+    initialStockFilter ?? "all"
+  );
 
   const [itemDialog, setItemDialog] = React.useState<{
     open: boolean;
@@ -71,12 +97,12 @@ export function InventoryGrid({
   const [importOpen, setImportOpen] = React.useState(false);
   const [categoryOpen, setCategoryOpen] = React.useState(false);
 
-  const q = search.trim().toLowerCase();
+  const words = queryWords(search);
   const filtered = items.filter((i) => {
     if (!showInactive && !i.is_active) return false;
     if (categoryId && i.category_id !== categoryId) return false;
-    if (q && !i.name.toLowerCase().includes(q) && !i.sku.toLowerCase().includes(q))
-      return false;
+    if (words.length && !matchesWords(searchableText(i), words)) return false;
+    if (stockFilter !== "all" && stockState(i) !== stockFilter) return false;
     return true;
   });
 
@@ -152,6 +178,29 @@ export function InventoryGrid({
               </option>
             ))}
           </Select>
+          <div className="flex flex-wrap gap-1.5">
+            {STOCK_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setStockFilter(f.key)}
+                aria-pressed={stockFilter === f.key}
+                className={cn(
+                  "h-9 rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  stockFilter === f.key
+                    ? "border-transparent bg-primary text-primary-foreground"
+                    : "bg-card hover:bg-accent"
+                )}
+              >
+                {f.label}
+                {f.key !== "all" && (
+                  <span className="ml-1.5 tabular-nums opacity-70">
+                    {items.filter((i) => i.is_active && stockState(i) === f.key).length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-2">
             <Switch
               id="show-inactive"

@@ -130,7 +130,7 @@ export function ReorderClient({ rows }: { rows: ReorderRow[] }) {
             <TableHead>Item</TableHead>
             <TableHead className="text-right">On hand</TableHead>
             <TableHead className="text-right">Reorder pt</TableHead>
-            <TableHead className="text-right">Par</TableHead>
+            <TableHead className="text-right" title="The level to top back up to">Top up to</TableHead>
             <TableHead className="text-right">Suggested qty</TableHead>
             <TableHead className="text-right">Daily use</TableHead>
             <TableHead className="text-right">Days left</TableHead>

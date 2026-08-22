@@ -7,7 +7,15 @@ import type { Category, Location } from "@/lib/types";
 export const metadata = { title: "Inventory" };
 export const dynamic = "force-dynamic";
 
-export default async function InventoryPage() {
+export default async function InventoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ stock?: string }>;
+}) {
+  // The dashboard's low/out-of-stock cards link straight into this filter.
+  const { stock } = await searchParams;
+  const initialStockFilter =
+    stock === "out" || stock === "low" || stock === "in" ? stock : "all";
   const supabase = await createClient();
   const [catRes, locRes, itemRes] = await Promise.all([
     supabase

@@ -27,10 +27,12 @@ export default async function MyOrdersPage({
       )
       .order("created_at", { ascending: false })
       .limit(100),
-    // RLS limits staff to their own requests.
+    // RLS limits staff to their own requests. Plain columns only: requests
+    // has two foreign keys into items, so an embedded items(...) join is
+    // ambiguous and errors — which would empty this list silently.
     supabase
       .from("requests")
-      .select("*, items(name, unit)")
+      .select("*")
       .order("created_at", { ascending: false })
       .limit(100),
     // Strictly this person's own supplies. Filtered explicitly rather than
@@ -47,7 +49,24 @@ export default async function MyOrdersPage({
   ]);
 
   const orders = (ordersRes.data ?? []) as unknown as StaffOrder[];
-  const requests = (requestsRes.data ?? []) as unknown as RequestWithJoins[];
+  const requestRows = (requestsRes.data ?? []) as unknown as RequestWithJoins[];
+  // Catalogue items only appear on requests raised before the catalogue and
+  // requests split apart, so this lookup is usually empty.
+  const requestItemIds = [
+    ...new Set(requestRows.map((r) => r.item_id).filter(Boolean)),
+  ] as string[];
+  const requestItems = requestItemIds.length
+    ? await supabase.from("items").select("id, name, unit").in("id", requestItemIds)
+    : null;
+  const requestItemById = new Map(
+    ((requestItems?.data ?? []) as { id: string; name: string; unit: string }[]).map(
+      (i) => [i.id, { name: i.name, unit: i.unit }]
+    )
+  );
+  const requests: RequestWithJoins[] = requestRows.map((r) => ({
+    ...r,
+    items: r.item_id ? requestItemById.get(r.item_id) ?? null : null,
+  }));
   const activity = (activityRes.data ?? []) as unknown as TransactionRow[];
 
   // Changed since this person last looked — and not by them. Worked out here

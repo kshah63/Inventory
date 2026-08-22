@@ -180,7 +180,7 @@ export async function updateRequestStatus(
     .from("requests")
     .update({ status, admin_note: adminNote?.trim() || null })
     .eq("id", requestId)
-    .select("id, qty, status, admin_note, requested_by, item_id, free_text_item, items(name)")
+    .select("id, qty, status, admin_note, requested_by, item_id, free_text_item")
     .single();
   if (error) return { ok: false, error: error.message };
 
@@ -191,10 +191,21 @@ export async function updateRequestStatus(
       status: string;
       admin_note: string | null;
       requested_by: string;
+      item_id: string | null;
       free_text_item: string | null;
-      items: { name: string } | null;
     };
     const admin = createAdminClient();
+    // Looked up separately: requests has two foreign keys into items, so an
+    // embedded join here is ambiguous and fails the whole update.
+    let itemName: string | null = null;
+    if (row.item_id) {
+      const { data: item } = await admin
+        .from("items")
+        .select("name")
+        .eq("id", row.item_id)
+        .maybeSingle();
+      itemName = (item as { name: string } | null)?.name ?? null;
+    }
     const { data: requester } = await admin
       .from("users")
       .select("phone")
@@ -204,7 +215,7 @@ export async function updateRequestStatus(
       await sendWhatsApp(
         requester.phone,
         composeRequestUpdateMessage({
-          item_label: row.items?.name ?? row.free_text_item ?? "item",
+          item_label: itemName ?? row.free_text_item ?? "item",
           qty: row.qty,
           status: row.status,
           admin_note: row.admin_note,
