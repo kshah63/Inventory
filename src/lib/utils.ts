@@ -53,6 +53,20 @@ export function timeAgo(iso: string): string {
 /** Map a raised Postgres error message to a friendly string. */
 export function friendlyError(message: string | undefined | null): string {
   if (!message) return "Something went wrong. Please try again.";
+
+  // The app deploys the moment code is pushed; the database migrations are
+  // run by hand afterwards. In the gap between the two, PostgREST answers
+  // with its own wording — "in the schema cache", "column … does not
+  // exist" — which reads like a crash to anyone who isn't holding the
+  // migration list. Say what it actually is.
+  if (
+    /schema cache/i.test(message) ||
+    /could not find the (function|table|column)/i.test(message) ||
+    /(relation|column|function) .* does not exist/i.test(message)
+  ) {
+    return "This part of the app needs a database update that hasn't been run yet. Ask whoever deploys to run the latest migration in Supabase, then try again.";
+  }
+
   return message;
 }
 
