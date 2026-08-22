@@ -21,6 +21,7 @@ interface RequestQueryRow {
   zone: string | null;
   item_id: string | null;
   requested_by: string;
+  expected_date: string | null;
 }
 
 export default async function AdminRequestsPage() {
@@ -33,7 +34,7 @@ export default async function AdminRequestsPage() {
   const { data, error } = await supabase
     .from("requests")
     .select(
-      "id, qty, status, note, admin_note, created_at, free_text_item, description, product_url, photo_url, zone, item_id, requested_by"
+      "id, qty, status, note, admin_note, created_at, free_text_item, description, product_url, photo_url, zone, item_id, requested_by, expected_date"
     )
     .order("created_at", { ascending: false })
     .limit(300);
@@ -77,6 +78,7 @@ export default async function AdminRequestsPage() {
     product_url: r.product_url,
     photo_url: r.photo_url,
     zone: r.zone,
+    expected_date: r.expected_date,
     item_name: r.item_id ? itemById.get(r.item_id)?.name ?? null : null,
     unit: r.item_id ? itemById.get(r.item_id)?.unit ?? null : null,
     requester_name: nameById.get(r.requested_by) ?? "Unknown",

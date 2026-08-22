@@ -65,10 +65,27 @@ export const TRANSACTION_TYPE_LABELS: Record<string, string> = {
   adjustment: "Adjustment",
 };
 
+/** What procurement sees on the requests queue. */
 export const REQUEST_STATUS_LABELS: Record<string, string> = {
   open: "Open",
   acknowledged: "Acknowledged",
   ordered: "Ordered",
-  fulfilled: "Fulfilled",
+  received: "Received",
+  ready: "Ready to collect",
+  fulfilled: "Collected",
   rejected: "Rejected",
+};
+
+/** What the requester sees. "Received" deliberately reads as "on order":
+ * stock landing in the store room isn't the same as it being packed and
+ * ready for them, and a day or two sits in between. The expected date is
+ * what they're told instead. */
+export const REQUEST_STATUS_LABELS_REQUESTER: Record<string, string> = {
+  open: "Open",
+  acknowledged: "Acknowledged",
+  ordered: "On order",
+  received: "On order",
+  ready: "Ready to collect",
+  fulfilled: "Collected",
+  rejected: "Declined",
 };

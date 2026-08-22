@@ -2,13 +2,18 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Inbox, Trash2 } from "lucide-react";
+import { CalendarClock, ExternalLink, Inbox, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 import { cancelOwnRequest } from "@/lib/actions/requests";
-import { friendlyError, timeAgo, REQUEST_STATUS_LABELS } from "@/lib/utils";
+import {
+  formatDate,
+  friendlyError,
+  timeAgo,
+  REQUEST_STATUS_LABELS_REQUESTER,
+} from "@/lib/utils";
 import type { RequestRow, RequestStatus } from "@/lib/types";
 
 export interface RequestWithJoins extends RequestRow {
@@ -22,7 +27,9 @@ const STATUS_VARIANT: Record<
   open: "warning",
   acknowledged: "secondary",
   ordered: "default",
-  fulfilled: "success",
+  received: "default",
+  ready: "success",
+  fulfilled: "secondary",
   rejected: "destructive",
 };
 
@@ -80,13 +87,25 @@ export function RequestsList({ requests }: { requests: RequestWithJoins[] }) {
                     )}
                   </p>
                   <Badge variant={STATUS_VARIANT[req.status]} className="shrink-0">
-                    {REQUEST_STATUS_LABELS[req.status] ?? req.status}
+                    {REQUEST_STATUS_LABELS_REQUESTER[req.status] ?? req.status}
                   </Badge>
                 </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {req.zone ? `Zone ${req.zone} · ` : ""}
                   {timeAgo(req.created_at)}
                 </p>
+
+                {/* What procurement expects, so nobody has to ask. */}
+                {req.expected_date &&
+                  req.status !== "fulfilled" &&
+                  req.status !== "rejected" && (
+                    <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 text-xs font-medium">
+                      <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+                      {req.status === "ready"
+                        ? "Ready now — come and collect it"
+                        : `Expected around ${formatDate(req.expected_date)}`}
+                    </p>
+                  )}
 
                 {req.description && (
                   <p className="mt-2 whitespace-pre-line text-sm text-muted-foreground">

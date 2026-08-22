@@ -16,10 +16,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
-import { updateRequestStatus } from "@/lib/actions/requests";
-import { friendlyError, timeAgo, REQUEST_STATUS_LABELS } from "@/lib/utils";
+import { setRequestProgress } from "@/lib/actions/requests";
+import { formatDate, friendlyError, timeAgo, REQUEST_STATUS_LABELS } from "@/lib/utils";
 import type { RequestStatus } from "@/lib/types";
 import { StockMatchDialog } from "./stock-match-dialog";
 
@@ -38,12 +39,15 @@ export interface AdminRequest {
   unit: string | null;
   requester_name: string;
   zone: string | null;
+  expected_date: string | null;
 }
 
 const STATUS_ORDER: RequestStatus[] = [
   "open",
   "acknowledged",
   "ordered",
+  "received",
+  "ready",
   "fulfilled",
   "rejected",
 ];
@@ -52,7 +56,9 @@ const STATUS_BADGE: Record<RequestStatus, React.ComponentProps<typeof Badge>["va
   open: "warning",
   acknowledged: "secondary",
   ordered: "default",
-  fulfilled: "success",
+  received: "default",
+  ready: "success",
+  fulfilled: "secondary",
   rejected: "destructive",
 };
 
@@ -60,7 +66,9 @@ const STATUS_BADGE: Record<RequestStatus, React.ComponentProps<typeof Badge>["va
 const NEXT_STATUS: Record<RequestStatus, RequestStatus> = {
   open: "acknowledged",
   acknowledged: "ordered",
-  ordered: "fulfilled",
+  ordered: "received",
+  received: "ready",
+  ready: "fulfilled",
   fulfilled: "fulfilled",
   rejected: "rejected",
 };
@@ -78,8 +86,17 @@ const EMPTY_COPY: Record<string, { title: string; description: string }> = {
     title: "No orders in flight",
     description: "Requests marked as ordered will appear here until fulfilled.",
   },
+  received: {
+    title: "Nothing waiting to be packed",
+    description:
+      "Deliveries you've marked received sit here until you set them ready. The requester still sees these as on order.",
+  },
+  ready: {
+    title: "Nothing waiting to be collected",
+    description: "Requests you've marked ready — the requester has been told.",
+  },
   fulfilled: {
-    title: "Nothing fulfilled yet",
+    title: "Nothing collected yet",
     description: "Completed requests will show up here.",
   },
   rejected: {
@@ -105,6 +122,7 @@ export function RequestsClient({ requests }: { requests: AdminRequest[] }) {
   const [active, setActive] = React.useState<AdminRequest | null>(null);
   const [newStatus, setNewStatus] = React.useState<RequestStatus>("acknowledged");
   const [adminNote, setAdminNote] = React.useState("");
+  const [expectedDate, setExpectedDate] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [matching, setMatching] = React.useState<AdminRequest | null>(null);
 
@@ -122,6 +140,7 @@ export function RequestsClient({ requests }: { requests: AdminRequest[] }) {
     setActive(r);
     setNewStatus(NEXT_STATUS[r.status]);
     setAdminNote(r.admin_note ?? "");
+    setExpectedDate(r.expected_date ?? "");
   }
 
   function closeDialog() {
@@ -132,14 +151,25 @@ export function RequestsClient({ requests }: { requests: AdminRequest[] }) {
   async function save() {
     if (!active) return;
     setSaving(true);
-    const result = await updateRequestStatus(active.id, newStatus, adminNote);
+    const result = await setRequestProgress({
+      requestId: active.id,
+      status: newStatus,
+      // An emptied field clears the date rather than leaving the old one.
+      expectedDate: expectedDate || (active.expected_date ? null : undefined),
+      adminNote,
+    });
     setSaving(false);
     if (!result.ok) {
       toast(friendlyError(result.error), "error");
       return;
     }
+    const tellsThem = newStatus === "ready" || newStatus === "rejected";
     toast(
-      `"${itemLabel(active)}" marked ${REQUEST_STATUS_LABELS[newStatus]} — the requester gets a WhatsApp update if their number is on file.`
+      `"${itemLabel(active)}" marked ${REQUEST_STATUS_LABELS[newStatus]}${
+        tellsThem
+          ? " — the requester has been told, and gets a WhatsApp if their number is on file."
+          : " — the requester still sees this as on order."
+      }`
     );
     setActive(null);
     router.refresh();
@@ -203,6 +233,11 @@ export function RequestsClient({ requests }: { requests: AdminRequest[] }) {
                         {REQUEST_STATUS_LABELS[r.status]}
                       </Badge>
                       {r.zone && <Badge variant="outline">Zone {r.zone}</Badge>}
+                      {r.expected_date && (
+                        <Badge variant="outline">
+                          due {formatDate(r.expected_date)}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {r.requester_name} · {timeAgo(r.created_at)}
@@ -289,6 +324,25 @@ export function RequestsClient({ requests }: { requests: AdminRequest[] }) {
                   ))}
                 </Select>
               </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="request-expected">
+                  Expected delivery date{" "}
+                  <span className="font-normal text-muted-foreground">(optional)</span>
+                </Label>
+                <Input
+                  id="request-expected"
+                  type="date"
+                  value={expectedDate}
+                  onChange={(e) => setExpectedDate(e.target.value)}
+                  className="h-11 w-48"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {expectedDate
+                    ? `They'll see "expected around ${formatDate(expectedDate)}".`
+                    : "They see no date until you set one."}
+                </p>
+              </div>
+
               <div className="space-y-1.5">
                 <Label htmlFor="request-admin-note">Admin note (optional)</Label>
                 <Textarea

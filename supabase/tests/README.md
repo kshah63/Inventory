@@ -27,6 +27,10 @@ reordered words and plurals all find the right item, a single letter and a genui
 nothing, aliases are learned and de-duplicated, resolving a request from stock
 raises an order for the requester, and staff can do neither.
 
+`07_request_delivery.sql` covers migration 0013: ordering and receiving stay
+silent for the requester, ready to collect tells them, the expected date is
+stored and clearable, and only procurement can move a request along.
+
 `03_no_kiosks.sql` covers migration 0008: the kiosk functions, tables and
 columns are gone, no active device is left, and the paths that touched those
 columns — new accounts, role and User ID changes — still work. Run the first
@@ -48,6 +52,8 @@ psql -d mvtest -f 05_order_read_state.sql                    # expect: ORDER REA
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0011_stock_matching.sql
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0012_word_order_search.sql
 psql -d mvtest -f 06_stock_matching.sql                      # expect: STOCK MATCHING TESTS PASSED
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0013_request_delivery.sql
+psql -d mvtest -f 07_request_delivery.sql                    # expect: REQUEST DELIVERY TESTS PASSED
 ```
 
 The shim replaces `auth.uid()` with a `test.uid` session setting so tests can

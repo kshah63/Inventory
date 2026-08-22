@@ -34,6 +34,7 @@ const EMPTY_STATS: DashboardStats = {
   pending_orders: 0,
   ready_orders: 0,
   pending_approvals: 0,
+  requests_to_hand_over: 0,
   reset_requests: 0,
   checkouts_today: 0,
   top_movers_week: [],

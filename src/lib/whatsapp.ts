@@ -268,14 +268,18 @@ export function composeRequestUpdateMessage(info: {
   const statusText: Record<string, string> = {
     acknowledged: "has been acknowledged",
     ordered: "has been ordered 🛒",
-    fulfilled: "is ready — stock has arrived ✅",
+    // No message for "received" — the requester is told when it's packed
+    // and ready for them, not when it lands in the store room.
+    ready: "is ready to collect from the procurement room ✅",
+    fulfilled: "has been collected",
     rejected: "was declined",
   };
   // The template slot reads "New status: {{3}}" — needs a noun phrase.
   const statusShort: Record<string, string> = {
     acknowledged: "acknowledged",
     ordered: "ordered 🛒",
-    fulfilled: "ready for collection — stock has arrived ✅",
+    ready: "ready to collect from the procurement room ✅",
+    fulfilled: "collected",
     rejected: "declined",
   };
   const statusPhrase = statusText[info.status] ?? `is now "${info.status}"`;

@@ -168,6 +168,51 @@ export async function cancelOwnRequest(requestId: string): Promise<ActionResult>
   return { ok: true, data: undefined };
 }
 
+/** Procurement moves a request along and sets the date the requester sees.
+ * Only tells them when something changed for them — stock arriving in the
+ * store room is our business; being ready to collect is theirs. */
+export async function setRequestProgress(params: {
+  requestId: string;
+  status?: RequestStatus;
+  expectedDate?: string | null;
+  adminNote?: string;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("set_request_progress", {
+    p_request_id: params.requestId,
+    p_status: params.status ?? null,
+    p_expected_date: params.expectedDate || null,
+    p_clear_expected: params.expectedDate === null,
+    p_admin_note: params.adminNote?.trim() || null,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  const info = data as {
+    status: string;
+    item_label: string;
+    qty: number;
+    requester_phone: string | null;
+    notify: boolean;
+  };
+
+  if (info.notify && info.requester_phone) {
+    await sendWhatsApp(
+      info.requester_phone,
+      composeRequestUpdateMessage({
+        item_label: info.item_label,
+        qty: info.qty,
+        status: info.status,
+        admin_note: params.adminNote?.trim() || null,
+      }),
+      "request_update"
+    ).catch(() => {});
+  }
+
+  revalidatePath("/admin/requests");
+  revalidatePath("/orders");
+  return { ok: true, data: undefined };
+}
+
 /** Procurement moves a request through its statuses; notifies the requester
  * on WhatsApp if their number is on file. */
 export async function updateRequestStatus(

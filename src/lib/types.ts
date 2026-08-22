@@ -14,6 +14,9 @@ export type RequestStatus =
   | "open"
   | "acknowledged"
   | "ordered"
+  /** Arrived with us, not yet packed. Never shown to the requester as such. */
+  | "received"
+  | "ready"
   | "fulfilled"
   | "rejected";
 
@@ -112,6 +115,8 @@ export interface RequestRow {
   note: string | null;
   admin_note: string | null;
   fulfilled_item_id: string | null;
+  expected_date: string | null;
+  received_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -153,6 +158,7 @@ export interface DashboardStats {
   pending_orders: number;
   ready_orders: number;
   pending_approvals: number;
+  requests_to_hand_over: number;
   reset_requests: number;
   checkouts_today: number;
   top_movers_week: { name: string; qty: number }[];
