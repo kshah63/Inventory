@@ -47,6 +47,9 @@ export interface Item {
   notes: string | null;
   max_per_checkout: number | null;
   requires_approval: boolean;
+  /** Central team only — heavy cleaning supplies and the like. Hidden from
+   * everyone else by the read policy, not just by the app. */
+  admin_only: boolean;
   is_active: boolean;
   created_at: string;
 }

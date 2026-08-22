@@ -32,6 +32,9 @@ pre-ordering from your own device, and proactive reorder alerts.
   approved content templates on production WhatsApp senders (required by
   Meta outside 24h reply windows), freeform in the sandbox, and degrades
   gracefully (skipped + logged) when Twilio isn't configured.
+- **Store rooms per item** — a room means "we keep it here", so the Basement
+  lists the A3/A4 paper it actually holds instead of a hundred items at zero.
+  A room still holding stock can't be dropped from an item.
 - **Admin suite** — receive/transfer/adjust, stocktake mode with variance
   reports, full inventory grid with CSV import/export (idempotent on SKU),
   consumption reports (by user/item/category/zone), filterable audit
@@ -96,3 +99,8 @@ The first account to sign in becomes the super admin automatically.
   app, and no super admin can change another's account.
 - Staff see their own history and requests; procurement/super admins see
   everything (enforced by RLS, not just UI).
+- Items flagged **central team only** (heavy cleaning supplies and the like)
+  are hidden by the read policy on `items` and `stock_levels`, and the two
+  SECURITY DEFINER functions that face everyone — catalogue search and
+  ordering — filter them out themselves, since a definer function bypasses
+  RLS by definition. Knowing the item's id is not enough.

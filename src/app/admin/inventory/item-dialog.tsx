@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Package } from "lucide-react";
+import { Package, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -11,9 +11,14 @@ import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
-import { saveItem, uploadItemPhoto } from "@/lib/actions/inventory";
-import { friendlyError } from "@/lib/utils";
-import type { Category } from "@/lib/types";
+import {
+  deleteItem,
+  saveItem,
+  setItemRooms,
+  uploadItemPhoto,
+} from "@/lib/actions/inventory";
+import { cn, friendlyError } from "@/lib/utils";
+import type { Category, Location } from "@/lib/types";
 import type { InventoryItem } from "./inventory-grid";
 
 export function ItemDialog({
@@ -21,12 +26,14 @@ export function ItemDialog({
   onClose,
   item,
   categories,
+  locations,
 }: {
   open: boolean;
   onClose: () => void;
   /** null → create mode. */
   item: InventoryItem | null;
   categories: Category[];
+  locations: Location[];
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -40,8 +47,15 @@ export function ItemDialog({
   const [notes, setNotes] = React.useState("");
   const [maxRaw, setMaxRaw] = React.useState("");
   const [requiresApproval, setRequiresApproval] = React.useState(false);
+  const [adminOnly, setAdminOnly] = React.useState(false);
   const [isActive, setIsActive] = React.useState(true);
+  const [rooms, setRooms] = React.useState<string[]>([]);
   const [saving, setSaving] = React.useState(false);
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+  // When a delete is refused because the item has history, the alternative
+  // is offered right there rather than as a dead end.
+  const [deleteBlocked, setDeleteBlocked] = React.useState<string | null>(null);
 
   // Re-seed the form each time the dialog opens.
   React.useEffect(() => {
@@ -54,10 +68,24 @@ export function ItemDialog({
     setNotes(item?.notes ?? "");
     setMaxRaw(item?.max_per_checkout != null ? String(item.max_per_checkout) : "");
     setRequiresApproval(item?.requires_approval ?? false);
+    setAdminOnly(item?.admin_only ?? false);
     setIsActive(item?.is_active ?? true);
+    // A new item starts kept everywhere; untick the rooms it isn't in.
+    setRooms(
+      item
+        ? item.stock_levels.map((s) => s.location_id)
+        : locations.map((l) => l.id)
+    );
     setSaving(false);
+    setConfirmDelete(false);
+    setDeleting(false);
+    setDeleteBlocked(null);
     if (fileRef.current) fileRef.current.value = "";
-  }, [open, item, categories]);
+  }, [open, item, categories, locations]);
+
+  function toggleRoom(id: string) {
+    setRooms((r) => (r.includes(id) ? r.filter((x) => x !== id) : [...r, id]));
+  }
 
   const packSize = packSizeRaw.trim() === "" ? null : parseInt(packSizeRaw, 10);
   const maxPerCheckout = maxRaw.trim() === "" ? null : parseInt(maxRaw, 10);
@@ -86,12 +114,31 @@ export function ItemDialog({
       notes: notes.trim() === "" ? null : notes,
       maxPerCheckout,
       requiresApproval,
+      adminOnly,
       isActive: item ? isActive : true,
     });
     if (!res.ok) {
       setSaving(false);
       toast(friendlyError(res.error), "error");
       return;
+    }
+
+    // Rooms after the item exists, so a new one gets its rows too. A room
+    // still holding stock can't be dropped — that comes back as an error
+    // naming the room, and the rest of the save stands.
+    const before = item ? item.stock_levels.map((s) => s.location_id) : [];
+    const changed =
+      !item ||
+      rooms.length !== before.length ||
+      rooms.some((id) => !before.includes(id));
+    if (changed) {
+      const roomRes = await setItemRooms(res.data.id, rooms);
+      if (!roomRes.ok) {
+        setSaving(false);
+        toast(friendlyError(roomRes.error), "error");
+        router.refresh();
+        return;
+      }
     }
 
     const file = fileRef.current?.files?.[0];
@@ -113,6 +160,51 @@ export function ItemDialog({
 
     setSaving(false);
     toast(item ? `"${name.trim()}" updated.` : `"${name.trim()}" created.`);
+    router.refresh();
+    onClose();
+  }
+
+  async function remove() {
+    if (!item || deleting) return;
+    setDeleting(true);
+    setDeleteBlocked(null);
+    const res = await deleteItem(item.id);
+    if (!res.ok) {
+      setDeleting(false);
+      setConfirmDelete(false);
+      setDeleteBlocked(friendlyError(res.error));
+      return;
+    }
+    setDeleting(false);
+    toast(`"${item.name}" deleted.`);
+    router.refresh();
+    onClose();
+  }
+
+  /** The alternative when a delete is refused: keep the history, drop it
+   * from the catalogue. */
+  async function retire() {
+    if (!item || deleting) return;
+    setDeleting(true);
+    const res = await saveItem({
+      id: item.id,
+      sku: item.sku,
+      name: item.name,
+      categoryId: item.category_id,
+      unit: item.unit,
+      packSize: item.pack_size,
+      notes: item.notes,
+      maxPerCheckout: item.max_per_checkout,
+      requiresApproval: item.requires_approval,
+      adminOnly: item.admin_only,
+      isActive: false,
+    });
+    setDeleting(false);
+    if (!res.ok) {
+      toast(friendlyError(res.error), "error");
+      return;
+    }
+    toast(`"${item.name}" removed from the catalogue. Its history is intact.`);
     router.refresh();
     onClose();
   }
@@ -228,6 +320,36 @@ export function ItemDialog({
           />
         </div>
 
+        <div className="space-y-1.5">
+          <Label>Store rooms</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {locations.map((l) => {
+              const on = rooms.includes(l.id);
+              return (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => toggleRoom(l.id)}
+                  aria-pressed={on}
+                  className={cn(
+                    "h-9 rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    on
+                      ? "border-transparent bg-primary text-primary-foreground"
+                      : "bg-card text-muted-foreground hover:bg-accent"
+                  )}
+                >
+                  {l.name}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Where we actually keep it. An unticked room stops listing it at
+            zero. A room still holding stock can&apos;t be dropped — move or
+            adjust it out first.
+          </p>
+        </div>
+
         <div className="flex items-start justify-between gap-4 rounded-md border bg-muted/40 px-3 py-2.5">
           <div>
             <Label htmlFor="item-approval" className="cursor-pointer">
@@ -241,6 +363,24 @@ export function ItemDialog({
             id="item-approval"
             checked={requiresApproval}
             onCheckedChange={setRequiresApproval}
+          />
+        </div>
+
+        <div className="flex items-start justify-between gap-4 rounded-md border bg-muted/40 px-3 py-2.5">
+          <div>
+            <Label htmlFor="item-restricted" className="cursor-pointer">
+              Central team only
+            </Label>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              For heavy cleaning supplies and the like. Nobody outside the
+              central team can see the item, its stock levels, or find it by
+              searching — and it can&apos;t be ordered.
+            </p>
+          </div>
+          <Switch
+            id="item-restricted"
+            checked={adminOnly}
+            onCheckedChange={setAdminOnly}
           />
         </div>
 
@@ -282,11 +422,65 @@ export function ItemDialog({
         </div>
       </div>
 
+      {deleteBlocked && (
+        <div className="mt-4 space-y-2 rounded-md border border-destructive/40 bg-destructive/10 p-3">
+          <p className="text-sm text-destructive">{deleteBlocked}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={retire}
+            loading={deleting}
+          >
+            Remove from the catalogue instead
+          </Button>
+        </div>
+      )}
+
       <DialogFooter>
-        <Button variant="outline" onClick={onClose} disabled={saving}>
+        {item && (
+          <div className="mr-auto flex items-center gap-2">
+            {confirmDelete ? (
+              <>
+                <span className="text-sm text-muted-foreground">
+                  Delete for good?
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={deleting}
+                >
+                  No
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={remove}
+                  loading={deleting}
+                >
+                  Yes, delete
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => {
+                  setDeleteBlocked(null);
+                  setConfirmDelete(true);
+                }}
+                disabled={saving}
+              >
+                <Trash2 /> Delete
+              </Button>
+            )}
+          </div>
+        )}
+        <Button variant="outline" onClick={onClose} disabled={saving || deleting}>
           Cancel
         </Button>
-        <Button onClick={submit} loading={saving} disabled={!canSave}>
+        <Button onClick={submit} loading={saving} disabled={!canSave || deleting}>
           {item ? "Save changes" : "Create item"}
         </Button>
       </DialogFooter>

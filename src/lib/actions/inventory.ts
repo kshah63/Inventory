@@ -169,6 +169,7 @@ export async function saveItem(params: {
   notes: string | null;
   maxPerCheckout: number | null;
   requiresApproval: boolean;
+  adminOnly: boolean;
   isActive: boolean;
   photoUrl?: string | null;
 }): Promise<ActionResult<{ id: string }>> {
@@ -182,6 +183,7 @@ export async function saveItem(params: {
     notes: params.notes?.trim() || null,
     max_per_checkout: params.maxPerCheckout,
     requires_approval: params.requiresApproval,
+    admin_only: params.adminOnly,
     is_active: params.isActive,
     ...(params.photoUrl !== undefined ? { photo_url: params.photoUrl } : {}),
   };
@@ -230,6 +232,38 @@ export async function uploadItemPhoto(
 
   revalidatePath("/admin/inventory");
   return { ok: true, data: { url: publicUrl } };
+}
+
+/**
+ * Which store rooms an item is actually kept in. A room with no row means
+ * we don't keep it there, so it stops showing as a zero on that room's list.
+ * The RPC refuses to drop a room that still holds stock.
+ */
+export async function setItemRooms(
+  itemId: string,
+  locationIds: string[]
+): Promise<ActionResult<null>> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_item_rooms", {
+    p_item_id: itemId,
+    p_location_ids: locationIds,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/inventory");
+  return { ok: true, data: null };
+}
+
+/**
+ * Delete an item outright — for the mistake typed in last week, not for
+ * something we've stopped stocking. The RPC refuses once anything points at
+ * it, and says to remove it from the catalogue instead.
+ */
+export async function deleteItem(itemId: string): Promise<ActionResult<null>> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_item", { p_item_id: itemId });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/inventory");
+  return { ok: true, data: null };
 }
 
 export async function saveCategory(

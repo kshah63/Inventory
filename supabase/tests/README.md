@@ -36,6 +36,14 @@ while an order is pending and not after it's packed, nobody can touch someone
 else's, emptying an order is refused as a disguised cancellation, and the
 requester can tick their own collection.
 
+`09_restricted_and_rooms.sql` covers migration 0015: a central-team item is
+invisible to everyone else — querying the table directly, searching, and
+ordering it by id all come back empty or refused, while the central team sees
+it and its stock levels normally; a store room still holding stock can't be
+quietly dropped from an item; and an item can be deleted outright only while
+nothing points at it. Its assertions run under `set role authenticated`,
+because RLS is not enforced for the role that owns the tables.
+
 `03_no_kiosks.sql` covers migration 0008: the kiosk functions, tables and
 columns are gone, no active device is left, and the paths that touched those
 columns — new accounts, role and User ID changes — still work. Run the first
@@ -61,6 +69,8 @@ psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0013_request_delivery.sql
 psql -d mvtest -f 07_request_delivery.sql                    # expect: REQUEST DELIVERY TESTS PASSED
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0014_edit_and_collect.sql
 psql -d mvtest -f 08_edit_and_collect.sql                    # expect: EDIT AND COLLECT TESTS PASSED
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0015_restricted_and_rooms.sql
+psql -d mvtest -f 09_restricted_and_rooms.sql                # expect: RESTRICTED AND ROOMS TESTS PASSED
 ```
 
 The shim replaces `auth.uid()` with a `test.uid` session setting so tests can

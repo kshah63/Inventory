@@ -6,6 +6,7 @@ import {
   Check,
   Download,
   FolderPlus,
+  Lock,
   Package,
   Pencil,
   Plus,
@@ -116,6 +117,7 @@ export function InventoryGrid({
       ...locations.flatMap((l) => [`${l.name} qty`, `${l.name} reorder`, `${l.name} par`]),
       "max_per_checkout",
       "requires_approval",
+      "central_team_only",
       "notes",
     ];
     const lines = [header.map(csvEscape).join(",")];
@@ -136,6 +138,7 @@ export function InventoryGrid({
         }),
         item.max_per_checkout === null ? "" : String(item.max_per_checkout),
         item.requires_approval ? "true" : "false",
+        item.admin_only ? "true" : "false",
         item.notes ?? "",
       ];
       lines.push(cells.map(csvEscape).join(","));
@@ -289,6 +292,14 @@ export function InventoryGrid({
                         {item.sku} · {item.unit}
                         {item.category?.name ? ` · ${item.category.name}` : ""}
                       </span>
+                      {item.admin_only && (
+                        <Badge
+                          variant="secondary"
+                          title="Central team only — hidden from everyone else"
+                        >
+                          <Lock className="mr-1 h-3 w-3" /> Central team only
+                        </Badge>
+                      )}
                       {item.requires_approval && <Badge variant="warning">Approval</Badge>}
                       {item.max_per_checkout !== null && (
                         <Badge variant="outline" title="Most one person can order at a time">
@@ -327,6 +338,7 @@ export function InventoryGrid({
         onClose={() => setItemDialog((d) => ({ ...d, open: false }))}
         item={itemDialog.item}
         categories={categories}
+        locations={locations}
       />
       <ImportDialog
         open={importOpen}
@@ -351,6 +363,22 @@ function StockCell({ item, location }: { item: InventoryItem; location: Location
   const [reorderRaw, setReorderRaw] = React.useState("");
   const [parRaw, setParRaw] = React.useState("");
   const [saving, setSaving] = React.useState(false);
+
+  // No row means we don't keep it here at all — which is different from
+  // keeping it here and having run out. Showing a zero for both is what made
+  // the Basement look like it held a hundred things it has never held.
+  if (!stock) {
+    return (
+      <TableCell>
+        <span
+          className="text-muted-foreground/60"
+          title={`Not kept in ${location.name}. Add the room in Edit → Store rooms.`}
+        >
+          —
+        </span>
+      </TableCell>
+    );
+  }
 
   function openEditor() {
     setReorderRaw(String(reorder));
