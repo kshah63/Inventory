@@ -164,6 +164,22 @@ export async function cancelOwnRequest(requestId: string): Promise<ActionResult>
   return { ok: true, data: undefined };
 }
 
+/** The requester ticks a request they've picked up — the twin of
+ * markOrderCollected. Procurement can tick it for somebody who forgets. */
+export async function markRequestCollected(
+  requestId: string
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("collect_request", {
+    p_request_id: requestId,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/orders");
+  revalidatePath("/requests");
+  revalidatePath("/admin/requests");
+  return { ok: true, data: undefined };
+}
+
 /** Procurement moves a request along and sets the date the requester sees.
  * Their portal only shows the stages that mean something to them — stock
  * arriving in the store room is our business; being ready to collect is

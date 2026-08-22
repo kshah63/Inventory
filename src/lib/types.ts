@@ -119,7 +119,10 @@ export interface RequestRow {
   admin_note: string | null;
   fulfilled_item_id: string | null;
   expected_date: string | null;
+  /** When it reached us from the supplier. */
   received_at: string | null;
+  /** When the requester picked it up. */
+  collected_at: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -2,12 +2,12 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { CalendarClock, ExternalLink, Inbox, Trash2 } from "lucide-react";
+import { CalendarClock, Check, ExternalLink, Inbox, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
-import { cancelOwnRequest } from "@/lib/actions/requests";
+import { cancelOwnRequest, markRequestCollected } from "@/lib/actions/requests";
 import {
   formatDate,
   friendlyError,
@@ -37,6 +37,7 @@ export function RequestsList({ requests }: { requests: RequestWithJoins[] }) {
   const router = useRouter();
   const { toast } = useToast();
   const [cancellingId, setCancellingId] = React.useState<string | null>(null);
+  const [collectingId, setCollectingId] = React.useState<string | null>(null);
 
   async function handleCancel(id: string) {
     setCancellingId(id);
@@ -48,6 +49,18 @@ export function RequestsList({ requests }: { requests: RequestWithJoins[] }) {
     } else {
       toast(friendlyError(result.error), "error");
     }
+  }
+
+  async function handleCollect(id: string) {
+    setCollectingId(id);
+    const result = await markRequestCollected(id);
+    setCollectingId(null);
+    if (!result.ok) {
+      toast(friendlyError(result.error), "error");
+      return;
+    }
+    toast("Marked as collected — thanks.", "success");
+    router.refresh();
   }
 
   if (requests.length === 0) {
@@ -150,6 +163,20 @@ export function RequestsList({ requests }: { requests: RequestWithJoins[] }) {
                 >
                   <Trash2 />
                   Cancel request
+                </Button>
+              </div>
+            )}
+
+            {/* The person picking it up is the one who knows it happened —
+                the same tick an order gets. */}
+            {req.status === "ready" && (
+              <div className="mt-3">
+                <Button
+                  size="sm"
+                  loading={collectingId === req.id}
+                  onClick={() => handleCollect(req.id)}
+                >
+                  <Check /> I&apos;ve collected this
                 </Button>
               </div>
             )}

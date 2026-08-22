@@ -44,6 +44,11 @@ quietly dropped from an item; and an item can be deleted outright only while
 nothing points at it. Its assertions run under `set role authenticated`,
 because RLS is not enforced for the role that owns the tables.
 
+`10_collect_request.sql` covers migration 0017: a request can't be collected
+before it's ready, can't be collected by anyone but the requester, can't be
+collected twice, records when it happened, and procurement can still tick it
+for somebody who forgets.
+
 `03_no_kiosks.sql` covers migration 0008: the kiosk functions, tables and
 columns are gone, no active device is left, and the paths that touched those
 columns — new accounts, role and User ID changes — still work. Run the first
@@ -71,6 +76,9 @@ psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0014_edit_and_collect.sql
 psql -d mvtest -f 08_edit_and_collect.sql                    # expect: EDIT AND COLLECT TESTS PASSED
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0015_restricted_and_rooms.sql
 psql -d mvtest -f 09_restricted_and_rooms.sql                # expect: RESTRICTED AND ROOMS TESTS PASSED
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0016_remove_notifications.sql
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0017_collect_request.sql
+psql -d mvtest -f 10_collect_request.sql                     # expect: COLLECT REQUEST TESTS PASSED
 ```
 
 The shim replaces `auth.uid()` with a `test.uid` session setting so tests can

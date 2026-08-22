@@ -16,7 +16,7 @@ half an hour.
    seeds the two locations (Level 8, Basement) + categories.
 3. Run the remaining migration files in
    [`supabase/migrations/`](../supabase/migrations) **in numerical order**
-   (`0002` → `0016`), one at a time, same way. Each is safe to run on a live
+   (`0002` → `0017`), one at a time, same way. Each is safe to run on a live
    database and only needs running once:
 
    | File | What it adds |
@@ -36,6 +36,7 @@ half an hour.
    | `0014_edit_and_collect.sql` | Change an order while it's still pending; the requester ticks their own collection |
    | `0015_restricted_and_rooms.sql` | Central-team-only items, per-item store rooms, and deleting an item that has no history |
    | `0016_remove_notifications.sql` | Clears what the removed WhatsApp feature had stored |
+   | `0017_collect_request.sql` | Lets the requester tick a bought-in request as collected, the same as an order |
 
 4. *(Optional)* Run [`supabase/seed_demo.sql`](../supabase/seed_demo.sql) for
    a sample catalog to click around with. Skip if you'll import your real
