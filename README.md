@@ -24,8 +24,8 @@ says what to buy before it runs out.
   fulfilled), replacing the ad-hoc chat thread. The requester's own view shows
   the stages that concern them, with the expected date where procurement has
   set one.
-- **Proactive procurement** — reorder dashboard of every item at/below its
-  reorder point with suggested order quantities (par − on-hand) and
+- **Proactive procurement** — reorder dashboard of every item down to about
+  half of what we like to keep, with suggested order quantities and
   days-to-stockout, exportable as CSV or as a plain-text order list to paste
   wherever you order from the supplier.
 - **Store rooms per item** — a room means "we keep it here", so the Basement

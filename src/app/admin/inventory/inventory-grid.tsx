@@ -31,7 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
-import { saveCategory, setStockParams } from "@/lib/actions/inventory";
+import { saveCategory } from "@/lib/actions/inventory";
 import { cn, friendlyError } from "@/lib/utils";
 import { matchesWords, queryWords, searchableText } from "@/lib/search";
 import type { Category, Item, Location } from "@/lib/types";
@@ -41,12 +41,7 @@ import { ImportDialog } from "./import-dialog";
 /** Item joined with category name and full stock params — the grid row shape. */
 export interface InventoryItem extends Item {
   category: { name: string } | null;
-  stock_levels: {
-    location_id: string;
-    qty_on_hand: number;
-    reorder_point: number;
-    par_level: number;
-  }[];
+  stock_levels: { location_id: string; qty_on_hand: number }[];
 }
 
 function stockAt(item: InventoryItem, locationId: string) {
@@ -62,14 +57,17 @@ const STOCK_FILTERS: { key: StockFilter; label: string }[] = [
   { key: "in", label: "In stock" },
 ];
 
-/** Out if nothing anywhere; low if any room is at or below its reorder
- * point; otherwise in stock. Matches how the dashboard counts. */
+/** Out if there's none anywhere; low once we're down to about half of what
+ * we like to keep. Untracked items are never low — there's no target to be
+ * below. Same rule the dashboard and Reorder use. */
+function totalOnHand(item: InventoryItem) {
+  return (item.stock_levels ?? []).reduce((n, s) => n + s.qty_on_hand, 0);
+}
+
 function stockState(item: InventoryItem): Exclude<StockFilter, "all"> {
-  const rows = item.stock_levels ?? [];
-  const total = rows.reduce((n, s) => n + s.qty_on_hand, 0);
+  const total = totalOnHand(item);
   if (total === 0) return "out";
-  if (rows.some((s) => s.reorder_point > 0 && s.qty_on_hand <= s.reorder_point))
-    return "low";
+  if (item.keep_about !== null && total * 2 <= item.keep_about) return "low";
   return "in";
 }
 
@@ -114,7 +112,8 @@ export function InventoryGrid({
       "category",
       "unit",
       "pack_size",
-      ...locations.flatMap((l) => [`${l.name} qty`, `${l.name} reorder`, `${l.name} par`]),
+      ...locations.map((l) => `${l.name} qty`),
+      "keep_about",
       "max_per_checkout",
       "central_team_only",
       "notes",
@@ -127,14 +126,11 @@ export function InventoryGrid({
         item.category?.name ?? "",
         item.unit,
         item.pack_size === null ? "" : String(item.pack_size),
-        ...locations.flatMap((l) => {
+        ...locations.map((l) => {
           const s = stockAt(item, l.id);
-          return [
-            s ? String(s.qty_on_hand) : "",
-            s ? String(s.reorder_point) : "",
-            s ? String(s.par_level) : "",
-          ];
+          return s ? String(s.qty_on_hand) : "";
         }),
+        item.keep_about === null ? "" : String(item.keep_about),
         item.max_per_checkout === null ? "" : String(item.max_per_checkout),
         item.admin_only ? "true" : "false",
         item.notes ?? "",
@@ -298,6 +294,14 @@ export function InventoryGrid({
                           <Lock className="mr-1 h-3 w-3" /> Central team only
                         </Badge>
                       )}
+                      {item.keep_about !== null && (
+                        <Badge
+                          variant="outline"
+                          title="Roughly how many we like to have, across both rooms"
+                        >
+                          Keep about {item.keep_about}
+                        </Badge>
+                      )}
                       {item.max_per_checkout !== null && (
                         <Badge variant="outline" title="Most one person can order at a time">
                           Max {item.max_per_checkout} per order
@@ -347,19 +351,10 @@ export function InventoryGrid({
   );
 }
 
-/** Per-location cell: qty on hand plus a tiny inline reorder/par editor. */
+/** Per-room cell: just the count. How many we like to keep is one number
+ * on the item now, not two per room. */
 function StockCell({ item, location }: { item: InventoryItem; location: Location }) {
-  const router = useRouter();
-  const { toast } = useToast();
   const stock = stockAt(item, location.id);
-  const qty = stock?.qty_on_hand ?? 0;
-  const reorder = stock?.reorder_point ?? 0;
-  const par = stock?.par_level ?? 0;
-
-  const [editing, setEditing] = React.useState(false);
-  const [reorderRaw, setReorderRaw] = React.useState("");
-  const [parRaw, setParRaw] = React.useState("");
-  const [saving, setSaving] = React.useState(false);
 
   // No row means we don't keep it here at all — which is different from
   // keeping it here and having run out. Showing a zero for both is what made
@@ -377,114 +372,20 @@ function StockCell({ item, location }: { item: InventoryItem; location: Location
     );
   }
 
-  function openEditor() {
-    setReorderRaw(String(reorder));
-    setParRaw(String(par));
-    setEditing(true);
-  }
-
-  async function save() {
-    const r = reorderRaw.trim() === "" ? 0 : parseInt(reorderRaw, 10);
-    const p = parRaw.trim() === "" ? 0 : parseInt(parRaw, 10);
-    if (!Number.isFinite(r) || !Number.isFinite(p) || r < 0 || p < 0) {
-      toast("Reorder point and par level must be zero or more.", "error");
-      return;
-    }
-    setSaving(true);
-    const res = await setStockParams({
-      itemId: item.id,
-      locationId: location.id,
-      reorderPoint: r,
-      parLevel: p,
-    });
-    setSaving(false);
-    if (!res.ok) {
-      toast(friendlyError(res.error), "error");
-      return;
-    }
-    toast(`Reorder/par updated for ${item.name} at ${location.name}.`);
-    setEditing(false);
-    router.refresh();
-  }
+  const qty = stock.qty_on_hand;
+  const low =
+    item.keep_about !== null && totalOnHand(item) * 2 <= item.keep_about;
 
   return (
     <TableCell>
-      {editing ? (
-        <div className="flex items-center gap-1">
-          <label className="flex items-center gap-1 text-xs text-muted-foreground">
-            R
-            <Input
-              type="number"
-              min={0}
-              value={reorderRaw}
-              onChange={(e) => setReorderRaw(e.target.value)}
-              className="h-7 w-14 px-1.5 text-xs tabular-nums"
-              aria-label={`Reorder point at ${location.name}`}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") save();
-              }}
-            />
-          </label>
-          <label className="flex items-center gap-1 text-xs text-muted-foreground">
-            P
-            <Input
-              type="number"
-              min={0}
-              value={parRaw}
-              onChange={(e) => setParRaw(e.target.value)}
-              className="h-7 w-14 px-1.5 text-xs tabular-nums"
-              aria-label={`Par level at ${location.name}`}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") save();
-              }}
-            />
-          </label>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-success"
-            onClick={save}
-            loading={saving}
-            aria-label="Save reorder point and par level"
-          >
-            {!saving && <Check />}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground"
-            onClick={() => setEditing(false)}
-            disabled={saving}
-            aria-label="Cancel"
-          >
-            <X />
-          </Button>
-        </div>
-      ) : (
-        <div className="flex flex-col items-start">
-          <span
-            className={cn(
-              "font-semibold tabular-nums",
-              qty === 0
-                ? "text-destructive"
-                : reorder > 0 && qty <= reorder
-                  ? "text-warning"
-                  : undefined
-            )}
-          >
-            {qty}
-          </span>
-          <button
-            type="button"
-            onClick={openEditor}
-            className="rounded-sm text-[11px] tabular-nums text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            title={`Edit reorder point / par level at ${location.name}`}
-          >
-            R:{reorder} / P:{par}
-          </button>
-        </div>
-      )}
+      <span
+        className={cn(
+          "font-semibold tabular-nums",
+          qty === 0 ? "text-destructive" : low ? "text-warning" : undefined
+        )}
+      >
+        {qty}
+      </span>
     </TableCell>
   );
 }

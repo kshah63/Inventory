@@ -7,7 +7,7 @@ math, race conditions, RLS) are already covered by the automated suite in
 
 ## Setup (once)
 
-- Migrations `0001` → `0018` + (optionally) `seed_demo.sql` run in Supabase.
+- Migrations `0001` → `0019` + (optionally) `seed_demo.sql` run in Supabase.
 - You are signed in as the super admin.
 - On **Admin → Users**, add "Priya Test" — role *Department Admin*, User ID
   `1901`. Note the temporary password.
@@ -46,10 +46,10 @@ temporary password.
 | 2.3 | **Adjust**: −2 with empty note | Blocked until a reason is entered |
 | 2.4 | **Stocktake**: Level 8, count 3 items (one deliberately off by −2) | Variance report shows the −2; adjustment row in audit; stocktake listed under "Past stocktakes" |
 | 2.4b | **Inventory** → edit an item → set **Max per order** to 5 | Grid shows a "Max 5 per order" badge; ordering 6 of it is refused |
-| 2.5 | **Inventory**: create an item with photo; set its reorder/par inline | Appears in the catalogue; photo renders |
+| 2.5 | **Inventory**: create an item with a photo and a **Keep about** | Appears in the catalogue; photo renders; the grid shows a "Keep about N" badge |
 | 2.6 | Deactivate that item | Gone from the catalogue; its history remains in the audit log |
 | 2.7 | **Export CSV** → edit a qty in the file → **Import CSV** | Preview shows the change; import reports "updated N, stock adjusted 1"; re-import → "stock adjusted 0" (idempotent) |
-| 2.8 | **Reorder**: set an item's reorder point ≥ its qty | Appears on the reorder dashboard with suggested qty = par − on-hand and days-to-stockout |
+| 2.8 | **Reorder**: set an item's **Keep about** to more than twice its count | Appears on the reorder dashboard with suggested qty = keep-about − on-hand, and days-to-stockout |
 | 2.9 | Select reorder rows → **Copy order list** | Formatted order list on the clipboard |
 | 2.10b | **Requests** → **We stock this** on a request matching something you carry, leaving "remember these words" on | An order is raised for the requester, the request closes as fulfilled, and those words now suggest that item in the request form |
 | 2.11 | **Requests**: open Priya's new-item request | Photo thumbnail, description and product link all visible; move it Open → Ordered with a note — Priya's **Track my orders → Waiting** shows the card, badged "Bought in for you", with the new status + note |
@@ -67,7 +67,7 @@ temporary password.
   `04_order_limits.sql` (6), `05_order_read_state.sql` (7),
   `06_stock_matching.sql` (20), `07_request_delivery.sql` (10),
   `08_edit_and_collect.sql` (8), `09_restricted_and_rooms.sql` (14) and
-  `10_collect_request.sql` (6); all passing.)
+  `10_collect_request.sql` (6) and `11_keep_about.sql` (8); all passing.)
 
 ## Known limitations (by design, per the spec's phasing)
 

@@ -31,7 +31,7 @@ export default async function InventoryPage({
     supabase
       .from("items")
       .select(
-        "*, category:categories(name), stock_levels(location_id, qty_on_hand, reorder_point, par_level)"
+        "*, category:categories(name), stock_levels(location_id, qty_on_hand)"
       )
       .order("name"),
   ]);

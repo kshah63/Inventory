@@ -44,6 +44,9 @@ export interface Item {
   photo_url: string | null;
   notes: string | null;
   max_per_checkout: number | null;
+  /** Roughly how many we like to have, across every room. Null means nobody
+   * is tracking it, so it never appears on Reorder. */
+  keep_about: number | null;
   /** Central team only — heavy cleaning supplies and the like. Hidden from
    * everyone else by the read policy, not just by the app. */
   admin_only: boolean;
@@ -55,8 +58,6 @@ export interface StockLevel {
   item_id: string;
   location_id: string;
   qty_on_hand: number;
-  reorder_point: number;
-  par_level: number;
 }
 
 export interface UserProfile {
@@ -130,11 +131,9 @@ export interface ReorderRow {
   item_name: string;
   category_name: string;
   unit: string;
-  location_id: string;
-  location_name: string;
+  /** Totalled across every room it's kept in. */
   qty_on_hand: number;
-  reorder_point: number;
-  par_level: number;
+  keep_about: number;
   suggested_qty: number;
   avg_daily_use: number;
   days_to_stockout: number | null;

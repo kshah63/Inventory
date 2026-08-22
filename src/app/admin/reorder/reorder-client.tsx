@@ -17,7 +17,7 @@ import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import type { ReorderRow } from "@/lib/types";
 
-const keyOf = (r: ReorderRow) => `${r.item_id}:${r.location_id}`;
+const keyOf = (r: ReorderRow) => r.item_id;
 
 function csvField(value: string | number): string {
   const s = String(value);
@@ -35,7 +35,7 @@ export function ReorderClient({ rows }: { rows: ReorderRow[] }) {
       <EmptyState
         icon={PackageCheck}
         title="Nothing needs reordering"
-        description="Items appear here when on-hand stock drops to or below the reorder point. Set reorder points per item and location in Inventory."
+        description="Items appear here once we're down to about half of what we like to keep. Set that number per item in Inventory — leave it blank and the item isn't tracked."
       />
     );
   }
@@ -58,15 +58,13 @@ export function ReorderClient({ rows }: { rows: ReorderRow[] }) {
 
   function exportCsv() {
     const lines = [
-      "sku,item,location,on_hand,reorder_point,par_level,suggested_qty",
+      "sku,item,on_hand,keep_about,suggested_qty",
       ...selectedRows.map((r) =>
         [
           csvField(r.sku),
           csvField(r.item_name),
-          csvField(r.location_name),
           r.qty_on_hand,
-          r.reorder_point,
-          r.par_level,
+          r.keep_about,
           r.suggested_qty,
         ].join(",")
       ),
@@ -87,7 +85,7 @@ export function ReorderClient({ rows }: { rows: ReorderRow[] }) {
       selectedRows
         .map(
           (r) =>
-            `• ${r.item_name} — ${r.location_name}: ${r.qty_on_hand} left, order ${r.suggested_qty}`
+            `• ${r.item_name}: ${r.qty_on_hand} left, order ${r.suggested_qty} ${r.unit}`
         )
         .join("\n");
     try {
@@ -126,11 +124,9 @@ export function ReorderClient({ rows }: { rows: ReorderRow[] }) {
                 aria-label="Select all"
               />
             </TableHead>
-            <TableHead>Location</TableHead>
             <TableHead>Item</TableHead>
             <TableHead className="text-right">On hand</TableHead>
-            <TableHead className="text-right">Reorder pt</TableHead>
-            <TableHead className="text-right" title="The level to top back up to">Top up to</TableHead>
+            <TableHead className="text-right" title="Roughly how many we like to have">Keep about</TableHead>
             <TableHead className="text-right">Suggested qty</TableHead>
             <TableHead className="text-right">Daily use</TableHead>
             <TableHead className="text-right">Days left</TableHead>
@@ -148,10 +144,9 @@ export function ReorderClient({ rows }: { rows: ReorderRow[] }) {
                     className="h-4 w-4 cursor-pointer accent-primary"
                     checked={isSelected}
                     onChange={() => toggleRow(key)}
-                    aria-label={`Select ${r.item_name} at ${r.location_name}`}
+                    aria-label={`Select ${r.item_name}`}
                   />
                 </TableCell>
-                <TableCell className="whitespace-nowrap">{r.location_name}</TableCell>
                 <TableCell>
                   <div className="font-medium">{r.item_name}</div>
                   <div className="text-xs text-muted-foreground">{r.sku}</div>
@@ -164,10 +159,7 @@ export function ReorderClient({ rows }: { rows: ReorderRow[] }) {
                   )}
                 </TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {r.reorder_point}
-                </TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {r.par_level}
+                  {r.keep_about}
                 </TableCell>
                 <TableCell className="text-right font-semibold tabular-nums">
                   {r.suggested_qty}

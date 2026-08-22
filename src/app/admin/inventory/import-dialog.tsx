@@ -87,8 +87,7 @@ const FIXED_KEYS = [
   "category",
   "unit",
   "pack_size",
-  "reorder_point",
-  "par_level",
+  "keep_about",
   "max_per_checkout",
   "notes",
 ] as const;
@@ -98,6 +97,8 @@ interface LocationColumns {
   /** Canonical location name to send to the server. */
   location: string;
   qty?: number;
+  /** Still recognised so an older export imports without complaint. Both are
+   * ignored now — how many to keep is one column on the item. */
   reorder?: number;
   par?: number;
 }
@@ -134,8 +135,9 @@ function mapHeaders(headers: string[], locations: Location[]): HeaderMap {
       return;
     }
 
-    // "<location>_qty" / "<location> reorder" / "<location> par" columns,
-    // matched case-insensitively against active location names ("level 8" ≈ "level8").
+    // "<location>_qty" columns, matched case-insensitively against active
+    // location names ("level 8" ≈ "level8"). The old per-room reorder/par
+    // columns are still matched so an older file doesn't warn, then dropped.
     for (const [suffix, prop] of [
       ["qty", "qty"],
       ["reorder", "reorder"],
@@ -217,14 +219,10 @@ function buildImport(text: string, locations: Location[]): ParseOutcome {
     if (!name) errors.push(`Row ${line}: missing name.`);
     if (!category) errors.push(`Row ${line}: missing category.`);
 
-    for (const k of ["pack_size", "max_per_checkout", "reorder_point", "par_level"] as const) {
+    for (const k of ["pack_size", "max_per_checkout", "keep_about"] as const) {
       const v = get(k);
       if (v !== "" && !isInt(v)) errors.push(`Row ${line}: ${k} must be a whole number ("${v}").`);
     }
-
-    // Shared reorder_point / par_level columns apply to every stock location.
-    const sharedReorder = get("reorder_point");
-    const sharedPar = get("par_level");
 
     const stock = headerMap.locations.map((lc) => {
       const cellAt = (idx?: number) => (idx !== undefined ? (cells[idx] ?? "").trim() : "");
@@ -232,14 +230,7 @@ function buildImport(text: string, locations: Location[]): ParseOutcome {
       if (qtyRaw !== "" && !isInt(qtyRaw)) {
         errors.push(`Row ${line}: ${lc.location} qty must be a whole number ("${qtyRaw}").`);
       }
-      const reorder = cellAt(lc.reorder) || sharedReorder;
-      const par = cellAt(lc.par) || sharedPar;
-      return {
-        location: lc.location,
-        qty: qtyRaw === "" ? null : qtyRaw,
-        ...(reorder !== "" ? { reorder_point: reorder } : {}),
-        ...(par !== "" ? { par_level: par } : {}),
-      };
+      return { location: lc.location, qty: qtyRaw === "" ? null : qtyRaw };
     });
 
     rows.push({
@@ -249,6 +240,7 @@ function buildImport(text: string, locations: Location[]): ParseOutcome {
       unit: get("unit") || undefined,
       pack_size: get("pack_size") || undefined,
       max_per_checkout: get("max_per_checkout") || undefined,
+      keep_about: get("keep_about") || undefined,
       notes: get("notes") || undefined,
       stock,
     });
@@ -332,7 +324,7 @@ export function ImportDialog({
       <DialogTitle>Import catalog from CSV</DialogTitle>
       <DialogDescription>
         Expected columns: sku, name, category, unit, pack_size, level8_qty, basement_qty,
-        reorder_point, par_level, max_per_checkout, notes. Rows are
+        keep_about, max_per_checkout, notes. Rows are
         matched by SKU, so re-importing is safe — existing items are updated and an empty
         qty cell leaves stock untouched. A ready-made template ships with the app at{" "}
         <code className="rounded bg-muted px-1 py-0.5 text-xs">
@@ -419,9 +411,7 @@ export function ImportDialog({
                           );
                         })}
                         <TableCell className="whitespace-nowrap text-xs text-muted-foreground tabular-nums">
-                          {row.stock[0]
-                            ? `${row.stock[0].reorder_point ?? "–"} / ${row.stock[0].par_level ?? "–"}`
-                            : "—"}
+                          {row.keep_about ?? "—"}
                         </TableCell>
                       </TableRow>
                     ))}

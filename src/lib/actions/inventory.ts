@@ -58,24 +58,6 @@ export async function adjustStock(params: {
   return { ok: true, data: undefined };
 }
 
-export async function setStockParams(params: {
-  itemId: string;
-  locationId: string;
-  reorderPoint: number;
-  parLevel: number;
-}): Promise<ActionResult> {
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("set_stock_params", {
-    p_item_id: params.itemId,
-    p_location_id: params.locationId,
-    p_reorder_point: params.reorderPoint,
-    p_par_level: params.parLevel,
-  });
-  if (error) return { ok: false, error: error.message };
-  revalidatePath("/admin/inventory");
-  return { ok: true, data: undefined };
-}
-
 export async function applyStocktake(
   locationId: string,
   lines: { item_id: string; counted_qty: number }[],
@@ -99,12 +81,11 @@ export interface ImportRow {
   unit?: string;
   pack_size?: string;
   max_per_checkout?: string;
+  keep_about?: string;
   notes?: string;
   stock: {
     location: string;
     qty: string | null;
-    reorder_point?: string;
-    par_level?: string;
   }[];
 }
 
@@ -130,6 +111,7 @@ export async function saveItem(params: {
   packSize: number | null;
   notes: string | null;
   maxPerCheckout: number | null;
+  keepAbout: number | null;
   adminOnly: boolean;
   isActive: boolean;
   photoUrl?: string | null;
@@ -143,6 +125,7 @@ export async function saveItem(params: {
     pack_size: params.packSize,
     notes: params.notes?.trim() || null,
     max_per_checkout: params.maxPerCheckout,
+    keep_about: params.keepAbout,
     admin_only: params.adminOnly,
     is_active: params.isActive,
     ...(params.photoUrl !== undefined ? { photo_url: params.photoUrl } : {}),

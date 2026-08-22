@@ -46,6 +46,7 @@ export function ItemDialog({
   const [packSizeRaw, setPackSizeRaw] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [maxRaw, setMaxRaw] = React.useState("");
+  const [keepRaw, setKeepRaw] = React.useState("");
   const [adminOnly, setAdminOnly] = React.useState(false);
   const [isActive, setIsActive] = React.useState(true);
   const [rooms, setRooms] = React.useState<string[]>([]);
@@ -66,6 +67,7 @@ export function ItemDialog({
     setPackSizeRaw(item?.pack_size != null ? String(item.pack_size) : "");
     setNotes(item?.notes ?? "");
     setMaxRaw(item?.max_per_checkout != null ? String(item.max_per_checkout) : "");
+    setKeepRaw(item?.keep_about != null ? String(item.keep_about) : "");
     setAdminOnly(item?.admin_only ?? false);
     setIsActive(item?.is_active ?? true);
     // A new item starts kept everywhere; untick the rooms it isn't in.
@@ -87,17 +89,21 @@ export function ItemDialog({
 
   const packSize = packSizeRaw.trim() === "" ? null : parseInt(packSizeRaw, 10);
   const maxPerCheckout = maxRaw.trim() === "" ? null : parseInt(maxRaw, 10);
+  const keepAbout = keepRaw.trim() === "" ? null : parseInt(keepRaw, 10);
   const packSizeInvalid =
     packSize !== null && (!Number.isFinite(packSize) || packSize <= 0);
   const maxInvalid =
     maxPerCheckout !== null && (!Number.isFinite(maxPerCheckout) || maxPerCheckout <= 0);
+  const keepInvalid =
+    keepAbout !== null && (!Number.isFinite(keepAbout) || keepAbout <= 0);
 
   const canSave =
     sku.trim() !== "" &&
     name.trim() !== "" &&
     categoryId !== "" &&
     !packSizeInvalid &&
-    !maxInvalid;
+    !maxInvalid &&
+    !keepInvalid;
 
   async function submit() {
     if (!canSave || saving) return;
@@ -111,6 +117,7 @@ export function ItemDialog({
       packSize,
       notes: notes.trim() === "" ? null : notes,
       maxPerCheckout,
+      keepAbout,
       adminOnly,
       isActive: item ? isActive : true,
     });
@@ -192,6 +199,7 @@ export function ItemDialog({
       packSize: item.pack_size,
       notes: item.notes,
       maxPerCheckout: item.max_per_checkout,
+      keepAbout: item.keep_about,
       adminOnly: item.admin_only,
       isActive: false,
     });
@@ -210,8 +218,8 @@ export function ItemDialog({
       <DialogTitle>{item ? "Edit item" : "New item"}</DialogTitle>
       <DialogDescription>
         {item
-          ? "Update catalog details. Stock quantities are managed via receive, transfer and adjust."
-          : "Add an item to the catalog. Set its reorder point and par level per location from the grid afterwards."}
+          ? "Update catalogue details. Quantities change through receiving, moving and adjusting stock — not here."
+          : "Add an item to the catalogue. Quantities come from receiving it in."}
       </DialogDescription>
 
       <div className="space-y-4">
@@ -303,6 +311,28 @@ export function ItemDialog({
               <p className="text-xs text-destructive">Max per order must be a positive number.</p>
             )}
           </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="item-keep">Keep about</Label>
+          <Input
+            id="item-keep"
+            type="number"
+            min={1}
+            value={keepRaw}
+            onChange={(e) => setKeepRaw(e.target.value)}
+            placeholder="Empty = don't track it"
+            className="tabular-nums sm:max-w-[12rem]"
+          />
+          <p className="text-xs text-muted-foreground">
+            Roughly how many we like to have, counting both rooms. It appears
+            on Reorder once we&apos;re down to about half of this, suggesting
+            enough to get back up. Leave it empty for anything you don&apos;t
+            restock.
+          </p>
+          {keepInvalid && (
+            <p className="text-xs text-destructive">Keep about must be a positive number.</p>
+          )}
         </div>
 
         <div className="space-y-1.5">

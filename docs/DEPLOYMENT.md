@@ -16,7 +16,7 @@ half an hour.
    seeds the two locations (Level 8, Basement) + categories.
 3. Run the remaining migration files in
    [`supabase/migrations/`](../supabase/migrations) **in numerical order**
-   (`0002` → `0018`), one at a time, same way. Each is safe to run on a live
+   (`0002` → `0019`), one at a time, same way. Each is safe to run on a live
    database and only needs running once:
 
    | File | What it adds |
@@ -38,6 +38,7 @@ half an hour.
    | `0016_remove_notifications.sql` | Clears what the removed WhatsApp feature had stored |
    | `0017_collect_request.sql` | Lets the requester tick a bought-in request as collected, the same as an order |
    | `0018_remove_approvals.sql` | Removes the approval flow, which nothing had enforced since 0008 |
+   | `0019_keep_about.sql` | Replaces reorder point and par level with one number per item |
 
 4. *(Optional)* Run [`supabase/seed_demo.sql`](../supabase/seed_demo.sql) for
    a sample catalog to click around with. Skip if you'll import your real
@@ -96,7 +97,7 @@ laptop — there are no shared tablets.
 
 1. Physical stocktake of both rooms → fill
    [`supabase/templates/catalog_template.csv`](../supabase/templates/catalog_template.csv)
-   (one row per SKU: quantities per room, reorder point, par level).
+   (one row per SKU: quantities per room, and roughly how many to keep).
 2. **Admin → Inventory → Import CSV** → preview → confirm. Counts are
    trustworthy from day 1. (Re-importing the same file is safe — the import
    is idempotent on SKU.)

@@ -4,11 +4,12 @@ These run the real migrations against a plain PostgreSQL 16 instance (no
 Supabase needed) and assert the core acceptance criteria: PIN rate-limiting
 and lockout (the kiosk paths that 0008 later removes), checkout stock math
 and ledger writes, per-checkout caps
-(including the split-line bypass), overdraw rejection, out-of-stock alert
-payloads, the approval flow, return caps, atomic transfers, mandatory
-adjustment notes, stocktake variance, CSV import idempotency, the reorder
-dashboard, ledger immutability, and RLS (staff/kiosk cannot write stock or
-read other users' history).
+(including the split-line bypass), overdraw rejection, return caps, atomic
+transfers, mandatory adjustment notes, stocktake variance, CSV import
+idempotency, ledger immutability, and RLS (staff cannot write stock or read
+other users' history). Some of what 01 covers — kiosk PINs, the approval
+flow — is removed by a later migration; it runs first, against the schema
+that still had them.
 
 `02_requests_and_zones.sql` covers migration 0007: zones are the bare numbers
 3–22, and a request can carry a description, a product link and a photo with
@@ -49,6 +50,13 @@ before it's ready, can't be collected by anyone but the requester, can't be
 collected twice, records when it happened, and procurement can still tick it
 for somebody who forgets.
 
+`11_keep_about.sql` covers migration 0019: an item under half of what we
+like to keep needs reordering, its count is totalled across rooms, the
+suggestion tops it back up, an item with no number never appears even at
+zero, the dashboard's low-stock count matches the reorder list exactly, out
+of stock counts every item at zero whether tracked or not, and staff can't
+read the list at all.
+
 `03_no_kiosks.sql` covers migration 0008: the kiosk functions, tables and
 columns are gone, no active device is left, and the paths that touched those
 columns — new accounts, role and User ID changes — still work. Run the first
@@ -79,6 +87,9 @@ psql -d mvtest -f 09_restricted_and_rooms.sql                # expect: RESTRICTE
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0016_remove_notifications.sql
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0017_collect_request.sql
 psql -d mvtest -f 10_collect_request.sql                     # expect: COLLECT REQUEST TESTS PASSED
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0018_remove_approvals.sql
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0019_keep_about.sql
+psql -d mvtest -f 11_keep_about.sql                          # expect: KEEP ABOUT TESTS PASSED
 ```
 
 The shim replaces `auth.uid()` with a `test.uid` session setting so tests can
