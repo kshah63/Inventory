@@ -41,9 +41,9 @@ temporary password.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 2.1 | **Receive**: 2 lines + note "Popular Book Co, Inv #4821" | Stock up; two `receive` audit rows carrying the note |
-| 2.2 | **Transfer**: 5 × pens, Level 8 → Basement | Both rooms update; audit shows paired transfer_out/transfer_in |
-| 2.3 | **Adjust**: −2 with empty note | Blocked until a reason is entered |
+| 2.1 | **Update stock → Delivery arrived**: 2 lines + note "Popular Book Co, Inv #4821" | Stock up; two `receive` audit rows carrying the note |
+| 2.2 | **Update stock → Moved between rooms**: 5 × pens, Level 8 → Basement | Both rooms update; audit shows paired transfer_out/transfer_in |
+| 2.3 | **Update stock → Recount or breakage**: −2 with empty note | Blocked until a reason is entered |
 | 2.4 | **Stocktake**: Level 8, count 3 items (one deliberately off by −2) | Variance report shows the −2; adjustment row in audit; stocktake listed under "Past stocktakes" |
 | 2.4b | **Inventory** → edit an item → set **Max per order** to 5 | Grid shows a "Max 5 per order" badge; ordering 6 of it is refused |
 | 2.5 | **Inventory**: create an item with a photo and a **Keep about** | Appears in the catalogue; photo renders; the grid shows a "Keep about N" badge |

@@ -31,7 +31,8 @@ says what to buy before it runs out.
 - **Store rooms per item** — a room means "we keep it here", so the Basement
   lists the A3/A4 paper it actually holds instead of a hundred items at zero.
   A room still holding stock can't be dropped from an item.
-- **Admin suite** — receive/transfer/adjust, stocktake mode with variance
+- **Admin suite** — one Update stock screen (delivery arrived / moved
+  between rooms / recount or breakage), stocktake mode with variance
   reports, full inventory grid with CSV import/export (idempotent on SKU),
   consumption reports (by user/item/category/zone), filterable audit
   log, and user management.

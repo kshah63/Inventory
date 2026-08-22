@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   AlertTriangle,
-  ArrowLeftRight,
   ClipboardCheck,
   History,
   Inbox,
@@ -116,11 +115,8 @@ export default async function AdminDashboardPage() {
         title="Dashboard"
         description="Stock health across Level 8 and Basement"
       >
-        <Link href="/admin/receive" className={buttonVariants({ variant: "outline" })}>
-          <Truck /> Receive stock
-        </Link>
-        <Link href="/admin/transfer" className={buttonVariants({ variant: "outline" })}>
-          <ArrowLeftRight /> Transfer
+        <Link href="/admin/stock" className={buttonVariants({ variant: "outline" })}>
+          <Truck /> Update stock
         </Link>
         <Link href="/admin/stocktake" className={buttonVariants({ variant: "outline" })}>
           <ClipboardCheck /> Stocktake
