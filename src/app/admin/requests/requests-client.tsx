@@ -167,7 +167,7 @@ export function RequestsClient({ requests }: { requests: AdminRequest[] }) {
     toast(
       `"${itemLabel(active)}" marked ${REQUEST_STATUS_LABELS[newStatus]}${
         tellsThem
-          ? " — the requester has been told, and gets a WhatsApp if their number is on file."
+          ? " — the requester sees this next time they open their requests."
           : " — the requester still sees this as on order."
       }`
     );
@@ -306,8 +306,8 @@ export function RequestsClient({ requests }: { requests: AdminRequest[] }) {
             </DialogTitle>
             <DialogDescription>
               Requested by {active.requester_name}
-              {active.zone ? ` for zone ${active.zone}` : ""}. They get a WhatsApp
-              update if their number is on file.
+              {active.zone ? ` for zone ${active.zone}` : ""}. Ready and
+              Rejected show on their side; Ordered and Received stay with us.
             </DialogDescription>
             <div className="space-y-4">
               <div className="space-y-1.5">
@@ -358,7 +358,7 @@ export function RequestsClient({ requests }: { requests: AdminRequest[] }) {
                 Cancel
               </Button>
               <Button onClick={save} loading={saving}>
-                Save &amp; notify
+                Save
               </Button>
             </DialogFooter>
           </>

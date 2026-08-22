@@ -2,12 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import {
-  broadcastToProcurement,
-  composeNewOrderAlert,
-  composeOrderUpdate,
-  sendWhatsApp,
-} from "@/lib/whatsapp";
 import type { ActionResult, BasketLine } from "@/lib/types";
 
 /** Staff pre-orders from their own device; procurement packs it. */
@@ -32,11 +26,6 @@ export async function createOrder(params: {
     requester_name: string;
     location_name: string;
   };
-
-  await broadcastToProcurement(
-    composeNewOrderAlert(info),
-    "approval_needed"
-  ).catch(() => {});
 
   revalidatePath("/orders");
   return { ok: true, data: { order_no: info.order_no } };
@@ -105,23 +94,8 @@ export async function packOrder(params: {
   const info = data as {
     order_no: number;
     total_units: number;
-    requester_phone: string | null;
     location_name: string;
   };
-
-  if (info.requester_phone) {
-    await sendWhatsApp(
-      info.requester_phone,
-      composeOrderUpdate({
-        order_no: info.order_no,
-        total_units: info.total_units,
-        status: "ready",
-        location_name: info.location_name,
-        admin_note: params.note,
-      }),
-      "request_update"
-    ).catch(() => {});
-  }
 
   revalidatePath("/admin/orders");
   return { ok: true, data: { order_no: info.order_no } };
@@ -140,29 +114,11 @@ export async function rejectOrder(
   note?: string
 ): Promise<ActionResult> {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("reject_order", {
+  const { error } = await supabase.rpc("reject_order", {
     p_order_id: orderId,
     p_note: note ?? null,
   });
   if (error) return { ok: false, error: error.message };
-
-  const info = data as {
-    order_no: number;
-    requester_phone: string | null;
-    admin_note: string | null;
-  };
-  if (info.requester_phone) {
-    await sendWhatsApp(
-      info.requester_phone,
-      composeOrderUpdate({
-        order_no: info.order_no,
-        total_units: 1,
-        status: "rejected",
-        admin_note: info.admin_note,
-      }),
-      "request_update"
-    ).catch(() => {});
-  }
 
   revalidatePath("/admin/orders");
   return { ok: true, data: undefined };

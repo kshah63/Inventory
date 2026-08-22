@@ -2,12 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  composeApprovalDecisionMessage,
-  composeRequestUpdateMessage,
-  sendWhatsApp,
-} from "@/lib/whatsapp";
 import type { ActionResult, CatalogueMatch, RequestStatus } from "@/lib/types";
 
 /** What someone is typing, matched against the catalogue: names, item codes
@@ -124,7 +118,6 @@ export async function fulfilRequestFromStock(params: {
     order_no: number;
     item_name: string;
     qty: number;
-    requester_phone: string | null;
     requested_text: string;
   };
 
@@ -136,19 +129,6 @@ export async function fulfilRequestFromStock(params: {
       p_alias: alias,
     });
     if (aliasError) console.error("add_item_alias failed —", aliasError.message);
-  }
-
-  if (info.requester_phone) {
-    await sendWhatsApp(
-      info.requester_phone,
-      composeRequestUpdateMessage({
-        item_label: info.item_name,
-        qty: info.qty,
-        status: "fulfilled",
-        admin_note: `We had it in stock — order #${info.order_no} is being packed.`,
-      }),
-      "request_update"
-    ).catch(() => {});
   }
 
   revalidatePath("/admin/requests");
@@ -185,8 +165,9 @@ export async function cancelOwnRequest(requestId: string): Promise<ActionResult>
 }
 
 /** Procurement moves a request along and sets the date the requester sees.
- * Only tells them when something changed for them — stock arriving in the
- * store room is our business; being ready to collect is theirs. */
+ * Their portal only shows the stages that mean something to them — stock
+ * arriving in the store room is our business; being ready to collect is
+ * theirs. */
 export async function setRequestProgress(params: {
   requestId: string;
   status?: RequestStatus;
@@ -194,7 +175,7 @@ export async function setRequestProgress(params: {
   adminNote?: string;
 }): Promise<ActionResult> {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("set_request_progress", {
+  const { error } = await supabase.rpc("set_request_progress", {
     p_request_id: params.requestId,
     p_status: params.status ?? null,
     p_expected_date: params.expectedDate || null,
@@ -203,97 +184,31 @@ export async function setRequestProgress(params: {
   });
   if (error) return { ok: false, error: error.message };
 
-  const info = data as {
-    status: string;
-    item_label: string;
-    qty: number;
-    requester_phone: string | null;
-    notify: boolean;
-  };
-
-  if (info.notify && info.requester_phone) {
-    await sendWhatsApp(
-      info.requester_phone,
-      composeRequestUpdateMessage({
-        item_label: info.item_label,
-        qty: info.qty,
-        status: info.status,
-        admin_note: params.adminNote?.trim() || null,
-      }),
-      "request_update"
-    ).catch(() => {});
-  }
-
   revalidatePath("/admin/requests");
   revalidatePath("/orders");
   return { ok: true, data: undefined };
 }
 
-/** Procurement moves a request through its statuses; notifies the requester
- * on WhatsApp if their number is on file. */
+/** Procurement moves a request through its statuses. The requester sees the
+ * change next time they open their requests. */
 export async function updateRequestStatus(
   requestId: string,
   status: RequestStatus,
   adminNote?: string
 ): Promise<ActionResult> {
   const supabase = await createClient();
-  const { data: updated, error } = await supabase
+  const { error } = await supabase
     .from("requests")
     .update({ status, admin_note: adminNote?.trim() || null })
-    .eq("id", requestId)
-    .select("id, qty, status, admin_note, requested_by, item_id, free_text_item")
-    .single();
+    .eq("id", requestId);
   if (error) return { ok: false, error: error.message };
-
-  // Notify the requester on WhatsApp if their number is on file.
-  try {
-    const row = updated as unknown as {
-      qty: number;
-      status: string;
-      admin_note: string | null;
-      requested_by: string;
-      item_id: string | null;
-      free_text_item: string | null;
-    };
-    const admin = createAdminClient();
-    // Looked up separately: requests has two foreign keys into items, so an
-    // embedded join here is ambiguous and fails the whole update.
-    let itemName: string | null = null;
-    if (row.item_id) {
-      const { data: item } = await admin
-        .from("items")
-        .select("name")
-        .eq("id", row.item_id)
-        .maybeSingle();
-      itemName = (item as { name: string } | null)?.name ?? null;
-    }
-    const { data: requester } = await admin
-      .from("users")
-      .select("phone")
-      .eq("id", row.requested_by)
-      .single();
-    if (requester?.phone) {
-      await sendWhatsApp(
-        requester.phone,
-        composeRequestUpdateMessage({
-          item_label: itemName ?? row.free_text_item ?? "item",
-          qty: row.qty,
-          status: row.status,
-          admin_note: row.admin_note,
-        }),
-        "request_update"
-      );
-    }
-  } catch {
-    // Notification failures never block the status change.
-  }
 
   revalidatePath("/admin/requests");
   return { ok: true, data: undefined };
 }
 
 /** Approve or reject an approval-required checkout. On approval the stock
- * transaction is recorded; the requester is notified either way. */
+ * transaction is recorded. */
 export async function decidePendingCheckout(
   pendingId: string,
   approve: boolean,
@@ -312,23 +227,8 @@ export async function decidePendingCheckout(
     item_name: string;
     unit: string;
     qty: number;
-    requester_phone: string | null;
     location_name: string;
   };
-
-  if (info.requester_phone) {
-    await sendWhatsApp(
-      info.requester_phone,
-      composeApprovalDecisionMessage({
-        status: info.status,
-        qty: info.qty,
-        item_name: info.item_name,
-        location_name: info.location_name,
-        decision_note: note,
-      }),
-      "approval_decided"
-    ).catch(() => {});
-  }
 
   revalidatePath("/admin/approvals");
   return { ok: true, data: { status: info.status } };

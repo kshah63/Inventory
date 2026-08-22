@@ -7,15 +7,12 @@ math, race conditions, RLS) are already covered by the automated suite in
 
 ## Setup (once)
 
-- Migrations `0001` → `0012` + (optionally) `seed_demo.sql` run in Supabase.
+- Migrations `0001` → `0016` + (optionally) `seed_demo.sql` run in Supabase.
 - You are signed in as the super admin.
 - On **Admin → Users**, add "Priya Test" — role *Department Admin*, User ID
-  `1901`, with a WhatsApp-able phone number. Note the temporary password.
+  `1901`. Note the temporary password.
 - Check the Users list shows ID `1901` and the role you picked. If it doesn't,
   stop — that's the bug this check exists to catch.
-- **Admin → Settings**: add your own number as an alert recipient →
-  **Send test message** → it should arrive on WhatsApp (uses the digest
-  template when ContentSids are configured).
 
 ## 1. Ordering on your own device
 
@@ -53,39 +50,33 @@ temporary password.
 | 2.6 | Deactivate that item | Gone from the catalogue; its history remains in the audit log |
 | 2.7 | **Export CSV** → edit a qty in the file → **Import CSV** | Preview shows the change; import reports "updated N, stock adjusted 1"; re-import → "stock adjusted 0" (idempotent) |
 | 2.8 | **Reorder**: set an item's reorder point ≥ its qty | Appears on the reorder dashboard with suggested qty = par − on-hand and days-to-stockout |
-| 2.9 | Select reorder rows → **Copy as WhatsApp message** | Formatted order list on the clipboard |
-| 2.10 | **Approvals**: approve a pending approval-flagged checkout | Stock decremented, checkout attributed to Priya in the audit log, Priya gets a WhatsApp (phone on file); History tab shows the decision |
+| 2.9 | Select reorder rows → **Copy order list** | Formatted order list on the clipboard |
+| 2.10 | **Approvals**: approve a pending approval-flagged checkout | Stock decremented, checkout attributed to Priya in the audit log; History tab shows the decision |
 | 2.10b | **Requests** → **We stock this** on a request matching something you carry, leaving "remember these words" on | An order is raised for the requester, the request closes as fulfilled, and those words now suggest that item in the request form |
-| 2.11 | **Requests**: open Priya's new-item request | Photo thumbnail, description and product link all visible; move it Open → Ordered with a note — Priya's My orders → Requests shows the new status + note and a WhatsApp update arrives |
+| 2.11 | **Requests**: open Priya's new-item request | Photo thumbnail, description and product link all visible; move it Open → Ordered with a note — Priya's My orders → Requests shows the new status + note |
 | 2.12 | **Reports**: switch group-by User/Item/Category/Zone, ranges 7/30/90 | Charts + ranked tables respond; "by user" is the fairness view |
 | 2.13 | **Audit log**: filter by type/location/user/item/date; export CSV | Filters compose; pagination works; CSV downloads |
 | 2.14 | **Users**: reset Priya's password; deactivate her | Old session can't act (deactivated notice); her name shows as "Former staff — Priya Test" in history views. Reactivate after |
 
-## 3. WhatsApp end-to-end (production sender)
-
-| # | Do | Expect |
-| --- | --- | --- |
-| 3.1 | Settings → **Send test message** | Digest-template message arrives at every recipient |
-| 3.2 | Check out an item down to 0 (reorder point > 0) | Immediate 🔴 out-of-stock alert |
-| 3.3 | Trigger the digest manually:<br>`curl -H "Authorization: Bearer $CRON_SECRET" https://<your-app>/api/cron/daily-digest` | 📦 digest message; response JSON shows counts. (Otherwise it fires daily 8:00 SGT via Vercel cron) |
-| 3.4 | Supabase → `notifications_log` table | Every send logged with status sent/failed/skipped |
-
-## 4. Security spot-checks (browser level)
+## 3. Security spot-checks (browser level)
 
 - Staff account → `/admin/inventory` → redirected to /browse.
 - Signed out → any admin URL → login page.
 - (DB level — RLS and ledger immutability — is covered by
   `supabase/tests/01_smoke_test.sql` (36 assertions), plus
   `02_requests_and_zones.sql` (8), `03_no_kiosks.sql` (8),
-  `04_order_limits.sql` (6), `05_order_read_state.sql` (7) and
-  `06_stock_matching.sql` (20); all passing.)
+  `04_order_limits.sql` (6), `05_order_read_state.sql` (7),
+  `06_stock_matching.sql` (20), `07_request_delivery.sql` (10),
+  `08_edit_and_collect.sql` (8) and `09_restricted_and_rooms.sql` (14);
+  all passing.)
 
 ## Known limitations (by design, per the spec's phasing)
 
 - Suppliers, purchase orders, receive-against-PO, unit costs / spend
   reports — Phase 3, not built.
-- Email digest fallback (Resend) — not wired; the fallback is
-  copy-as-WhatsApp plus the send log.
+- Notifications of any kind — removed in migration `0016`. People see
+  where things stand when they open the app; messaging comes back with the
+  larger app this rolls into.
 - QR-code label printing — not built (spec listed it as out of hardware
   scope; easy to add later).
 - Shared kiosk tablets and PIN sign-in were removed in migration `0008` —

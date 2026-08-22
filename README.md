@@ -2,8 +2,9 @@
 
 Procurement & inventory management for MathVision Educational Enrichment
 Centre — a single source of truth for the **Level 8** and **Basement** store
-rooms, replacing WhatsApp asks and cupboard raiding with a live catalogue,
-pre-ordering from your own device, and proactive reorder alerts.
+rooms, replacing scattered chat messages and cupboard raiding with a live
+catalogue, pre-ordering from your own device, and a reorder dashboard that
+says what to buy before it runs out.
 
 ## What it does
 
@@ -12,26 +13,24 @@ pre-ordering from your own device, and proactive reorder alerts.
   quantities, "which zone is this for?"), the procurement team packs each
   order and marks it ready (that's when stock is decremented, attributed to
   the requester — nobody self-logs, so nothing gets forgotten or fat-fingered),
-  and the requester collects it after a WhatsApp ping.
+  and the requester sees it turn Ready to collect.
 - **Immutable ledger** — every checkout, return, receive, transfer, and
   adjustment is a row in an append-only transactions ledger. Stock levels and
   the ledger can never diverge (both are written in a single Postgres
   function with row locks — concurrent "last unit" checkouts are handled
   gracefully).
 - **Approval flow** — items flagged `requires_approval` (toner, high-value)
-  can't just be packed; procurement gets a WhatsApp ping and one tap approves
-  and records the checkout.
+  can't just be packed; they queue on the Approvals screen, where one tap
+  approves and records the checkout.
 - **Requests** — out-of-stock or brand-new items become structured requests
-  with statuses (open → acknowledged → ordered → fulfilled), replacing the
-  WhatsApp channel. Requesters are notified on status changes.
+  with statuses (open → acknowledged → ordered → received → ready →
+  fulfilled), replacing the ad-hoc chat thread. The requester's own view shows
+  the stages that concern them, with the expected date where procurement has
+  set one.
 - **Proactive procurement** — reorder dashboard of every item at/below its
   reorder point with suggested order quantities (par − on-hand) and
-  days-to-stockout, exportable as CSV or a copy-paste WhatsApp order message.
-- **WhatsApp alerts (Twilio)** — daily 8:00am SGT digest, immediate
-  out-of-stock alerts, approval pings, and requester notifications. Sends
-  approved content templates on production WhatsApp senders (required by
-  Meta outside 24h reply windows), freeform in the sandbox, and degrades
-  gracefully (skipped + logged) when Twilio isn't configured.
+  days-to-stockout, exportable as CSV or as a plain-text order list to paste
+  wherever you order from the supplier.
 - **Store rooms per item** — a room means "we keep it here", so the Basement
   lists the A3/A4 paper it actually holds instead of a hundred items at zero.
   A room still holding stock can't be dropped from an item.
@@ -46,9 +45,8 @@ pre-ordering from your own device, and proactive reorder alerts.
 | --- | --- |
 | Framework | Next.js 15 (App Router), TypeScript |
 | DB / Auth / RLS | Supabase (Postgres + Auth + RLS + SECURITY DEFINER RPCs) |
-| Hosting | Vercel (cron for the daily digest) |
+| Hosting | Vercel |
 | UI | Tailwind CSS, shadcn-style component kit, Archivo, MathVision navy |
-| Notifications | Twilio WhatsApp API (plain fetch, no SDK) |
 | Charts | Recharts |
 | Photos | Supabase Storage (`item-photos` bucket) |
 
@@ -56,25 +54,24 @@ pre-ordering from your own device, and proactive reorder alerts.
 
 ```
 supabase/
-  migrations/                # 0001 schema + RPCs + RLS, then 0002…0008 in order
+  migrations/                # 0001 schema + RPCs + RLS, then 0002…0016 in order
   seed_demo.sql              # optional sample catalog
   templates/catalog_template.csv
 src/
   app/
     (staff)/                 # catalogue / orders / activity / requests / profile
     admin/                   # dashboard, reorder, inventory, ops, reports…
-    api/cron/daily-digest/   # Vercel cron → WhatsApp digest
   lib/
     actions/                 # server actions (all mutations go through here)
     supabase/                # server/browser/admin clients
-    whatsapp.ts              # Twilio sender + message composers
+    search.ts                # word-order-independent catalogue matching
   components/                # UI kit + shared components
 ```
 
 ## Getting started
 
-Full step-by-step deployment guide (Supabase → Vercel → Twilio → users →
-go-live): **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+Full step-by-step deployment guide (Supabase → Vercel → users → go-live):
+**[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
 
 Local development:
 

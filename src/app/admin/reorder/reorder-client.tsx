@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Download, MessageCircle, PackageCheck } from "lucide-react";
+import { ClipboardCopy, Download, PackageCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -81,7 +81,7 @@ export function ReorderClient({ rows }: { rows: ReorderRow[] }) {
     toast(`Exported ${selectedRows.length} item${selectedRows.length === 1 ? "" : "s"} to CSV.`);
   }
 
-  async function copyWhatsApp() {
+  async function copyOrderList() {
     const text =
       "📦 MathVision order list:\n" +
       selectedRows
@@ -92,7 +92,7 @@ export function ReorderClient({ rows }: { rows: ReorderRow[] }) {
         .join("\n");
     try {
       await navigator.clipboard.writeText(text);
-      toast("Copied — paste into your supplier WhatsApp chat");
+      toast("Copied — paste it wherever you order from the supplier.");
     } catch {
       toast("Couldn't copy to clipboard — check browser permissions.", "error");
     }
@@ -108,8 +108,8 @@ export function ReorderClient({ rows }: { rows: ReorderRow[] }) {
           <Button variant="outline" onClick={exportCsv} disabled={selected.size === 0}>
             <Download /> Export CSV
           </Button>
-          <Button onClick={copyWhatsApp} disabled={selected.size === 0}>
-            <MessageCircle /> Copy as WhatsApp message
+          <Button onClick={copyOrderList} disabled={selected.size === 0}>
+            <ClipboardCopy /> Copy order list
           </Button>
         </div>
       </div>

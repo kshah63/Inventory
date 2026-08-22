@@ -63,7 +63,7 @@ export default async function ProfilePage() {
                 <Badge variant="secondary">{ROLE_LABELS[profile.role]}</Badge>
               </dd>
 
-              <dt className="text-muted-foreground">WhatsApp number</dt>
+              <dt className="text-muted-foreground">Phone number</dt>
               <dd className="text-muted-foreground">
                 {profile.phone ? (
                   <span className="inline-flex items-center gap-1.5 text-foreground">

@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { broadcastToProcurement, composeOutOfStockAlert } from "@/lib/whatsapp";
 import type { ActionResult } from "@/lib/types";
 
 export async function receiveStock(
@@ -55,42 +54,6 @@ export async function adjustStock(params: {
     p_note: params.note,
   });
   if (error) return { ok: false, error: error.message };
-
-  // If an adjustment drove an item to zero, alert like a checkout would.
-  if (params.qtyDelta < 0) {
-    const { data: level } = await supabase
-      .from("stock_levels")
-      .select("qty_on_hand, reorder_point, items(name), locations(name)")
-      .eq("item_id", params.itemId)
-      .eq("location_id", params.locationId)
-      .single();
-    const levelRow = level as unknown as {
-      qty_on_hand: number;
-      reorder_point: number;
-      items: { name: string };
-      locations: { name: string };
-    } | null;
-    if (levelRow && levelRow.qty_on_hand === 0 && levelRow.reorder_point > 0) {
-      const { data: elsewhere } = await supabase
-        .from("stock_levels")
-        .select("qty_on_hand, locations(name)")
-        .eq("item_id", params.itemId)
-        .neq("location_id", params.locationId)
-        .gt("qty_on_hand", 0);
-      await broadcastToProcurement(
-        composeOutOfStockAlert({
-          name: levelRow.items.name,
-          location: levelRow.locations.name,
-          elsewhere: ((elsewhere ?? []) as unknown as {
-            qty_on_hand: number;
-            locations: { name: string };
-          }[]).map((e) => ({ location: e.locations.name, qty: e.qty_on_hand })),
-        }),
-        "out_of_stock"
-      ).catch(() => {});
-    }
-  }
-
   revalidatePath("/admin");
   return { ok: true, data: undefined };
 }

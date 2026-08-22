@@ -104,7 +104,7 @@ export function UsersClient({
               <TableHead>Name</TableHead>
               <TableHead>ID</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead>WhatsApp</TableHead>
+              <TableHead>Phone</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -297,7 +297,7 @@ function AddLoginDialog({
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="nu-phone">WhatsApp number</Label>
+          <Label htmlFor="nu-phone">Phone number</Label>
           <Input
             id="nu-phone"
             placeholder="+65…"
@@ -441,7 +441,7 @@ function EditUserDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="eu-phone">WhatsApp number</Label>
+            <Label htmlFor="eu-phone">Phone number</Label>
             <Input
               id="eu-phone"
               placeholder="+65…"
