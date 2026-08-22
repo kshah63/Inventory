@@ -156,6 +156,22 @@ export async function fulfilRequestFromStock(params: {
   return { ok: true, data: { order_no: info.order_no, item_name: info.item_name } };
 }
 
+/** Correct the quantity on a request that hasn't been ordered yet. */
+export async function updateRequestQty(
+  requestId: string,
+  qty: number
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_request_qty", {
+    p_request_id: requestId,
+    p_qty: qty,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/orders");
+  revalidatePath("/admin/requests");
+  return { ok: true, data: undefined };
+}
+
 export async function cancelOwnRequest(requestId: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase

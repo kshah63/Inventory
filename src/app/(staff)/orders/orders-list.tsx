@@ -2,14 +2,14 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { PackageOpen, ShoppingBag } from "lucide-react";
+import { Check, Minus, PackageOpen, Pencil, Plus, ShoppingBag, X } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
-import { cancelOrder } from "@/lib/actions/orders";
-import { cn, formatDateTime, timeAgo } from "@/lib/utils";
+import { cancelOrder, editOrder, markOrderCollected } from "@/lib/actions/orders";
+import { cn, formatDateTime, friendlyError, timeAgo } from "@/lib/utils";
 import type { OrderRow, OrderStatus } from "@/lib/types";
 
 export interface StaffOrder extends OrderRow {
@@ -53,6 +53,50 @@ export function OrdersList({
   const router = useRouter();
   const { toast } = useToast();
   const [cancelling, setCancelling] = React.useState<string | null>(null);
+  const [collecting, setCollecting] = React.useState<string | null>(null);
+  // Order being edited → the quantities as they're being changed.
+  const [editing, setEditing] = React.useState<string | null>(null);
+  const [draft, setDraft] = React.useState<Record<string, number>>({});
+  const [savingEdit, setSavingEdit] = React.useState(false);
+
+  function startEdit(order: StaffOrder) {
+    setEditing(order.id);
+    setDraft(
+      Object.fromEntries(order.order_lines.map((l) => [l.item_id, l.qty_requested]))
+    );
+  }
+
+  async function saveEdit(order: StaffOrder) {
+    const lines = Object.entries(draft)
+      .filter(([, qty]) => qty > 0)
+      .map(([item_id, qty]) => ({ item_id, qty }));
+    if (lines.length === 0) {
+      toast("Remove every item and it's a cancellation — use Cancel order.", "error");
+      return;
+    }
+    setSavingEdit(true);
+    const result = await editOrder({ orderId: order.id, lines });
+    setSavingEdit(false);
+    if (!result.ok) {
+      toast(friendlyError(result.error), "error");
+      return;
+    }
+    toast("Order updated.");
+    setEditing(null);
+    router.refresh();
+  }
+
+  async function collect(id: string) {
+    setCollecting(id);
+    const result = await markOrderCollected(id);
+    setCollecting(null);
+    if (!result.ok) {
+      toast(friendlyError(result.error), "error");
+      return;
+    }
+    toast("Marked as collected — thanks.");
+    router.refresh();
+  }
 
   if (orders.length === 0) {
     return (
@@ -114,6 +158,53 @@ export function OrdersList({
 
             <ul className="mt-3 space-y-1 text-sm">
               {order.order_lines.map((line) => {
+                if (editing === order.id) {
+                  const qty = draft[line.item_id] ?? 0;
+                  return (
+                    <li key={line.item_id} className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          aria-label="One fewer"
+                          onClick={() =>
+                            setDraft((d) => ({
+                              ...d,
+                              [line.item_id]: Math.max(0, qty - 1),
+                            }))
+                          }
+                        >
+                          <Minus />
+                        </Button>
+                        <span className="w-8 text-center font-semibold tabular-nums">
+                          {qty}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          aria-label="One more"
+                          onClick={() =>
+                            setDraft((d) => ({ ...d, [line.item_id]: qty + 1 }))
+                          }
+                        >
+                          <Plus />
+                        </Button>
+                      </div>
+                      <span
+                        className={cn(
+                          "min-w-0 flex-1 truncate",
+                          qty === 0 && "text-muted-foreground line-through"
+                        )}
+                      >
+                        {line.items?.name ?? "Item"}
+                      </span>
+                    </li>
+                  );
+                }
                 const short =
                   packed &&
                   line.qty_packed !== null &&
@@ -148,14 +239,52 @@ export function OrdersList({
             )}
 
             {order.status === "pending" && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {editing === order.id ? (
+                  <>
+                    <Button
+                      size="sm"
+                      loading={savingEdit}
+                      onClick={() => saveEdit(order)}
+                    >
+                      <Check /> Save changes
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={savingEdit}
+                      onClick={() => setEditing(null)}
+                    >
+                      <X /> Discard
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => startEdit(order)}>
+                      <Pencil /> Change quantities
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      loading={cancelling === order.id}
+                      onClick={() => cancel(order.id)}
+                    >
+                      Cancel order
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* The person picking it up is the one who knows it happened. */}
+            {order.status === "ready" && (
               <div className="mt-3">
                 <Button
-                  variant="outline"
                   size="sm"
-                  loading={cancelling === order.id}
-                  onClick={() => cancel(order.id)}
+                  loading={collecting === order.id}
+                  onClick={() => collect(order.id)}
                 >
-                  Cancel order
+                  <Check /> I&apos;ve collected this
                 </Button>
               </div>
             )}

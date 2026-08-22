@@ -31,6 +31,11 @@ raises an order for the requester, and staff can do neither.
 silent for the requester, ready to collect tells them, the expected date is
 stored and clearable, and only procurement can move a request along.
 
+`08_edit_and_collect.sql` covers migration 0014: quantities can be corrected
+while an order is pending and not after it's packed, nobody can touch someone
+else's, emptying an order is refused as a disguised cancellation, and the
+requester can tick their own collection.
+
 `03_no_kiosks.sql` covers migration 0008: the kiosk functions, tables and
 columns are gone, no active device is left, and the paths that touched those
 columns — new accounts, role and User ID changes — still work. Run the first
@@ -54,6 +59,8 @@ psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0012_word_order_search.sql
 psql -d mvtest -f 06_stock_matching.sql                      # expect: STOCK MATCHING TESTS PASSED
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0013_request_delivery.sql
 psql -d mvtest -f 07_request_delivery.sql                    # expect: REQUEST DELIVERY TESTS PASSED
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0014_edit_and_collect.sql
+psql -d mvtest -f 08_edit_and_collect.sql                    # expect: EDIT AND COLLECT TESTS PASSED
 ```
 
 The shim replaces `auth.uid()` with a `test.uid` session setting so tests can

@@ -18,7 +18,7 @@ lead time.
    seeds the two locations (Level 8, Basement) + categories.
 3. Run the remaining migration files in
    [`supabase/migrations/`](../supabase/migrations) **in numerical order**
-   (`0002` → `0013`), one at a time, same way. Each is safe to run on a live
+   (`0002` → `0014`), one at a time, same way. Each is safe to run on a live
    database and only needs running once:
 
    | File | What it adds |
@@ -35,6 +35,7 @@ lead time.
    | `0011_stock_matching.sql` | Suggests what we already stock as people type a request, and lets procurement resolve one from stock |
    | `0012_word_order_search.sql` | Makes that search word-order independent — "pen blue" finds the same thing as "blue pen" |
    | `0013_request_delivery.sql` | Expected delivery dates, and a Received stage procurement sees but requesters don't |
+   | `0014_edit_and_collect.sql` | Change an order while it's still pending; the requester ticks their own collection |
 
 4. *(Optional)* Run [`supabase/seed_demo.sql`](../supabase/seed_demo.sql) for
    a sample catalog to click around with. Skip if you'll import your real

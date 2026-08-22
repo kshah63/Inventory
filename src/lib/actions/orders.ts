@@ -50,6 +50,33 @@ export async function markOrdersSeen(): Promise<void> {
   revalidatePath("/orders", "layout");
 }
 
+/** Change your mind while the order is still yours to change. Procurement
+ * starts counting the moment it's packed, so this stops there. */
+export async function editOrder(params: {
+  orderId: string;
+  lines: BasketLine[];
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("edit_order", {
+    p_order_id: params.orderId,
+    p_lines: params.lines,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/orders");
+  revalidatePath("/admin/orders");
+  return { ok: true, data: undefined };
+}
+
+/** The person picking it up ticks it off. Procurement can too. */
+export async function markOrderCollected(orderId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("collect_order", { p_order_id: orderId });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/orders");
+  revalidatePath("/admin/orders");
+  return { ok: true, data: undefined };
+}
+
 export async function cancelOrder(orderId: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("cancel_order", { p_order_id: orderId });
