@@ -9,7 +9,6 @@ import {
   Package,
   Search,
   SearchX,
-  ShieldAlert,
   ShoppingBag,
   X,
 } from "lucide-react";
@@ -287,11 +286,6 @@ export function CatalogueClient({
                       <span className="text-[10px] uppercase tracking-wide">Photo coming</span>
                     </div>
                   )}
-                  {item.requires_approval && (
-                    <Badge variant="warning" className="absolute left-1.5 top-1.5 gap-1 text-[10px]">
-                      <ShieldAlert className="h-3 w-3" /> Approval
-                    </Badge>
-                  )}
                   {inCart > 0 && (
                     <Badge className="absolute right-1.5 top-1.5">×{inCart}</Badge>
                   )}
@@ -399,11 +393,6 @@ export function CatalogueClient({
                 <span className="mt-1 block">
                   Up to {perOrderCap} {selected.unit} per order, so there&apos;s
                   enough to go round.
-                </span>
-              )}
-              {selected.requires_approval && (
-                <span className="mt-1 block text-warning">
-                  Subject to procurement approval when packing.
                 </span>
               )}
             </DialogDescription>

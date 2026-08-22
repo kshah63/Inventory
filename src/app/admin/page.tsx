@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowLeftRight,
-  BadgeCheck,
   ClipboardCheck,
   History,
   Inbox,
@@ -33,7 +32,6 @@ const EMPTY_STATS: DashboardStats = {
   ordered_requests: 0,
   pending_orders: 0,
   ready_orders: 0,
-  pending_approvals: 0,
   requests_to_hand_over: 0,
   reset_requests: 0,
   checkouts_today: 0,
@@ -197,13 +195,6 @@ export default async function AdminDashboardPage() {
           sub="awaiting delivery"
           icon={Truck}
           href="/admin/requests"
-        />
-        <StatCard
-          label="Pending approvals"
-          value={stats.pending_approvals}
-          sub="checkouts on hold"
-          icon={BadgeCheck}
-          href="/admin/approvals"
         />
         <StatCard
           label="Checkouts today"

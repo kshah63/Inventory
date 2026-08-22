@@ -16,7 +16,7 @@ half an hour.
    seeds the two locations (Level 8, Basement) + categories.
 3. Run the remaining migration files in
    [`supabase/migrations/`](../supabase/migrations) **in numerical order**
-   (`0002` → `0017`), one at a time, same way. Each is safe to run on a live
+   (`0002` → `0018`), one at a time, same way. Each is safe to run on a live
    database and only needs running once:
 
    | File | What it adds |
@@ -37,6 +37,7 @@ half an hour.
    | `0015_restricted_and_rooms.sql` | Central-team-only items, per-item store rooms, and deleting an item that has no history |
    | `0016_remove_notifications.sql` | Clears what the removed WhatsApp feature had stored |
    | `0017_collect_request.sql` | Lets the requester tick a bought-in request as collected, the same as an order |
+   | `0018_remove_approvals.sql` | Removes the approval flow, which nothing had enforced since 0008 |
 
 4. *(Optional)* Run [`supabase/seed_demo.sql`](../supabase/seed_demo.sql) for
    a sample catalog to click around with. Skip if you'll import your real
@@ -99,8 +100,9 @@ laptop — there are no shared tablets.
 2. **Admin → Inventory → Import CSV** → preview → confirm. Counts are
    trustworthy from day 1. (Re-importing the same file is safe — the import
    is idempotent on SKU.)
-3. Flag the case-by-case approval items (toner, high-value) with
-   **Requires approval** in Inventory, and put them in the locked cabinet.
+3. Mark the central-team-only items (heavy cleaning supplies and the like)
+   with **Central team only** in Inventory, so they stay off everyone else's
+   catalogue.
 4. Add everyone on **Admin → Users** and pass on their temporary passwords.
 5. Walk each team through the flow once: *Catalogue → add items → pick a zone
    → Place order*, then collect from the procurement room when it's packed.

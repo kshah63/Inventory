@@ -116,7 +116,6 @@ export function InventoryGrid({
       "pack_size",
       ...locations.flatMap((l) => [`${l.name} qty`, `${l.name} reorder`, `${l.name} par`]),
       "max_per_checkout",
-      "requires_approval",
       "central_team_only",
       "notes",
     ];
@@ -137,7 +136,6 @@ export function InventoryGrid({
           ];
         }),
         item.max_per_checkout === null ? "" : String(item.max_per_checkout),
-        item.requires_approval ? "true" : "false",
         item.admin_only ? "true" : "false",
         item.notes ?? "",
       ];
@@ -300,7 +298,6 @@ export function InventoryGrid({
                           <Lock className="mr-1 h-3 w-3" /> Central team only
                         </Badge>
                       )}
-                      {item.requires_approval && <Badge variant="warning">Approval</Badge>}
                       {item.max_per_checkout !== null && (
                         <Badge variant="outline" title="Most one person can order at a time">
                           Max {item.max_per_checkout} per order

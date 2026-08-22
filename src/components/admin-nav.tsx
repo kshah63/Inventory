@@ -13,7 +13,6 @@ import {
   SlidersHorizontal,
   ClipboardCheck,
   Inbox,
-  BadgeCheck,
   BarChart3,
   ScrollText,
   Users,
@@ -43,7 +42,6 @@ const NAV: NavItem[] = [
   { href: "/admin/adjust", label: "Adjust", icon: SlidersHorizontal },
   { href: "/admin/stocktake", label: "Stocktake", icon: ClipboardCheck },
   { href: "/admin/requests", label: "Requests", icon: Inbox },
-  { href: "/admin/approvals", label: "Approvals", icon: BadgeCheck },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
   { href: "/admin/audit", label: "Audit log", icon: ScrollText },
 ];

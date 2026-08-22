@@ -90,7 +90,6 @@ const FIXED_KEYS = [
   "reorder_point",
   "par_level",
   "max_per_checkout",
-  "requires_approval",
   "notes",
 ] as const;
 type FixedKey = (typeof FIXED_KEYS)[number];
@@ -250,7 +249,6 @@ function buildImport(text: string, locations: Location[]): ParseOutcome {
       unit: get("unit") || undefined,
       pack_size: get("pack_size") || undefined,
       max_per_checkout: get("max_per_checkout") || undefined,
-      requires_approval: get("requires_approval") || undefined,
       notes: get("notes") || undefined,
       stock,
     });
@@ -334,7 +332,7 @@ export function ImportDialog({
       <DialogTitle>Import catalog from CSV</DialogTitle>
       <DialogDescription>
         Expected columns: sku, name, category, unit, pack_size, level8_qty, basement_qty,
-        reorder_point, par_level, max_per_checkout, requires_approval, notes. Rows are
+        reorder_point, par_level, max_per_checkout, notes. Rows are
         matched by SKU, so re-importing is safe — existing items are updated and an empty
         qty cell leaves stock untouched. A ready-made template ships with the app at{" "}
         <code className="rounded bg-muted px-1 py-0.5 text-xs">

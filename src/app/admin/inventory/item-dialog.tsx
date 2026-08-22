@@ -46,7 +46,6 @@ export function ItemDialog({
   const [packSizeRaw, setPackSizeRaw] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [maxRaw, setMaxRaw] = React.useState("");
-  const [requiresApproval, setRequiresApproval] = React.useState(false);
   const [adminOnly, setAdminOnly] = React.useState(false);
   const [isActive, setIsActive] = React.useState(true);
   const [rooms, setRooms] = React.useState<string[]>([]);
@@ -67,7 +66,6 @@ export function ItemDialog({
     setPackSizeRaw(item?.pack_size != null ? String(item.pack_size) : "");
     setNotes(item?.notes ?? "");
     setMaxRaw(item?.max_per_checkout != null ? String(item.max_per_checkout) : "");
-    setRequiresApproval(item?.requires_approval ?? false);
     setAdminOnly(item?.admin_only ?? false);
     setIsActive(item?.is_active ?? true);
     // A new item starts kept everywhere; untick the rooms it isn't in.
@@ -113,7 +111,6 @@ export function ItemDialog({
       packSize,
       notes: notes.trim() === "" ? null : notes,
       maxPerCheckout,
-      requiresApproval,
       adminOnly,
       isActive: item ? isActive : true,
     });
@@ -195,7 +192,6 @@ export function ItemDialog({
       packSize: item.pack_size,
       notes: item.notes,
       maxPerCheckout: item.max_per_checkout,
-      requiresApproval: item.requires_approval,
       adminOnly: item.admin_only,
       isActive: false,
     });
@@ -348,22 +344,6 @@ export function ItemDialog({
             zero. A room still holding stock can&apos;t be dropped — move or
             adjust it out first.
           </p>
-        </div>
-
-        <div className="flex items-start justify-between gap-4 rounded-md border bg-muted/40 px-3 py-2.5">
-          <div>
-            <Label htmlFor="item-approval" className="cursor-pointer">
-              Requires approval
-            </Label>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Checkouts need procurement approval — for toner/high-value items.
-            </p>
-          </div>
-          <Switch
-            id="item-approval"
-            checked={requiresApproval}
-            onCheckedChange={setRequiresApproval}
-          />
         </div>
 
         <div className="flex items-start justify-between gap-4 rounded-md border bg-muted/40 px-3 py-2.5">

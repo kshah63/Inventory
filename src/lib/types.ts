@@ -20,8 +20,6 @@ export type RequestStatus =
   | "fulfilled"
   | "rejected";
 
-export type PendingStatus = "pending" | "approved" | "rejected" | "cancelled";
-
 export type OrderStatus = "pending" | "ready" | "collected" | "rejected" | "cancelled";
 
 export interface Location {
@@ -46,7 +44,6 @@ export interface Item {
   photo_url: string | null;
   notes: string | null;
   max_per_checkout: number | null;
-  requires_approval: boolean;
   /** Central team only — heavy cleaning supplies and the like. Hidden from
    * everyone else by the read policy, not just by the app. */
   admin_only: boolean;
@@ -127,19 +124,6 @@ export interface RequestRow {
   updated_at: string;
 }
 
-export interface PendingCheckoutRow {
-  id: string;
-  item_id: string;
-  location_id: string;
-  qty: number;
-  requested_by: string;
-  status: PendingStatus;
-  decided_by: string | null;
-  decision_note: string | null;
-  created_at: string;
-  decided_at: string | null;
-}
-
 export interface ReorderRow {
   item_id: string;
   sku: string;
@@ -163,7 +147,6 @@ export interface DashboardStats {
   ordered_requests: number;
   pending_orders: number;
   ready_orders: number;
-  pending_approvals: number;
   requests_to_hand_over: number;
   reset_requests: number;
   checkouts_today: number;
@@ -203,38 +186,9 @@ export interface ConsumptionRow {
   tx_count: number;
 }
 
-export interface DigestData {
-  low_stock: {
-    item_name: string;
-    unit: string;
-    location_name: string;
-    qty_on_hand: number;
-    reorder_point: number;
-    suggested_qty: number;
-  }[];
-  open_requests: number;
-  pending_approvals: number;
-}
-
-export interface KioskSessionInfo {
-  token: string;
-  user_id: string;
-  full_name: string;
-}
-
 export interface BasketLine {
   item_id: string;
   qty: number;
-}
-
-export interface CheckoutResult {
-  taken: { item_id: string; name: string; unit: string; qty: number }[];
-  hit_zero: {
-    item_id: string;
-    name: string;
-    location: string;
-    elsewhere: { location: string; qty: number }[];
-  }[];
 }
 
 // Item joined with its stock rows — the shape used by browse/catalog screens.

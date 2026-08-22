@@ -7,7 +7,7 @@ math, race conditions, RLS) are already covered by the automated suite in
 
 ## Setup (once)
 
-- Migrations `0001` → `0017` + (optionally) `seed_demo.sql` run in Supabase.
+- Migrations `0001` → `0018` + (optionally) `seed_demo.sql` run in Supabase.
 - You are signed in as the super admin.
 - On **Admin → Users**, add "Priya Test" — role *Department Admin*, User ID
   `1901`. Note the temporary password.
@@ -51,7 +51,6 @@ temporary password.
 | 2.7 | **Export CSV** → edit a qty in the file → **Import CSV** | Preview shows the change; import reports "updated N, stock adjusted 1"; re-import → "stock adjusted 0" (idempotent) |
 | 2.8 | **Reorder**: set an item's reorder point ≥ its qty | Appears on the reorder dashboard with suggested qty = par − on-hand and days-to-stockout |
 | 2.9 | Select reorder rows → **Copy order list** | Formatted order list on the clipboard |
-| 2.10 | **Approvals**: approve a pending approval-flagged checkout | Stock decremented, checkout attributed to Priya in the audit log; History tab shows the decision |
 | 2.10b | **Requests** → **We stock this** on a request matching something you carry, leaving "remember these words" on | An order is raised for the requester, the request closes as fulfilled, and those words now suggest that item in the request form |
 | 2.11 | **Requests**: open Priya's new-item request | Photo thumbnail, description and product link all visible; move it Open → Ordered with a note — Priya's **Track my orders → Waiting** shows the card, badged "Bought in for you", with the new status + note |
 | 2.12 | **Reports**: switch group-by User/Item/Category/Zone, ranges 7/30/90 | Charts + ranked tables respond; "by user" is the fairness view |

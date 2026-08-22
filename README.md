@@ -19,9 +19,6 @@ says what to buy before it runs out.
   the ledger can never diverge (both are written in a single Postgres
   function with row locks — concurrent "last unit" checkouts are handled
   gracefully).
-- **Approval flow** — items flagged `requires_approval` (toner, high-value)
-  can't just be packed; they queue on the Approvals screen, where one tap
-  approves and records the checkout.
 - **Requests** — out-of-stock or brand-new items become structured requests
   with statuses (open → acknowledged → ordered → received → ready →
   fulfilled), replacing the ad-hoc chat thread. The requester's own view shows

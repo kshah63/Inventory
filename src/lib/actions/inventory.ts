@@ -99,7 +99,6 @@ export interface ImportRow {
   unit?: string;
   pack_size?: string;
   max_per_checkout?: string;
-  requires_approval?: string;
   notes?: string;
   stock: {
     location: string;
@@ -131,7 +130,6 @@ export async function saveItem(params: {
   packSize: number | null;
   notes: string | null;
   maxPerCheckout: number | null;
-  requiresApproval: boolean;
   adminOnly: boolean;
   isActive: boolean;
   photoUrl?: string | null;
@@ -145,7 +143,6 @@ export async function saveItem(params: {
     pack_size: params.packSize,
     notes: params.notes?.trim() || null,
     max_per_checkout: params.maxPerCheckout,
-    requires_approval: params.requiresApproval,
     admin_only: params.adminOnly,
     is_active: params.isActive,
     ...(params.photoUrl !== undefined ? { photo_url: params.photoUrl } : {}),

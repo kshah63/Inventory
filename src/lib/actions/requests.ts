@@ -223,29 +223,3 @@ export async function updateRequestStatus(
   return { ok: true, data: undefined };
 }
 
-/** Approve or reject an approval-required checkout. On approval the stock
- * transaction is recorded. */
-export async function decidePendingCheckout(
-  pendingId: string,
-  approve: boolean,
-  note?: string
-): Promise<ActionResult<{ status: string }>> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("decide_pending_checkout", {
-    p_id: pendingId,
-    p_approve: approve,
-    p_note: note ?? null,
-  });
-  if (error) return { ok: false, error: error.message };
-
-  const info = data as {
-    status: string;
-    item_name: string;
-    unit: string;
-    qty: number;
-    location_name: string;
-  };
-
-  revalidatePath("/admin/approvals");
-  return { ok: true, data: { status: info.status } };
-}
