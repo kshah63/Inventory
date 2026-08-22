@@ -4,18 +4,18 @@ import { friendlyError } from "@/lib/utils";
 import type { OrderRow } from "@/lib/types";
 import { type StaffOrder } from "./order-card";
 import { type RequestWithJoins } from "./request-card";
-import { SuppliesList } from "./supplies-list";
-import { SuppliesTabs } from "./supplies-tabs";
+import { TrackingList } from "./tracking-list";
+import { TrackingTabs } from "./tracking-tabs";
 import { MarkOrdersSeen } from "./mark-seen";
 
-export const metadata = { title: "My supplies" };
+export const metadata = { title: "Track my orders" };
 export const dynamic = "force-dynamic";
 
 /** Still in flight, whichever way it was asked for. */
 const ORDER_OPEN = ["pending", "ready"];
 const REQUEST_OPEN = ["open", "acknowledged", "ordered", "received", "ready"];
 
-export default async function MySuppliesPage({
+export default async function TrackMyOrdersPage({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string }>;
@@ -79,7 +79,7 @@ export default async function MySuppliesPage({
   return (
     <div>
       <PageHeader
-        title="My supplies"
+        title="Track my orders"
         description="Everything you've asked for, and everything you've collected."
       />
 
@@ -89,11 +89,11 @@ export default async function MySuppliesPage({
         </p>
       )}
 
-      <SuppliesTabs
+      <TrackingTabs
         initialTab={tab === "collected" ? "collected" : "waiting"}
         waitingCount={waitingOrders.length + waitingRequests.length}
         waiting={
-          <SuppliesList
+          <TrackingList
             orders={waitingOrders}
             requests={waitingRequests}
             updatedIds={updatedIds}
@@ -101,7 +101,7 @@ export default async function MySuppliesPage({
           />
         }
         collected={
-          <SuppliesList
+          <TrackingList
             orders={doneOrders}
             requests={doneRequests}
             variant="collected"

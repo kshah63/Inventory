@@ -59,7 +59,7 @@ supabase/
   templates/catalog_template.csv
 src/
   app/
-    (staff)/                 # catalogue / my supplies / profile
+    (staff)/                 # catalogue / order tracking / profile
     admin/                   # dashboard, reorder, inventory, ops, reports…
   lib/
     actions/                 # server actions (all mutations go through here)

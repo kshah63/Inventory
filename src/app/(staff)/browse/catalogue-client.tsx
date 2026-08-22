@@ -207,7 +207,7 @@ export function CatalogueClient({
       return;
     }
     toast(
-      `Order #${result.data.order_no} placed — it'll turn Ready to collect in My supplies.`
+      `Order #${result.data.order_no} placed — it'll turn Ready to collect under Track my orders.`
     );
     setCart([]);
     setReviewOpen(false);
@@ -466,7 +466,7 @@ export function CatalogueClient({
       <Dialog open={reviewOpen} onClose={placing ? () => {} : () => setReviewOpen(false)}>
         <DialogTitle>Place order</DialogTitle>
         <DialogDescription>
-          Procurement packs it from the store room. Check My supplies — it turns
+          Procurement packs it from the store room. Check Track my orders — it turns
           Ready to collect when it&apos;s waiting for you.
         </DialogDescription>
 

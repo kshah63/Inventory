@@ -31,7 +31,7 @@ export async function createOrder(params: {
   return { ok: true, data: { order_no: info.order_no } };
 }
 
-/** Called when the requester opens My supplies — clears the unread marker on
+/** Called when the requester opens Track my orders — clears the unread marker on
  * the tab. Failing quietly is right here: it's a read receipt, not the page. */
 export async function markOrdersSeen(): Promise<void> {
   const supabase = await createClient();

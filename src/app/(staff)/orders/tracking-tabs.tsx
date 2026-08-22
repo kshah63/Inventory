@@ -13,7 +13,7 @@ const LABELS: Record<TabKey, string> = {
 /** Two tabs, because there are only two questions: what am I still waiting
  * for, and what have I had? Orders and bought-in requests sit together in
  * both — the difference between them is ours to manage, not theirs. */
-export function SuppliesTabs({
+export function TrackingTabs({
   initialTab,
   waitingCount,
   waiting,

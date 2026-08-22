@@ -14,7 +14,7 @@ import { RequestCard, type RequestWithJoins } from "./request-card";
  * thing and want to know where it's got to. The card says which kind it is;
  * it is never somewhere you have to go and look.
  */
-export function SuppliesList({
+export function TrackingList({
   orders,
   requests,
   updatedIds = [],
