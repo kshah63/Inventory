@@ -257,8 +257,8 @@ export function ApprovalsClient({ rows }: { rows: ApprovalRow[] }) {
               Reject {rejecting.qty} × {rejecting.item_name}?
             </DialogTitle>
             <DialogDescription>
-              {rejecting.requester_name} will be notified of the decision. No stock
-              is deducted.
+              {rejecting.requester_name} sees the decision on their own screen.
+              No stock is deducted.
             </DialogDescription>
             <div className="space-y-1.5">
               <Label htmlFor="reject-note">Reason (optional)</Label>

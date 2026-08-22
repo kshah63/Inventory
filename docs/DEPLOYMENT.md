@@ -29,7 +29,7 @@ half an hour.
    | `0007_new_item_requests.sql` | Request photos/links/descriptions, zones 3–22, the `request-photos` bucket |
    | `0008_remove_kiosks.sql` | Removes kiosk devices, PIN sign-in and the sessions behind them |
    | `0009_order_limits.sql` | Enforces each item's max-per-order so one person can't take the shelf |
-   | `0010_order_read_state.sql` | Unread marker on My orders when procurement moves an order on |
+   | `0010_order_read_state.sql` | Unread marker on My supplies when procurement moves an order on |
    | `0011_stock_matching.sql` | Suggests what we already stock as people type a request, and lets procurement resolve one from stock |
    | `0012_word_order_search.sql` | Makes that search word-order independent — "pen blue" finds the same thing as "blue pen" |
    | `0013_request_delivery.sql` | Expected delivery dates, and a Received stage procurement sees but requesters don't |

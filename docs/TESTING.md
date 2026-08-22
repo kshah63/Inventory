@@ -16,7 +16,7 @@ math, race conditions, RLS) are already covered by the automated suite in
 
 ## 1. Ordering on your own device
 
-The header has three items now: **Order**, **My orders**, **Profile**.
+The header has three items now: **Order**, **My supplies**, **Profile**.
 
 Sign in as Priya Test in a private window — User ID `1901` and the
 temporary password.
@@ -24,7 +24,7 @@ temporary password.
 | # | Do | Expect |
 | --- | --- | --- |
 | 1.1 | Lands on **Order** (/browse) | Total availability per item; search + category chips work; no store-room picker anywhere in the order flow |
-| 1.2 | **My orders** → **Collected** tab | Only Priya's own collected items, grouped by day |
+| 1.2 | **My supplies** → **Collected** tab | Only what Priya has finished with — collected orders and bought-in requests, nobody else's |
 | 1.3pre | **Order** → *Request a new item* → type "sticky notes" (something you stock) | Matches appear under the field — "We stock these already" — with **Order this**, which adds it to the order instead |
 | 1.3pre2 | Same field: type the words backwards, e.g. "pen blue" then "blue pen" | Both find the same item; so does a plural like "pens blue" |
 | 1.3 | **Order** → Request a new item: name, description, product link, a photo, qty 2, zone 14 | Listed as *Open* with the photo thumbnail, description and working link; cancel it — it disappears |
@@ -32,8 +32,8 @@ temporary password.
 | 1.3b | Order: page through with **Back** / **Next**; scroll down mid-page | Nine items per page; the search box and category chips stay pinned at the top |
 | 1.3c | Open an item procurement capped (Inventory → Max per order), try to exceed it | The quantity stops at the cap and the dialog says how many are allowed per order |
 | 1.4 | Place a catalogue order and pick a zone | Zones are the bare numbers 3–22; order lands in the procurement queue tagged with that zone |
-| 1.4b | Leave Priya signed in. As admin, pack her order, then look at Priya's header | **My orders** carries a count badge; the order shows an "Updated" flag and a highlighted border |
-| 1.4c | Open My orders as Priya, then go back to Order | The badge is gone; it comes back only when procurement changes the order again |
+| 1.4b | Leave Priya signed in. As admin, pack her order, then look at Priya's header | **My supplies** carries a count badge; the order shows an "Updated" flag and a highlighted border |
+| 1.4c | Open My supplies as Priya, then go back to Order | The badge is gone; it comes back only when procurement changes the order again |
 | 1.5 | Type `/admin` in the URL bar | Bounced back to /browse — no Reports or admin screens below procurement |
 | 1.6 | **Profile** → change password, then sign out and back in with the new one | Change succeeds; the old password no longer works. (If a password is forgotten instead, "Request a new password" on the login screen puts it in procurement's dashboard queue.) |
 
@@ -53,7 +53,7 @@ temporary password.
 | 2.9 | Select reorder rows → **Copy order list** | Formatted order list on the clipboard |
 | 2.10 | **Approvals**: approve a pending approval-flagged checkout | Stock decremented, checkout attributed to Priya in the audit log; History tab shows the decision |
 | 2.10b | **Requests** → **We stock this** on a request matching something you carry, leaving "remember these words" on | An order is raised for the requester, the request closes as fulfilled, and those words now suggest that item in the request form |
-| 2.11 | **Requests**: open Priya's new-item request | Photo thumbnail, description and product link all visible; move it Open → Ordered with a note — Priya's My orders → Requests shows the new status + note |
+| 2.11 | **Requests**: open Priya's new-item request | Photo thumbnail, description and product link all visible; move it Open → Ordered with a note — Priya's **My supplies → Waiting** shows the card, badged "Bought in for you", with the new status + note |
 | 2.12 | **Reports**: switch group-by User/Item/Category/Zone, ranges 7/30/90 | Charts + ranked tables respond; "by user" is the fairness view |
 | 2.13 | **Audit log**: filter by type/location/user/item/date; export CSV | Filters compose; pagination works; CSV downloads |
 | 2.14 | **Users**: reset Priya's password; deactivate her | Old session can't act (deactivated notice); her name shows as "Former staff — Priya Test" in history views. Reactivate after |

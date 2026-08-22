@@ -206,7 +206,9 @@ export function CatalogueClient({
       toast(result.error, "error");
       return;
     }
-    toast(`Order #${result.data.order_no} placed — you'll be told when it's packed.`);
+    toast(
+      `Order #${result.data.order_no} placed — it'll turn Ready to collect in My supplies.`
+    );
     setCart([]);
     setReviewOpen(false);
     setZone(null);
@@ -464,8 +466,8 @@ export function CatalogueClient({
       <Dialog open={reviewOpen} onClose={placing ? () => {} : () => setReviewOpen(false)}>
         <DialogTitle>Place order</DialogTitle>
         <DialogDescription>
-          Procurement packs it and you&apos;ll be notified when it&apos;s ready to
-          collect from the procurement room.
+          Procurement packs it from the store room. Check My supplies — it turns
+          Ready to collect when it&apos;s waiting for you.
         </DialogDescription>
 
         <ul className="mb-4 divide-y rounded-lg border">

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
-/** Activity lives inside My orders now — same events, one place. */
+/** Activity lives inside My supplies now — what you've collected is the
+ * Collected tab, and it's the same cards you were already waiting on. */
 export default function ActivityRedirect() {
-  redirect("/orders?tab=activity");
+  redirect("/orders?tab=collected");
 }
