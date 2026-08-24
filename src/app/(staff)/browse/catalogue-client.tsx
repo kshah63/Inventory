@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { matchesWords, queryWords, relevance, searchableText } from "@/lib/search";
 import { createOrder } from "@/lib/actions/orders";
 import { NewRequestDialog } from "@/app/(staff)/requests/new-request-dialog";
+import { ClaimDialog } from "@/app/(staff)/claims/claim-dialog";
 import type {
   BasketLine,
   CatalogItem,
@@ -255,7 +256,10 @@ export function CatalogueClient({
           {filtered.length} {filtered.length === 1 ? "item" : "items"}
           {query.trim() && ` matching “${query.trim()}”`}
         </span>
-        <NewRequestDialog zones={zones} onOrderInstead={addMatchToCart} />
+        <div className="flex flex-wrap items-center gap-2">
+          <ClaimDialog zones={zones} />
+          <NewRequestDialog zones={zones} onOrderInstead={addMatchToCart} />
+        </div>
       </div>
 
       {filtered.length === 0 ? (

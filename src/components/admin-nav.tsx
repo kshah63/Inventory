@@ -11,6 +11,7 @@ import {
   Truck,
   ClipboardCheck,
   Inbox,
+  Receipt,
   BarChart3,
   ScrollText,
   Users,
@@ -29,7 +30,7 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   exact?: boolean;
   /** Which waiting-on-us count to show, if any. */
-  count?: "orders" | "requests";
+  count?: "orders" | "requests" | "claims";
 }
 
 interface NavGroup {
@@ -40,11 +41,11 @@ interface NavGroup {
 }
 
 /**
- * Grouped by who is waiting. "To do" is work sitting with procurement:
- * an order to pack, a request to source. The two arrive by different
- * routes and the work differs — one is a trip to the shelf, the other is
- * a purchase and a wait — so they stay two screens, side by side under
- * one heading rather than fused into one queue.
+ * Grouped by who is waiting. "To do" is work sitting with procurement: an
+ * order to pack, a request to source, a claim to pay. They arrive by
+ * different routes and the work genuinely differs — a walk to the shelf, a
+ * purchase and a wait, a receipt to check — so they stay separate screens,
+ * side by side under one heading rather than fused into one queue.
  */
 const GROUPS: NavGroup[] = [
   {
@@ -55,6 +56,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/admin/orders", label: "Orders", icon: PackageCheck, count: "orders" },
       { href: "/admin/requests", label: "Requests", icon: Inbox, count: "requests" },
+      { href: "/admin/claims", label: "Reimbursements", icon: Receipt, count: "claims" },
     ],
   },
   {
@@ -87,12 +89,12 @@ const FOOTER_NAV: NavItem[] = [
 export function AdminNav({
   userName,
   isSuperAdmin,
-  todo = { orders: 0, requests: 0 },
+  todo = { orders: 0, requests: 0, claims: 0 },
 }: {
   userName: string;
   isSuperAdmin: boolean;
   /** What's actually waiting on procurement right now. */
-  todo?: { orders: number; requests: number };
+  todo?: { orders: number; requests: number; claims: number };
 }) {
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);

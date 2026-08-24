@@ -57,6 +57,13 @@ zero, the dashboard's low-stock count matches the reorder list exactly, out
 of stock counts every item at zero whether tracked or not, and staff can't
 read the list at all.
 
+`12_claims.sql` covers migration 0020: a claim totals its lines in whole
+cents, is refused without a reason or with a zero line, is invisible to
+everyone but the claimant and procurement, is editable only while it's still
+requested, can't be marked paid by the person claiming, can't be declined
+without a reason, and can be neither edited nor cancelled once settled. It
+also asserts the receipts bucket is private, unlike the other two.
+
 `03_no_kiosks.sql` covers migration 0008: the kiosk functions, tables and
 columns are gone, no active device is left, and the paths that touched those
 columns — new accounts, role and User ID changes — still work. Run the first
@@ -90,6 +97,8 @@ psql -d mvtest -f 10_collect_request.sql                     # expect: COLLECT R
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0018_remove_approvals.sql
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0019_keep_about.sql
 psql -d mvtest -f 11_keep_about.sql                          # expect: KEEP ABOUT TESTS PASSED
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0020_reimbursement_claims.sql
+psql -d mvtest -f 12_claims.sql                              # expect: CLAIMS TESTS PASSED
 ```
 
 The shim replaces `auth.uid()` with a `test.uid` session setting so tests can

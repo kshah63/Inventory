@@ -28,6 +28,12 @@ says what to buy before it runs out.
   half of what we like to keep, with suggested order quantities and
   days-to-stockout, exportable as CSV or as a plain-text order list to paste
   wherever you order from the supplier.
+- **Reimbursement claims** — the third way somebody gets what they need,
+  after ordering it and requesting it: they bought it themselves. Lines with
+  amounts in whole cents, receipts in a *private* bucket served by
+  short-lived signed URLs, and a required "why wasn't this ordered?" that
+  feeds back into what we should be stocking. Money only — a claim never
+  touches the stock ledger, because nothing arrived in a store room.
 - **Store rooms per item** — a room means "we keep it here", so the Basement
   lists the A3/A4 paper it actually holds instead of a hundred items at zero.
   A room still holding stock can't be dropped from an item.

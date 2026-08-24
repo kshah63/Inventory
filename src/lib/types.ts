@@ -22,6 +22,10 @@ export type RequestStatus =
 
 export type OrderStatus = "pending" | "ready" | "collected" | "rejected" | "cancelled";
 
+/** Somebody bought it themselves and wants the money back. Two states plus
+ * a refusal — the person who checks the claim is the person who pays it. */
+export type ClaimStatus = "requested" | "paid" | "declined";
+
 export interface Location {
   id: string;
   name: string;
@@ -206,6 +210,45 @@ export interface CatalogueMatch {
   max_per_order: number | null;
   matched_alias: string | null;
   score: number;
+}
+
+export interface ClaimLineRow {
+  id: string;
+  claim_id: string;
+  description: string;
+  /** Whole cents. Never a float — decimal money drifts. */
+  amount_cents: number;
+  sort_order: number;
+}
+
+export interface ClaimReceiptRow {
+  id: string;
+  claim_id: string;
+  /** Path inside the private bucket. There is no public URL; the app signs
+   * a short-lived one when somebody with permission asks to look. */
+  path: string;
+  file_name: string | null;
+  uploaded_at: string;
+}
+
+export interface ClaimRow {
+  id: string;
+  claimed_by: string;
+  zone: string | null;
+  /** Why it wasn't ordered the usual way. Required, and the whole point:
+   * repeated answers here are a stocking failure we can act on. */
+  reason: string;
+  status: ClaimStatus;
+  admin_note: string | null;
+  created_at: string;
+  updated_at: string;
+  decided_at: string | null;
+  decided_by: string | null;
+}
+
+export interface ClaimWithLines extends ClaimRow {
+  claim_lines: ClaimLineRow[];
+  claim_receipts: ClaimReceiptRow[];
 }
 
 export type ActionResult<T = undefined> =

@@ -7,7 +7,7 @@ math, race conditions, RLS) are already covered by the automated suite in
 
 ## Setup (once)
 
-- Migrations `0001` → `0019` + (optionally) `seed_demo.sql` run in Supabase.
+- Migrations `0001` → `0020` + (optionally) `seed_demo.sql` run in Supabase.
 - You are signed in as the super admin.
 - On **Admin → Users**, add "Priya Test" — role *Department Admin*, User ID
   `1901`. Note the temporary password.
@@ -67,7 +67,8 @@ temporary password.
   `04_order_limits.sql` (6), `05_order_read_state.sql` (7),
   `06_stock_matching.sql` (20), `07_request_delivery.sql` (10),
   `08_edit_and_collect.sql` (8), `09_restricted_and_rooms.sql` (14) and
-  `10_collect_request.sql` (6) and `11_keep_about.sql` (8); all passing.)
+  `10_collect_request.sql` (6), `11_keep_about.sql` (8) and
+  `12_claims.sql` (15); all passing.)
 
 ## Known limitations (by design, per the spec's phasing)
 

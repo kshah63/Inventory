@@ -19,6 +19,26 @@ export function formatDateTime(iso: string): string {
   }).format(new Date(iso));
 }
 
+/** Cents to money. Everything to do with claims is stored and added up as
+ * whole cents; this is the only place it becomes dollars, at the last
+ * moment before somebody reads it. */
+export function formatMoney(cents: number): string {
+  return new Intl.NumberFormat("en-SG", {
+    style: "currency",
+    currency: "SGD",
+    minimumFractionDigits: 2,
+  }).format(cents / 100);
+}
+
+/** "12.80" or "12" from a text field, back to whole cents. Returns null for
+ * anything that isn't a positive amount. */
+export function parseMoney(input: string): number | null {
+  const cleaned = input.trim().replace(/[$,\s]/g, "");
+  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
+  const cents = Math.round(parseFloat(cleaned) * 100);
+  return cents > 0 ? cents : null;
+}
+
 export function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("en-SG", {
     timeZone: SGT,

@@ -21,7 +21,7 @@ export default async function AdminLayout({
   // with the supplier are both waiting on somebody else, and counting them
   // here would make the badge a number nobody can bring down.
   const supabase = await createClient();
-  const [orderCount, requestCount] = await Promise.all([
+  const [orderCount, requestCount, claimCount] = await Promise.all([
     supabase
       .from("orders")
       .select("id", { count: "exact", head: true })
@@ -30,6 +30,10 @@ export default async function AdminLayout({
       .from("requests")
       .select("id", { count: "exact", head: true })
       .in("status", ["open", "acknowledged", "received"]),
+    supabase
+      .from("claims")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "requested"),
   ]);
 
   return (
@@ -40,6 +44,7 @@ export default async function AdminLayout({
         todo={{
           orders: orderCount.count ?? 0,
           requests: requestCount.count ?? 0,
+          claims: claimCount.count ?? 0,
         }}
       />
       <main className="flex-1 p-4 pb-20 lg:p-8 lg:pb-8 overflow-x-hidden">

@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
 import { friendlyError } from "@/lib/utils";
-import type { OrderRow } from "@/lib/types";
+import type { ClaimWithLines, OrderRow } from "@/lib/types";
 import { type StaffOrder } from "./order-card";
 import { type RequestWithJoins } from "./request-card";
 import { TrackingList } from "./tracking-list";
+import { ClaimsList } from "./claims-list";
 import { TrackingTabs } from "./tracking-tabs";
 import { MarkOrdersSeen } from "./mark-seen";
 
@@ -23,7 +24,7 @@ export default async function TrackMyOrdersPage({
   const { tab } = await searchParams;
   const supabase = await createClient();
 
-  const [ordersRes, requestsRes] = await Promise.all([
+  const [ordersRes, requestsRes, claimsRes] = await Promise.all([
     supabase
       .from("orders")
       .select(
@@ -39,11 +40,19 @@ export default async function TrackMyOrdersPage({
       .select("*")
       .order("created_at", { ascending: false })
       .limit(100),
+    // RLS keeps this to your own. Only one foreign key into each child
+    // table, so these embeds are unambiguous.
+    supabase
+      .from("claims")
+      .select("*, claim_lines(*), claim_receipts(*)")
+      .order("created_at", { ascending: false })
+      .limit(100),
   ]);
 
-  const loadError = ordersRes.error ?? requestsRes.error;
+  const loadError = ordersRes.error ?? requestsRes.error ?? claimsRes.error;
   const orders = (ordersRes.data ?? []) as unknown as StaffOrder[];
   const requestRows = (requestsRes.data ?? []) as unknown as RequestWithJoins[];
+  const claims = (claimsRes.data ?? []) as unknown as ClaimWithLines[];
 
   // Catalogue items only appear on requests raised before the catalogue and
   // requests split apart, so this lookup is usually empty.
@@ -90,8 +99,11 @@ export default async function TrackMyOrdersPage({
       )}
 
       <TrackingTabs
-        initialTab={tab === "collected" ? "collected" : "waiting"}
+        initialTab={
+          tab === "collected" ? "collected" : tab === "claims" ? "claims" : "waiting"
+        }
         waitingCount={waitingOrders.length + waitingRequests.length}
+        claimsCount={claims.filter((c) => c.status === "requested").length}
         waiting={
           <TrackingList
             orders={waitingOrders}
@@ -107,6 +119,7 @@ export default async function TrackMyOrdersPage({
             variant="collected"
           />
         }
+        claims={<ClaimsList claims={claims} />}
       />
 
       <MarkOrdersSeen unread={updatedIds.length} />
