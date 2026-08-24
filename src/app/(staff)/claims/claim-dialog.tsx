@@ -141,7 +141,14 @@ export function ClaimDialog({ zones }: { zones: string[] }) {
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Items purchased</Label>
+            {/* Column headers sharing the row layout below, so they sit over
+                their columns. Without "Cost (SGD)" the amount box read as a
+                quantity. The trailing spacer matches the remove button. */}
+            <div className="flex items-center gap-2">
+              <Label className="min-w-0 flex-1">Items purchased</Label>
+              <Label className="w-28 shrink-0">Cost (SGD)</Label>
+              <span className="w-9 shrink-0" aria-hidden="true" />
+            </div>
             {lines.map((line, i) => {
               const cents = parseMoney(line.amount);
               const amountBad = line.amount.trim() !== "" && cents === null;
@@ -172,7 +179,7 @@ export function ClaimDialog({ zones }: { zones: string[] }) {
                       placeholder="0.00"
                       inputMode="decimal"
                       className={cn("tabular-nums", amountBad && "border-destructive")}
-                      aria-label={`Amount, line ${i + 1}`}
+                      aria-label={`Cost in dollars, line ${i + 1}`}
                     />
                   </div>
                   <Button
