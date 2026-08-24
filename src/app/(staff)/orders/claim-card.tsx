@@ -16,7 +16,7 @@ import {
 import type { ClaimStatus, ClaimWithLines } from "@/lib/types";
 
 const STATUS_LABEL: Record<ClaimStatus, string> = {
-  requested: "Waiting to be paid",
+  requested: "Awaiting payment",
   paid: "Paid",
   declined: "Declined",
 };
@@ -100,7 +100,7 @@ export function ClaimCard({ claim }: { claim: ClaimWithLines }) {
         </li>
       </ul>
 
-      <p className="mt-2 text-xs text-muted-foreground">Why: {claim.reason}</p>
+      <p className="mt-2 text-xs text-muted-foreground">Reason: {claim.reason}</p>
 
       {(claim.claim_receipts ?? []).length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">

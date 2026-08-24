@@ -41,7 +41,7 @@ export default async function ClaimsAdminPage() {
     <>
       <PageHeader
         title="Reimbursements"
-        description="Money people spent out of their own pocket. Check the receipt, mark it paid, and export the lot for whoever does the paying."
+        description="Out-of-pocket purchases submitted for reimbursement. Review the receipts, mark claims as paid or declined, and export for payment records."
       />
       {error ? (
         <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">

@@ -19,7 +19,7 @@ export function ClaimsList({ claims }: { claims: ClaimWithLines[] }) {
       <EmptyState
         icon={Receipt}
         title="No claims yet"
-        description="If you buy something for the centre out of your own pocket, claim it back from the Order page."
+        description="Purchases made with your own money can be claimed back from the Order page."
       />
     );
   }
@@ -29,7 +29,7 @@ export function ClaimsList({ claims }: { claims: ClaimWithLines[] }) {
       {owed > 0 && (
         <div className="flex items-baseline justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3">
           <span className="text-sm text-muted-foreground">
-            Waiting to be paid back to you
+            Awaiting payment to you
           </span>
           <span className="text-lg font-semibold tabular-nums">
             {formatMoney(owed)}

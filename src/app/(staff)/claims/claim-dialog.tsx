@@ -135,13 +135,13 @@ export function ClaimDialog({ zones }: { zones: string[] }) {
       <Dialog open={open} onClose={close} className="max-w-lg">
         <DialogTitle>Claim a reimbursement</DialogTitle>
         <DialogDescription>
-          For something you bought yourself and paid for. Add a line per thing
-          you bought, and the receipts covering them.
+          For purchases made with your own money. Add a line for each item, and
+          attach the receipts that cover them.
         </DialogDescription>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>What you bought</Label>
+            <Label>Items purchased</Label>
             {lines.map((line, i) => {
               const cents = parseMoney(line.amount);
               const amountBad = line.amount.trim() !== "" && cents === null;
@@ -157,7 +157,7 @@ export function ClaimDialog({ zones }: { zones: string[] }) {
                       )
                     }
                     placeholder="e.g. Whiteboard markers ×4"
-                    aria-label={`What you bought, line ${i + 1}`}
+                    aria-label={`Item purchased, line ${i + 1}`}
                   />
                   <div className="w-28 shrink-0">
                     <Input
@@ -207,23 +207,23 @@ export function ClaimDialog({ zones }: { zones: string[] }) {
             </div>
             {brokenLine && (
               <p className="text-xs text-destructive">
-                Every line needs both what you bought and how much it cost.
+                Each line needs a description and an amount.
               </p>
             )}
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="claim-reason">Why wasn&apos;t this ordered?</Label>
+            <Label htmlFor="claim-reason">Why was this purchased rather than ordered?</Label>
             <Textarea
               id="claim-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. We ran out mid-lesson and I was passing the shop"
+              placeholder="e.g. It was urgent and easier to purchase myself"
               rows={2}
             />
             <p className="text-xs text-muted-foreground">
-              Not a telling-off — if something keeps getting bought this way,
-              we should be stocking more of it.
+              This helps the procurement team identify items worth keeping in
+              stock.
             </p>
           </div>
 
@@ -290,8 +290,8 @@ export function ClaimDialog({ zones }: { zones: string[] }) {
               <Upload className="h-4 w-4 shrink-0 text-muted-foreground" />
             </div>
             <p className="text-xs text-muted-foreground">
-              Photos or PDFs, up to 10MB each. Only you and the procurement
-              team can open them.
+              Photos or PDFs, up to 10MB each. Receipts are visible only to
+              you and the procurement team.
             </p>
           </div>
         </div>

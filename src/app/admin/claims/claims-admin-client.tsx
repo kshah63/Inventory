@@ -196,8 +196,8 @@ export function ClaimsAdminClient({ claims }: { claims: AdminClaim[] }) {
           title={tab === "requested" ? "Nothing to pay" : "Nothing here"}
           description={
             tab === "requested"
-              ? "Claims land here when somebody buys something themselves and asks for it back."
-              : "Claims move here once they've been settled."
+              ? "Claims appear here when a purchase is submitted for reimbursement."
+              : "Claims appear here once they have been settled."
           }
         />
       ) : (
@@ -232,7 +232,7 @@ export function ClaimsAdminClient({ claims }: { claims: AdminClaim[] }) {
                   ))}
               </ul>
 
-              <p className="mt-2 text-xs text-muted-foreground">Why: {c.reason}</p>
+              <p className="mt-2 text-xs text-muted-foreground">Reason: {c.reason}</p>
 
               {(c.claim_receipts ?? []).length > 0 ? (
                 <div className="mt-2 flex flex-wrap gap-1.5">
@@ -297,8 +297,8 @@ export function ClaimsAdminClient({ claims }: { claims: AdminClaim[] }) {
               Decline {formatMoney(total(declining))} to {declining.claimant_name}?
             </DialogTitle>
             <DialogDescription>
-              They see the reason on their own screen, so it needs to be one
-              they can act on.
+              The reason is shown to the claimant, so give one they can act
+              on.
             </DialogDescription>
             <div className="space-y-1.5">
               <Label htmlFor="decline-note">Reason</Label>

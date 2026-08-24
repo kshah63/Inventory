@@ -114,10 +114,10 @@ begin
     raise exception 'Not authorized.';
   end if;
   if nullif(trim(coalesce(p_reason,'')), '') is null then
-    raise exception 'Tell us why this was bought rather than ordered.';
+    raise exception 'A reason for the purchase is required.';
   end if;
   if p_lines is null or jsonb_array_length(p_lines) = 0 then
-    raise exception 'Add at least one thing you bought.';
+    raise exception 'Add at least one item.';
   end if;
 
   insert into public.claims (claimed_by, zone, reason)
@@ -128,10 +128,10 @@ begin
     v_desc := nullif(trim(coalesce(v_line->>'description','')), '');
     v_amount := nullif(v_line->>'amount_cents','')::int;
     if v_desc is null then
-      raise exception 'Every line needs a description of what was bought.';
+      raise exception 'Each line needs a description.';
     end if;
     if v_amount is null or v_amount <= 0 then
-      raise exception 'Every line needs an amount greater than zero.';
+      raise exception 'Each line needs an amount greater than zero.';
     end if;
     insert into public.claim_lines (claim_id, description, amount_cents, sort_order)
     values (v_claim_id, v_desc, v_amount, v_count);
@@ -174,7 +174,7 @@ begin
     raise exception 'A claim needs at least one line. Cancel it instead.';
   end if;
   if nullif(trim(coalesce(p_reason,'')), '') is null then
-    raise exception 'Tell us why this was bought rather than ordered.';
+    raise exception 'A reason for the purchase is required.';
   end if;
 
   delete from public.claim_lines where claim_id = p_claim_id;
@@ -183,10 +183,10 @@ begin
     v_desc := nullif(trim(coalesce(v_line->>'description','')), '');
     v_amount := nullif(v_line->>'amount_cents','')::int;
     if v_desc is null then
-      raise exception 'Every line needs a description of what was bought.';
+      raise exception 'Each line needs a description.';
     end if;
     if v_amount is null or v_amount <= 0 then
-      raise exception 'Every line needs an amount greater than zero.';
+      raise exception 'Each line needs an amount greater than zero.';
     end if;
     insert into public.claim_lines (claim_id, description, amount_cents, sort_order)
     values (p_claim_id, v_desc, v_amount, v_count);
@@ -252,7 +252,7 @@ begin
   -- Turning somebody down without saying why is not an answer.
   if p_status = 'declined'
      and nullif(trim(coalesce(p_admin_note,'')), '') is null then
-    raise exception 'Give a reason when declining a claim.';
+    raise exception 'A reason is required when declining a claim.';
   end if;
 
   update public.claims
