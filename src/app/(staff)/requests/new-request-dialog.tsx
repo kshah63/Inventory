@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
+import { ZonePicker } from "@/components/zone-picker";
 import { createRequest, searchCatalogue, uploadRequestPhoto } from "@/lib/actions/requests";
 import { cn, friendlyError } from "@/lib/utils";
 import type { CatalogueMatch } from "@/lib/types";
@@ -329,24 +330,7 @@ export function NewRequestDialog({
           {zones.length > 0 && (
             <div className="space-y-1.5">
               <Label>Which zone is this for?</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {zones.map((z) => (
-                  <button
-                    key={z}
-                    type="button"
-                    onClick={() => setZone(zone === z ? null : z)}
-                    aria-pressed={zone === z}
-                    className={cn(
-                      "h-10 min-w-[3rem] rounded-full border px-3 text-sm font-medium tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      zone === z
-                        ? "border-transparent bg-primary text-primary-foreground"
-                        : "bg-card hover:bg-accent"
-                    )}
-                  >
-                    {z}
-                  </button>
-                ))}
-              </div>
+              <ZonePicker zones={zones} value={zone} onChange={setZone} />
             </div>
           )}
 

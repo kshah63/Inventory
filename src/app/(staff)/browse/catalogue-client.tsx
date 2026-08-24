@@ -25,6 +25,7 @@ import { matchesWords, queryWords, relevance, searchableText } from "@/lib/searc
 import { createOrder } from "@/lib/actions/orders";
 import { NewRequestDialog } from "@/app/(staff)/requests/new-request-dialog";
 import { ClaimDialog } from "@/app/(staff)/claims/claim-dialog";
+import { ZonePicker } from "@/components/zone-picker";
 import type {
   BasketLine,
   CatalogItem,
@@ -488,13 +489,7 @@ export function CatalogueClient({
           {zones.length > 0 && (
             <div>
               <Label className="mb-1.5 block">Which zone is this for?</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {zones.map((z) => (
-                  <Chip key={z} active={zone === z} onClick={() => setZone(zone === z ? null : z)}>
-                    {z}
-                  </Chip>
-                ))}
-              </div>
+              <ZonePicker zones={zones} value={zone} onChange={setZone} />
             </div>
           )}
           <div className="space-y-1.5">

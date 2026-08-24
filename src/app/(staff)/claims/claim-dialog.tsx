@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import { createClaim, uploadReceipt } from "@/lib/actions/claims";
 import { cn, formatMoney, friendlyError, parseMoney } from "@/lib/utils";
+import { ZonePicker } from "@/components/zone-picker";
 
 interface DraftLine {
   key: number;
@@ -237,24 +238,7 @@ export function ClaimDialog({ zones }: { zones: string[] }) {
           {zones.length > 0 && (
             <div className="space-y-1.5">
               <Label>Which zone was this for?</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {zones.map((z) => (
-                  <button
-                    key={z}
-                    type="button"
-                    onClick={() => setZone(zone === z ? null : z)}
-                    aria-pressed={zone === z}
-                    className={cn(
-                      "h-9 min-w-[2.5rem] rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      zone === z
-                        ? "border-transparent bg-primary text-primary-foreground"
-                        : "bg-card hover:bg-accent"
-                    )}
-                  >
-                    {z}
-                  </button>
-                ))}
-              </div>
+              <ZonePicker zones={zones} value={zone} onChange={setZone} />
             </div>
           )}
 
