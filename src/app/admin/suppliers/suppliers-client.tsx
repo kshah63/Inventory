@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Download, Pencil, Plus, Search } from "lucide-react";
+import { Building2, Copy, Download, Pencil, Plus, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +30,12 @@ import type { SupplierGroup, SupplierRow, SupplierSubgroup } from "@/lib/types";
 
 const fullCode = (s: { group_code: number; sub_code: number }) =>
   `${s.group_code}-${s.sub_code}`;
+
+/** The exact string QuickBooks gets — em dash, single spaces, nothing else.
+ * One format everywhere, so pasting can't reintroduce the inconsistencies
+ * this register exists to end. */
+const qbName = (s: { group_code: number; sub_code: number; name: string }) =>
+  `${fullCode(s)} \u2014 ${s.name}`;
 
 function csvEscape(v: string) {
   return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
@@ -71,8 +77,17 @@ export function SuppliersClient({
   const shown = suppliers.filter(matches);
   const shownIds = new Set(shown.map((s) => s.id));
 
+  async function copyQbName(s: SupplierRow) {
+    try {
+      await navigator.clipboard.writeText(qbName(s));
+      toast(`Copied "${qbName(s)}" — paste it into QuickBooks as-is.`);
+    } catch {
+      toast("Couldn't copy to clipboard — check browser permissions.", "error");
+    }
+  }
+
   function exportCsv() {
-    const header = ["full_code", "group", "sub_group", "supplier", "status", "notes", "old_quickbooks_names"];
+    const header = ["full_code", "quickbooks_display_name", "group", "sub_group", "supplier", "status", "notes", "old_quickbooks_names"];
     const groupName = new Map(groups.map((g) => [g.code, g.name]));
     const sgName = new Map(subgroups.map((sg) => [sg.id, sg.name]));
     const lines = [header.join(",")];
@@ -80,6 +95,7 @@ export function SuppliersClient({
       lines.push(
         [
           fullCode(s),
+          qbName(s),
           groupName.get(s.group_code) ?? "",
           sgName.get(s.subgroup_id) ?? "",
           s.name,
@@ -247,6 +263,16 @@ export function SuppliersClient({
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
+                                onClick={() => copyQbName(s)}
+                                aria-label={`Copy QuickBooks name for ${s.name}`}
+                                title={`Copy "${qbName(s)}"`}
+                              >
+                                <Copy />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
                                 onClick={() => setEditing(s)}
                                 aria-label={`Edit ${s.name}`}
                               >
@@ -327,7 +353,14 @@ function AddSupplierDialog({
       toast(friendlyError(res.error), "error");
       return;
     }
-    toast(`${res.data.full_code} assigned to ${name.trim()}. Apply it in QuickBooks.`, "success");
+    const pasteText = `${res.data.full_code} \u2014 ${name.trim()}`;
+    try {
+      // Pasting into QuickBooks is the very next step, so save the trip.
+      await navigator.clipboard.writeText(pasteText);
+      toast(`${res.data.full_code} assigned — "${pasteText}" copied for QuickBooks.`, "success");
+    } catch {
+      toast(`${res.data.full_code} assigned to ${name.trim()}. Use the copy button to paste it into QuickBooks.`, "success");
+    }
     router.refresh();
     onClose();
   }
