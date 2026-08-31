@@ -304,7 +304,7 @@ insert into public.supplier_subgroups (group_code, code_start, code_end, name) v
   (24250, 400, 499, 'Office Equipment'),
   (24300, 100, 199, 'Copier & Print Leasing'),
   (24300, 200, 299, 'Books, Stationery & Learning Materials'),
-  (24350, 100, 199, 'Back-Office Software (Off-the-Shelf)'),
+  (24350, 100, 199, 'Back-Office Software'),
   (24350, 200, 299, 'Development Platforms & Developers'),
   (24350, 300, 399, 'Other Software Subscriptions'),
   (24400, 100, 199, 'Accounting & Audit'),
@@ -1988,3 +1988,10 @@ insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'YOKE OFFICE EQUIPMENTS', '24250-40' from public.suppliers s
 where s.group_code = 24250 and s.sub_code = 401
 on conflict (alias_key) do nothing;
+
+-- The "(Off-the-Shelf)" qualifier was drafting shorthand, not a header.
+-- Kept here as an update too, so a database seeded before the rename
+-- picks it up on a re-run.
+update public.supplier_subgroups set name = 'Back-Office Software'
+where group_code = 24350 and code_start = 100
+  and name = 'Back-Office Software (Off-the-Shelf)';
