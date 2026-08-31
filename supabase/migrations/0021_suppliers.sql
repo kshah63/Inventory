@@ -263,6 +263,31 @@ $$;
 
 grant execute on function public.add_supplier_subgroup(int, text, int) to authenticated;
 
+-- ═══ Recode 24150 Power, Water & Energy (runs before the seed) ═════════════
+-- SP Digital leads the block at 101 so the SP accounts run 101–105, and
+-- Senoko — a former private provider unlikely to be used again — parks at
+-- 150, so its number can be retired without leaving a hole in the SP run.
+-- On a database seeded with the old codes these moves happen here, BEFORE
+-- the seed inserts below, so the seed then no-ops cleanly; on a fresh
+-- database the seed writes the new codes directly and these do nothing.
+-- Each step matches name + old code, so a second run is a no-op too.
+-- SP Digital goes through a parking code because 101 is still occupied
+-- until SP Services has moved off it.
+update public.suppliers set sub_code = 150
+  where group_code = 24150 and name = 'SENOKO ENERGY' and sub_code = 106;
+update public.suppliers set sub_code = 9105
+  where group_code = 24150 and name = 'SP DIGITAL' and sub_code = 105;
+update public.suppliers set sub_code = 105
+  where group_code = 24150 and name = 'SP SERVICES (OT LEVEL 24)' and sub_code = 104;
+update public.suppliers set sub_code = 104
+  where group_code = 24150 and name = 'SP SERVICES (OT LEVEL 8)' and sub_code = 103;
+update public.suppliers set sub_code = 103
+  where group_code = 24150 and name = 'SP SERVICES (OT BASEMENT)' and sub_code = 102;
+update public.suppliers set sub_code = 102
+  where group_code = 24150 and name = 'SP SERVICES' and sub_code = 101;
+update public.suppliers set sub_code = 101
+  where group_code = 24150 and name = 'SP DIGITAL' and sub_code = 9105;
+
 -- ═══ Seed: the approved master, verbatim ═══════════════════════════════════
 -- Generated from MV Suppliers Master v2 (approved) — do not hand-edit.
 
@@ -375,32 +400,32 @@ from public.supplier_subgroups sg where sg.group_code = 24100 and sg.code_start 
 on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
-select sg.id, 24150, 101, 'SP SERVICES', null
+select sg.id, 24150, 101, 'SP DIGITAL', null
 from public.supplier_subgroups sg where sg.group_code = 24150 and sg.code_start = 100
 on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
-select sg.id, 24150, 102, 'SP SERVICES (OT BASEMENT)', null
+select sg.id, 24150, 102, 'SP SERVICES', null
 from public.supplier_subgroups sg where sg.group_code = 24150 and sg.code_start = 100
 on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
-select sg.id, 24150, 103, 'SP SERVICES (OT LEVEL 8)', null
+select sg.id, 24150, 103, 'SP SERVICES (OT BASEMENT)', null
 from public.supplier_subgroups sg where sg.group_code = 24150 and sg.code_start = 100
 on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
-select sg.id, 24150, 104, 'SP SERVICES (OT LEVEL 24)', null
+select sg.id, 24150, 104, 'SP SERVICES (OT LEVEL 8)', null
 from public.supplier_subgroups sg where sg.group_code = 24150 and sg.code_start = 100
 on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
-select sg.id, 24150, 105, 'SP DIGITAL', null
+select sg.id, 24150, 105, 'SP SERVICES (OT LEVEL 24)', null
 from public.supplier_subgroups sg where sg.group_code = 24150 and sg.code_start = 100
 on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
-select sg.id, 24150, 106, 'SENOKO ENERGY', null
+select sg.id, 24150, 150, 'SENOKO ENERGY', null
 from public.supplier_subgroups sg where sg.group_code = 24150 and sg.code_start = 100
 on conflict (group_code, sub_code) do nothing;
 
@@ -1326,7 +1351,7 @@ on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'NETS PURCHASE - SP DIGITAL', '24150-14' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 105
+where s.group_code = 24150 and s.sub_code = 101
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
@@ -1386,17 +1411,17 @@ on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-24-05/06-SP SERVICES DEPOSIT', '24150-13' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 104
+where s.group_code = 24150 and s.sub_code = 105
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-24-07-SP SERVICES DEPOSIT', '24150-13' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 104
+where s.group_code = 24150 and s.sub_code = 105
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-24-09/10 -SP SERVICES DEPOSIT', '24150-13' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 104
+where s.group_code = 24150 and s.sub_code = 105
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
@@ -1406,122 +1431,122 @@ on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES -08-03', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES -08-04', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES -08-06', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES -08-07', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES -08-08', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES -08-09', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES -08-10', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES -08-11', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES -08-12', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES -08-13', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES -08-14', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES -24-05/06', '24150-13' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 104
+where s.group_code = 24150 and s.sub_code = 105
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES -24-07', '24150-13' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 104
+where s.group_code = 24150 and s.sub_code = 105
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES -24-09/10', '24150-13' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 104
+where s.group_code = 24150 and s.sub_code = 105
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES -B140', '24150-11' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 102
+where s.group_code = 24150 and s.sub_code = 103
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES 08-05', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES DEPOSIT-08-06', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES DEPOSIT-08/07', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES DEPOSIT-08/08', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES DEPOSIT-08/10', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES DEPOSIT-08/11', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES DEPOSIT-08/12', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES DEPOSIT-08/13', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'OT-SP SERVICES DEPOSIT-08/14', '24150-12' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 103
+where s.group_code = 24150 and s.sub_code = 104
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
@@ -1716,52 +1741,52 @@ on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'SENOKA- 55-59', '24150-90' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 106
+where s.group_code = 24150 and s.sub_code = 150
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'SENOKA-51-54', '24150-90' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 106
+where s.group_code = 24150 and s.sub_code = 150
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'SENOKO - 13/14', '24150-90' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 106
+where s.group_code = 24150 and s.sub_code = 150
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'SENOKO - B1-03/04', '24150-90' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 106
+where s.group_code = 24150 and s.sub_code = 150
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'SENOKO -B1- 11', '24150-90' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 106
+where s.group_code = 24150 and s.sub_code = 150
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'SENOKO -B1- 6-9', '24150-90' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 106
+where s.group_code = 24150 and s.sub_code = 150
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'SENOKO -B16-9', '24150-90' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 106
+where s.group_code = 24150 and s.sub_code = 150
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'SENOKO B1-01/02', '24150-90' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 106
+where s.group_code = 24150 and s.sub_code = 150
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'SENOKO-51-54', '24150-90' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 106
+where s.group_code = 24150 and s.sub_code = 150
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'SENOKO-B1-10', '24150-90' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 106
+where s.group_code = 24150 and s.sub_code = 150
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
@@ -1796,7 +1821,7 @@ on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'SP WATER', '24150-10' from public.suppliers s
-where s.group_code = 24150 and s.sub_code = 101
+where s.group_code = 24150 and s.sub_code = 102
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
