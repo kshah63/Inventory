@@ -251,6 +251,39 @@ export interface ClaimWithLines extends ClaimRow {
   claim_receipts: ClaimReceiptRow[];
 }
 
+// ── The supplier register (portal is the master; QuickBooks follows) ──────
+
+export interface SupplierGroup {
+  code: number;
+  name: string;
+}
+
+export interface SupplierSubgroup {
+  id: string;
+  group_code: number;
+  /** The block: code_start is the header and is never a supplier. */
+  code_start: number;
+  code_end: number;
+  name: string;
+}
+
+export interface SupplierAliasRow {
+  id: string;
+  alias: string;
+  old_code: string | null;
+}
+
+export interface SupplierRow {
+  id: string;
+  subgroup_id: string;
+  group_code: number;
+  sub_code: number;
+  name: string;
+  status: "active" | "retired";
+  notes: string | null;
+  supplier_aliases: SupplierAliasRow[];
+}
+
 export type ActionResult<T = undefined> =
   | { ok: true; data: T }
   | { ok: false; error: string };

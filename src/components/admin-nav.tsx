@@ -12,6 +12,7 @@ import {
   ClipboardCheck,
   Inbox,
   Receipt,
+  Building2,
   BarChart3,
   ScrollText,
   Users,
@@ -31,6 +32,7 @@ interface NavItem {
   exact?: boolean;
   /** Which waiting-on-us count to show, if any. */
   count?: "orders" | "requests" | "claims";
+  superOnly?: boolean;
 }
 
 interface NavGroup {
@@ -77,8 +79,10 @@ const GROUPS: NavGroup[] = [
   },
   {
     heading: "Setup",
-    items: [{ href: "/admin/users", label: "Users", icon: Users }],
-    superOnly: true,
+    items: [
+      { href: "/admin/suppliers", label: "Suppliers", icon: Building2 },
+      { href: "/admin/users", label: "Users", icon: Users, superOnly: true },
+    ],
   },
 ];
 
@@ -99,7 +103,10 @@ export function AdminNav({
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
 
-  const groups = GROUPS.filter((g) => !g.superOnly || isSuperAdmin);
+  const groups = GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((it) => !it.superOnly || isSuperAdmin),
+  })).filter((g) => (!g.superOnly || isSuperAdmin) && g.items.length > 0);
 
   const linkClass = (href: string, exact?: boolean) => {
     const active = exact ? pathname === href : pathname.startsWith(href);

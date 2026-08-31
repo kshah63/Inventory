@@ -37,6 +37,10 @@ says what to buy before it runs out.
 - **Store rooms per item** — a room means "we keep it here", so the Basement
   lists the A3/A4 paper it actually holds instead of a hundred items at zero.
   A room still holding stock can't be dropped from an item.
+- **Supplier register** — the single source of truth for supplier codes
+  (portal first, QuickBooks follows): coded groups and sub-groups, automatic
+  next-code assignment, permanent codes, and every historical QuickBooks
+  spelling kept as a searchable alias. Admin-only at the RLS level.
 - **Admin suite** — one Update stock screen (delivery arrived / moved
   between rooms / recount or breakage), stocktake mode with variance
   reports, full inventory grid with CSV import/export (idempotent on SKU),

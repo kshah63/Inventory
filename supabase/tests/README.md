@@ -64,6 +64,13 @@ requested, can't be marked paid by the person claiming, can't be declined
 without a reason, and can be neither edited nor cancelled once settled. It
 also asserts the receipts bucket is private, unlike the other two.
 
+`13_suppliers.sql` covers migration 0021: the approved supplier master is
+seeded in full with spot-checked codes, a new supplier takes the next number
+in its sub-group, duplicate names and known old QuickBooks spellings are
+refused, a retired supplier's number is never reissued, a full sub-group says
+so, a new sub-group claims an aligned free block, an alias points at exactly
+one supplier, and staff can neither read nor write the register.
+
 `03_no_kiosks.sql` covers migration 0008: the kiosk functions, tables and
 columns are gone, no active device is left, and the paths that touched those
 columns — new accounts, role and User ID changes — still work. Run the first
@@ -99,6 +106,8 @@ psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0019_keep_about.sql
 psql -d mvtest -f 11_keep_about.sql                          # expect: KEEP ABOUT TESTS PASSED
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0020_reimbursement_claims.sql
 psql -d mvtest -f 12_claims.sql                              # expect: CLAIMS TESTS PASSED
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0021_suppliers.sql
+psql -d mvtest -f 13_suppliers.sql                           # expect: SUPPLIER REGISTER TESTS PASSED
 ```
 
 The shim replaces `auth.uid()` with a `test.uid` session setting so tests can

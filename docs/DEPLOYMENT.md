@@ -16,7 +16,7 @@ half an hour.
    seeds the two locations (Level 8, Basement) + categories.
 3. Run the remaining migration files in
    [`supabase/migrations/`](../supabase/migrations) **in numerical order**
-   (`0002` → `0020`), one at a time, same way. Each is safe to run on a live
+   (`0002` → `0021`), one at a time, same way. Each is safe to run on a live
    database and only needs running once:
 
    | File | What it adds |
@@ -40,6 +40,7 @@ half an hour.
    | `0018_remove_approvals.sql` | Removes the approval flow, which nothing had enforced since 0008 |
    | `0019_keep_about.sql` | Replaces reorder point and par level with one number per item |
    | `0020_reimbursement_claims.sql` | Claims for things people bought themselves, with a private receipts bucket |
+   | `0021_suppliers.sql` | The supplier register — groups, coded sub-groups, 128 seeded suppliers, 205 QuickBooks aliases |
 
 4. *(Optional)* Run [`supabase/seed_demo.sql`](../supabase/seed_demo.sql) for
    a sample catalog to click around with. Skip if you'll import your real
