@@ -105,6 +105,44 @@ export function SuppliersClient({
 
   return (
     <div className="space-y-5">
+      {/* One card per group with its live count — the page's table of
+          contents. Click focuses the list on that group; click again clears.
+          Counts follow the retired toggle but not the search, so the map
+          stays steady while somebody types. */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        {groups.map((g) => {
+          const count = suppliers.filter(
+            (s) => s.group_code === g.code && (showRetired || s.status === "active")
+          ).length;
+          const active = groupFilter === String(g.code);
+          return (
+            <button
+              key={g.code}
+              type="button"
+              onClick={() => setGroupFilter(active ? "" : String(g.code))}
+              aria-pressed={active}
+              title={`${g.name} — ${count} supplier${count === 1 ? "" : "s"}`}
+              className={cn(
+                "rounded-lg border bg-card p-2.5 text-left shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                active
+                  ? "border-primary bg-accent ring-1 ring-primary/30"
+                  : "hover:bg-accent"
+              )}
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                  {g.code}
+                </span>
+                <span className="text-sm font-semibold tabular-nums">{count}</span>
+              </div>
+              <div className="mt-0.5 line-clamp-2 text-xs font-medium leading-snug">
+                {g.name}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-1 flex-wrap items-center gap-3">
           <div className="relative w-full max-w-xs">
@@ -117,19 +155,6 @@ export function SuppliersClient({
               aria-label="Search suppliers"
             />
           </div>
-          <Select
-            value={groupFilter}
-            onChange={(e) => setGroupFilter(e.target.value)}
-            className="w-64"
-            aria-label="Filter by group"
-          >
-            <option value="">All groups</option>
-            {groups.map((g) => (
-              <option key={g.code} value={g.code}>
-                {g.code} — {g.name}
-              </option>
-            ))}
-          </Select>
           <div className="flex items-center gap-2">
             <Switch
               id="show-retired"
