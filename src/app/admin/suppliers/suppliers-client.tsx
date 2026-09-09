@@ -31,11 +31,15 @@ import type { SupplierGroup, SupplierRow, SupplierSubgroup } from "@/lib/types";
 const fullCode = (s: { group_code: number; sub_code: number }) =>
   `${s.group_code}-${s.sub_code}`;
 
-/** The exact string QuickBooks gets — em dash, single spaces, nothing else.
- * One format everywhere, so pasting can't reintroduce the inconsistencies
- * this register exists to end. */
-const qbName = (s: { group_code: number; sub_code: number; name: string }) =>
-  `${fullCode(s)} \u2014 ${s.name}`;
+/** The exact string QuickBooks gets: code, group name in brackets, em dash,
+ * then the supplier. The bracketed group is a decode of the code prefix, so
+ * management reads reports without a separate code-to-group sheet. One format
+ * everywhere, so pasting can't reintroduce the inconsistencies this register
+ * exists to end. */
+const qbName = (
+  s: { group_code: number; sub_code: number; name: string },
+  groupName: string
+) => `${fullCode(s)} [${groupName}] \u2014 ${s.name}`;
 
 function csvEscape(v: string) {
   return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
@@ -77,10 +81,16 @@ export function SuppliersClient({
   const shown = suppliers.filter(matches);
   const shownIds = new Set(shown.map((s) => s.id));
 
+  const groupNames = React.useMemo(
+    () => new Map(groups.map((g) => [g.code, g.name])),
+    [groups]
+  );
+  const qb = (s: SupplierRow) => qbName(s, groupNames.get(s.group_code) ?? "");
+
   async function copyQbName(s: SupplierRow) {
     try {
-      await navigator.clipboard.writeText(qbName(s));
-      toast(`Copied "${qbName(s)}" — paste it into QuickBooks as-is.`);
+      await navigator.clipboard.writeText(qb(s));
+      toast(`Copied "${qb(s)}" — paste it into QuickBooks as-is.`);
     } catch {
       toast("Couldn't copy to clipboard — check browser permissions.", "error");
     }
@@ -88,15 +98,14 @@ export function SuppliersClient({
 
   function exportCsv() {
     const header = ["full_code", "quickbooks_display_name", "group", "sub_group", "supplier", "status", "notes", "old_quickbooks_names"];
-    const groupName = new Map(groups.map((g) => [g.code, g.name]));
     const sgName = new Map(subgroups.map((sg) => [sg.id, sg.name]));
     const lines = [header.join(",")];
     for (const s of shown) {
       lines.push(
         [
           fullCode(s),
-          qbName(s),
-          groupName.get(s.group_code) ?? "",
+          qb(s),
+          groupNames.get(s.group_code) ?? "",
           sgName.get(s.subgroup_id) ?? "",
           s.name,
           s.status,
@@ -265,7 +274,7 @@ export function SuppliersClient({
                                 className="h-8 w-8"
                                 onClick={() => copyQbName(s)}
                                 aria-label={`Copy QuickBooks name for ${s.name}`}
-                                title={`Copy "${qbName(s)}"`}
+                                title={`Copy "${qb(s)}"`}
                               >
                                 <Copy />
                               </Button>
@@ -353,7 +362,8 @@ function AddSupplierDialog({
       toast(friendlyError(res.error), "error");
       return;
     }
-    const pasteText = `${res.data.full_code} \u2014 ${name.trim()}`;
+    const grpName = groups.find((g) => String(g.code) === groupCode)?.name ?? "";
+    const pasteText = `${res.data.full_code} [${grpName}] \u2014 ${name.trim()}`;
     try {
       // Pasting into QuickBooks is the very next step, so save the trip.
       await navigator.clipboard.writeText(pasteText);
