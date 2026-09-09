@@ -323,6 +323,45 @@ where sg.group_code = 24250 and sg.code_start = 400
   and sg.name = 'Office Equipment'
   and not exists (select 1 from public.suppliers s where s.subgroup_id = sg.id);
 
+-- ═══ Move Goh Sin Huat to White Goods & Appliances (runs before the seed) ══
+-- The vendor supplies and services white goods, so it belongs in its own
+-- sub-group, not Hardware & Electrical Retail. Pre-launch we recode the whole
+-- affected block rather than leave a vacated number: Goh leaves 24250-307 for
+-- 24250-201, and the rest of Hardware & Electrical Retail shifts down to close
+-- the gap (301–310, contiguous). Aliases follow the supplier id untouched.
+--
+-- The whole block is guarded on Goh still sitting at 307 — the already-seeded
+-- pre-move state. On a fresh database Goh doesn't exist yet, so this is skipped
+-- and the seed below places everything directly (and creates the group before
+-- the sub-group, which the FK requires). On a database already converged, Goh
+-- is at 201, so this is skipped too. That makes it safe to re-run.
+do $$
+declare v_wg uuid;
+begin
+  if exists (
+    select 1 from public.suppliers
+    where group_code = 24250 and sub_code = 307 and name = 'GOH SIN HUAT ELECTRICAL'
+  ) then
+    insert into public.supplier_subgroups (group_code, code_start, code_end, name)
+    values (24250, 200, 299, 'White Goods & Appliances')
+    on conflict (group_code, code_start) do nothing;
+
+    select id into v_wg from public.supplier_subgroups
+    where group_code = 24250 and code_start = 200;
+
+    -- Goh out first, freeing 307.
+    update public.suppliers
+    set subgroup_id = v_wg, sub_code = 201
+    where group_code = 24250 and sub_code = 307 and name = 'GOH SIN HUAT ELECTRICAL';
+
+    -- Close the gap, ascending so each target is already free.
+    update public.suppliers set sub_code = 307 where group_code = 24250 and sub_code = 308;
+    update public.suppliers set sub_code = 308 where group_code = 24250 and sub_code = 309;
+    update public.suppliers set sub_code = 309 where group_code = 24250 and sub_code = 310;
+    update public.suppliers set sub_code = 310 where group_code = 24250 and sub_code = 311;
+  end if;
+end $$;
+
 -- ═══ Seed: the approved master, verbatim ═══════════════════════════════════
 -- Generated from MV Suppliers Master v2 (approved) — do not hand-edit.
 
@@ -360,6 +399,7 @@ insert into public.supplier_subgroups (group_code, code_start, code_end, name) v
   (24150, 600, 699, 'Signage Works'),
   (24200, 100, 199, 'Furniture & Fittings — General'),
   (24250, 100, 199, 'Computers & IT Equipment'),
+  (24250, 200, 299, 'White Goods & Appliances'),
   (24250, 300, 399, 'Hardware & Electrical Retail'),
   (24300, 100, 199, 'Copier & Print Leasing'),
   (24300, 200, 299, 'Books, Stationery & Learning Materials'),
@@ -629,6 +669,11 @@ from public.supplier_subgroups sg where sg.group_code = 24250 and sg.code_start 
 on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
+select sg.id, 24250, 201, 'GOH SIN HUAT ELECTRICAL', null
+from public.supplier_subgroups sg where sg.group_code = 24250 and sg.code_start = 200
+on conflict (group_code, sub_code) do nothing;
+
+insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
 select sg.id, 24250, 301, '3F HARDWARE', null
 from public.supplier_subgroups sg where sg.group_code = 24250 and sg.code_start = 300
 on conflict (group_code, sub_code) do nothing;
@@ -659,27 +704,22 @@ from public.supplier_subgroups sg where sg.group_code = 24250 and sg.code_start 
 on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
-select sg.id, 24250, 307, 'GOH SIN HUAT ELECTRICAL', null
+select sg.id, 24250, 307, 'HAN SIANG HARDWARE', null
 from public.supplier_subgroups sg where sg.group_code = 24250 and sg.code_start = 300
 on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
-select sg.id, 24250, 308, 'HAN SIANG HARDWARE', null
+select sg.id, 24250, 308, 'LG DEPARTMENTAL STORE', null
 from public.supplier_subgroups sg where sg.group_code = 24250 and sg.code_start = 300
 on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
-select sg.id, 24250, 309, 'LG DEPARTMENTAL STORE', null
+select sg.id, 24250, 309, 'POWER 8', null
 from public.supplier_subgroups sg where sg.group_code = 24250 and sg.code_start = 300
 on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
-select sg.id, 24250, 310, 'POWER 8', null
-from public.supplier_subgroups sg where sg.group_code = 24250 and sg.code_start = 300
-on conflict (group_code, sub_code) do nothing;
-
-insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
-select sg.id, 24250, 311, 'ZENER DIY', null
+select sg.id, 24250, 310, 'ZENER DIY', null
 from public.supplier_subgroups sg where sg.group_code = 24250 and sg.code_start = 300
 on conflict (group_code, sub_code) do nothing;
 
@@ -1175,7 +1215,7 @@ on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'FURNITURE & FITTINGS-GOH SIN HUAT ELECTRICAL PTE LTD', '24250-36' from public.suppliers s
-where s.group_code = 24250 and s.sub_code = 307
+where s.group_code = 24250 and s.sub_code = 201
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
@@ -1310,7 +1350,7 @@ on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'NETS PURCHASE - HAN SIANG', '24250-37' from public.suppliers s
-where s.group_code = 24250 and s.sub_code = 308
+where s.group_code = 24250 and s.sub_code = 307
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
@@ -1335,7 +1375,7 @@ on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'NETS PURCHASE - LG DEPARTMENTAL STORE', '24250-38' from public.suppliers s
-where s.group_code = 24250 and s.sub_code = 309
+where s.group_code = 24250 and s.sub_code = 308
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
@@ -1355,7 +1395,7 @@ on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'NETS PURCHASE - POWER 8', '24250-39' from public.suppliers s
-where s.group_code = 24250 and s.sub_code = 310
+where s.group_code = 24250 and s.sub_code = 309
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
@@ -1405,7 +1445,7 @@ on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'NETS PURCHASE - ZENER D', '24250-41' from public.suppliers s
-where s.group_code = 24250 and s.sub_code = 311
+where s.group_code = 24250 and s.sub_code = 310
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
