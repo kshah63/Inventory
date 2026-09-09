@@ -288,6 +288,41 @@ update public.suppliers set sub_code = 102
 update public.suppliers set sub_code = 101
   where group_code = 24150 and name = 'SP DIGITAL' and sub_code = 9105;
 
+-- ═══ Dissolve Office Equipment (24250 400s) — runs before the seed ═════════
+-- Yoke sells mainly office chairs, so it belongs in Furniture & Fittings;
+-- Zener DIY joins Hardware & Electrical Retail rather than holding a
+-- sub-group alone. Each move takes the next free number in its new home
+-- (not a hard-coded one), so a database that gained suppliers through the
+-- portal since 0021 first ran still converges. Aliases follow the
+-- supplier's id untouched. On a fresh database these match nothing and
+-- the seed below places both directly; the 400 block is never created.
+update public.suppliers y set
+    group_code = 24200,
+    subgroup_id = sg.id,
+    sub_code = (select coalesce(max(s.sub_code), sg.code_start) + 1
+                from public.suppliers s where s.subgroup_id = sg.id)
+from public.supplier_subgroups sg
+where sg.group_code = 24200 and sg.code_start = 100
+  and y.group_code = 24250 and y.sub_code = 401
+  and y.name = 'YOKE OFFICE EQUIPMENT';
+
+update public.suppliers z set
+    subgroup_id = sg.id,
+    sub_code = (select coalesce(max(s.sub_code), sg.code_start) + 1
+                from public.suppliers s where s.subgroup_id = sg.id)
+from public.supplier_subgroups sg
+where sg.group_code = 24250 and sg.code_start = 300
+  and z.group_code = 24250 and z.sub_code = 402
+  and z.name = 'ZENER DIY';
+
+-- Drop the emptied sub-group. The not-exists guard keeps it if anything
+-- else was added to it in the meantime — then it simply stays visible in
+-- the portal for a human decision.
+delete from public.supplier_subgroups sg
+where sg.group_code = 24250 and sg.code_start = 400
+  and sg.name = 'Office Equipment'
+  and not exists (select 1 from public.suppliers s where s.subgroup_id = sg.id);
+
 -- ═══ Seed: the approved master, verbatim ═══════════════════════════════════
 -- Generated from MV Suppliers Master v2 (approved) — do not hand-edit.
 
@@ -326,7 +361,6 @@ insert into public.supplier_subgroups (group_code, code_start, code_end, name) v
   (24200, 100, 199, 'Furniture & Fittings — General'),
   (24250, 100, 199, 'Computers & IT Equipment'),
   (24250, 300, 399, 'Hardware & Electrical Retail'),
-  (24250, 400, 499, 'Office Equipment'),
   (24300, 100, 199, 'Copier & Print Leasing'),
   (24300, 200, 299, 'Books, Stationery & Learning Materials'),
   (24350, 100, 199, 'Back-Office Software'),
@@ -550,6 +584,11 @@ from public.supplier_subgroups sg where sg.group_code = 24200 and sg.code_start 
 on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
+select sg.id, 24200, 107, 'YOKE OFFICE EQUIPMENT', null
+from public.supplier_subgroups sg where sg.group_code = 24200 and sg.code_start = 100
+on conflict (group_code, sub_code) do nothing;
+
+insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
 select sg.id, 24250, 101, 'SIM LIM SQUARE', null
 from public.supplier_subgroups sg where sg.group_code = 24250 and sg.code_start = 100
 on conflict (group_code, sub_code) do nothing;
@@ -640,13 +679,8 @@ from public.supplier_subgroups sg where sg.group_code = 24250 and sg.code_start 
 on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
-select sg.id, 24250, 401, 'YOKE OFFICE EQUIPMENT', null
-from public.supplier_subgroups sg where sg.group_code = 24250 and sg.code_start = 400
-on conflict (group_code, sub_code) do nothing;
-
-insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
-select sg.id, 24250, 402, 'ZENER DIY', null
-from public.supplier_subgroups sg where sg.group_code = 24250 and sg.code_start = 400
+select sg.id, 24250, 311, 'ZENER DIY', null
+from public.supplier_subgroups sg where sg.group_code = 24250 and sg.code_start = 300
 on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
@@ -1371,7 +1405,7 @@ on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'NETS PURCHASE - ZENER D', '24250-41' from public.suppliers s
-where s.group_code = 24250 and s.sub_code = 402
+where s.group_code = 24250 and s.sub_code = 311
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
@@ -2011,7 +2045,7 @@ on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'YOKE OFFICE EQUIPMENTS', '24250-40' from public.suppliers s
-where s.group_code = 24250 and s.sub_code = 401
+where s.group_code = 24200 and s.sub_code = 107
 on conflict (alias_key) do nothing;
 
 -- The "(Off-the-Shelf)" qualifier was drafting shorthand, not a header.
