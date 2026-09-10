@@ -402,7 +402,7 @@ insert into public.supplier_subgroups (group_code, code_start, code_end, name) v
   (24250, 200, 299, 'White Goods & Appliances'),
   (24250, 300, 399, 'Hardware & Electrical Retail'),
   (24300, 100, 199, 'Copier & Print Leasing'),
-  (24300, 200, 299, 'Books, Stationery & Learning Materials'),
+  (24300, 200, 299, 'Stationery & Learning Materials'),
   (24350, 100, 199, 'Back-Office Software'),
   (24350, 200, 299, 'Development Platforms & Developers'),
   (24350, 300, 399, 'Other Software Subscriptions'),
@@ -2094,3 +2094,9 @@ on conflict (alias_key) do nothing;
 update public.supplier_subgroups set name = 'Back-Office Software'
 where group_code = 24350 and code_start = 100
   and name = 'Back-Office Software (Off-the-Shelf)';
+
+-- Dropped "Books," from the stationery sub-group. Applied as an update too,
+-- so a database seeded before the rename picks it up on a re-run.
+update public.supplier_subgroups set name = 'Stationery & Learning Materials'
+where group_code = 24300 and code_start = 200
+  and name = 'Books, Stationery & Learning Materials';
