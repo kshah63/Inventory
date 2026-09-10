@@ -408,7 +408,7 @@ insert into public.supplier_subgroups (group_code, code_start, code_end, name) v
   (24350, 300, 399, 'Other Software Subscriptions'),
   (24400, 100, 199, 'Accounting & Audit'),
   (24400, 200, 299, 'Professional Services — General'),
-  (24450, 100, 199, 'Banking & Transaction Charges'),
+  (24450, 100, 199, 'Banking'),
   (24450, 500, 599, 'Insurance'),
   (24500, 100, 199, 'Statutory Levies & Contributions'),
   (24500, 200, 299, 'IRAS Taxes'),
@@ -2106,3 +2106,9 @@ where group_code = 24300 and code_start = 200
 update public.supplier_subgroups set name = 'Software Development'
 where group_code = 24350 and code_start = 200
   and name = 'Development Platforms & Developers';
+
+-- Shortened the 24450 banking sub-group to just Banking. Applied as an update
+-- too, so a database seeded before the rename picks it up on a re-run.
+update public.supplier_subgroups set name = 'Banking'
+where group_code = 24450 and code_start = 100
+  and name = 'Banking & Transaction Charges';
