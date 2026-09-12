@@ -420,7 +420,7 @@ insert into public.supplier_subgroups (group_code, code_start, code_end, name) v
   (24700, 100, 199, 'General Retailers'),
   (24750, 100, 199, 'Other Suppliers'),
   (24998, 100, 199, 'Student Refund'),
-  (24999, 100, 199, 'Employee Reimbursements')
+  (24999, 100, 199, 'Employee Reimbursement')
 on conflict (group_code, code_start) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
@@ -2118,3 +2118,9 @@ where group_code = 24450 and code_start = 100
 update public.supplier_subgroups set name = 'Student Refund'
 where group_code = 24998 and code_start = 100
   and name = 'Student Refunds';
+
+-- Same singularisation for the 24999 sub-group. Applied as an update too, so a
+-- database seeded before the rename picks it up on a re-run.
+update public.supplier_subgroups set name = 'Employee Reimbursement'
+where group_code = 24999 and code_start = 100
+  and name = 'Employee Reimbursements';
