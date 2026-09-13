@@ -13,7 +13,7 @@ set test.uid = 'aaaaaaaa-0000-0000-0000-000000000001';  -- procurement
 select public.t_assert(
   (select count(*) from public.supplier_groups) = 15
   and (select count(*) from public.supplier_subgroups) = 35
-  and (select count(*) from public.suppliers) >= 128
+  and (select count(*) from public.suppliers) >= 126
   and (select count(*) from public.supplier_aliases) >= 205,
   'the approved master is seeded in full');
 

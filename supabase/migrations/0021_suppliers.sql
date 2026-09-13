@@ -412,7 +412,7 @@ insert into public.supplier_subgroups (group_code, code_start, code_end, name) v
   (24450, 500, 599, 'Insurance'),
   (24500, 100, 199, 'Statutory Levies & Contributions'),
   (24500, 200, 299, 'IRAS Taxes'),
-  (24550, 100, 199, 'Marketing Collateral, Printing & Signage'),
+  (24550, 100, 199, 'Design & External Signage'),
   (24550, 200, 299, 'Institutions'),
   (24600, 100, 199, 'Medical & Health'),
   (24600, 200, 299, 'Pantry & Catering'),
@@ -929,11 +929,6 @@ from public.supplier_subgroups sg where sg.group_code = 24550 and sg.code_start 
 on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
-select sg.id, 24550, 103, 'PRINTING & PROMOTIONAL VENDORS', 'Reserved from the draft hierarchy; no QuickBooks history yet.'
-from public.supplier_subgroups sg where sg.group_code = 24550 and sg.code_start = 100
-on conflict (group_code, sub_code) do nothing;
-
-insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
 select sg.id, 24550, 201, 'NANYANG TECHNOLOGICAL UNIVERSITY (NTU)', 'Reserved from the draft hierarchy; no QuickBooks history yet.'
 from public.supplier_subgroups sg where sg.group_code = 24550 and sg.code_start = 200
 on conflict (group_code, sub_code) do nothing;
@@ -945,11 +940,6 @@ on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
 select sg.id, 24550, 203, 'SINGAPORE MANAGEMENT UNIVERSITY (SMU)', 'Reserved from the draft hierarchy; no QuickBooks history yet.'
-from public.supplier_subgroups sg where sg.group_code = 24550 and sg.code_start = 200
-on conflict (group_code, sub_code) do nothing;
-
-insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
-select sg.id, 24550, 204, 'OTHER SCHOOLS & EDUCATION CENTRES', 'Reserved from the draft hierarchy; no QuickBooks history yet.'
 from public.supplier_subgroups sg where sg.group_code = 24550 and sg.code_start = 200
 on conflict (group_code, sub_code) do nothing;
 
@@ -2124,3 +2114,22 @@ where group_code = 24998 and code_start = 100
 update public.supplier_subgroups set name = 'Employee Reimbursement'
 where group_code = 24999 and code_start = 100
   and name = 'Employee Reimbursements';
+
+-- Renamed the 24550 marketing sub-group and dropped two draft-only placeholders
+-- (they had no QuickBooks history and nothing points at them). Applied here too,
+-- so a database seeded before this picks it up on a re-run; the seed above no
+-- longer creates them, so the deletes don't come back. Guarded on the draft
+-- note so a real supplier later given one of these codes is never deleted.
+update public.supplier_subgroups set name = 'Design & External Signage'
+where group_code = 24550 and code_start = 100
+  and name = 'Marketing Collateral, Printing & Signage';
+
+delete from public.suppliers
+where group_code = 24550 and name = 'PRINTING & PROMOTIONAL VENDORS'
+  and notes = 'Reserved from the draft hierarchy; no QuickBooks history yet.'
+  and not exists (select 1 from public.supplier_aliases a where a.supplier_id = suppliers.id);
+
+delete from public.suppliers
+where group_code = 24550 and name = 'OTHER SCHOOLS & EDUCATION CENTRES'
+  and notes = 'Reserved from the draft hierarchy; no QuickBooks history yet.'
+  and not exists (select 1 from public.supplier_aliases a where a.supplier_id = suppliers.id);
