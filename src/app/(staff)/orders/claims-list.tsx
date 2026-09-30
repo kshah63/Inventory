@@ -9,7 +9,13 @@ import type { ClaimWithLines } from "@/lib/types";
 
 /** Your own claims, newest first, with what you're still owed at the top —
  * the one number anybody actually opens this tab for. */
-export function ClaimsList({ claims }: { claims: ClaimWithLines[] }) {
+export function ClaimsList({
+  claims,
+  zones = [],
+}: {
+  claims: ClaimWithLines[];
+  zones?: string[];
+}) {
   const owed = claims
     .filter((c) => c.status === "requested")
     .reduce((n, c) => n + claimTotal(c), 0);
@@ -37,7 +43,7 @@ export function ClaimsList({ claims }: { claims: ClaimWithLines[] }) {
         </div>
       )}
       {claims.map((c) => (
-        <ClaimCard key={c.id} claim={c} />
+        <ClaimCard key={c.id} claim={c} zones={zones} />
       ))}
     </div>
   );

@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { cancelClaim, receiptUrl } from "@/lib/actions/claims";
+import { ClaimDialog } from "@/app/(staff)/claims/claim-dialog";
+import { Timeline, type TimelineStep } from "@/components/ui/timeline";
 import {
   formatDateTime,
   formatMoney,
@@ -31,9 +33,28 @@ export function claimTotal(claim: ClaimWithLines) {
   return (claim.claim_lines ?? []).reduce((n, l) => n + l.amount_cents, 0);
 }
 
+/** Submitted, then paid or declined — the two stages a claim ever has. */
+function claimSteps(c: ClaimWithLines): TimelineStep[] {
+  return [
+    { label: "Submitted", at: c.created_at, state: "done" },
+    c.status === "paid"
+      ? { label: "Paid", at: c.decided_at, state: "done" }
+      : c.status === "declined"
+        ? { label: "Declined", at: c.decided_at, state: "cancelled" }
+        : { label: "Awaiting payment", state: "current" },
+  ];
+}
+
 /** Money you're owed, or were. Never a stock movement — nothing arrived in
  * a store room, so there's nothing to count. */
-export function ClaimCard({ claim }: { claim: ClaimWithLines }) {
+export function ClaimCard({
+  claim,
+  zones = [],
+}: {
+  claim: ClaimWithLines;
+  /** Needed only when a declined claim is reopened to edit and resubmit. */
+  zones?: string[];
+}) {
   const router = useRouter();
   const { toast } = useToast();
   const [cancelling, setCancelling] = React.useState(false);
@@ -124,8 +145,22 @@ export function ClaimCard({ claim }: { claim: ClaimWithLines }) {
         </p>
       )}
 
-      {claim.status === "requested" && (
-        <div className="mt-3 flex justify-end">
+      <Timeline steps={claimSteps(claim)} />
+
+      {(claim.status === "requested" || claim.status === "declined") && (
+        <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+          {claim.status === "declined" && (
+            <ClaimDialog
+              zones={zones}
+              claim={{
+                id: claim.id,
+                zone: claim.zone,
+                reason: claim.reason,
+                claim_lines: claim.claim_lines ?? [],
+                claim_receipts: claim.claim_receipts ?? [],
+              }}
+            />
+          )}
           <Button
             variant="ghost"
             size="sm"

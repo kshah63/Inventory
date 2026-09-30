@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { cancelOrder, editOrder, markOrderCollected } from "@/lib/actions/orders";
+import { Timeline, type TimelineStep } from "@/components/ui/timeline";
 import { cn, formatDateTime, friendlyError, timeAgo } from "@/lib/utils";
 import type { OrderRow, OrderStatus } from "@/lib/types";
 
@@ -39,6 +40,37 @@ const STATUS_BADGE: Record<
   rejected: "destructive",
   cancelled: "outline",
 };
+
+/** The order's lifecycle as tracker steps, with the dates we recorded. */
+function orderSteps(o: StaffOrder): TimelineStep[] {
+  if (o.status === "cancelled" || o.status === "rejected") {
+    return [
+      { label: "Requested", at: o.created_at, state: "done" },
+      {
+        label: o.status === "rejected" ? "Declined" : "Cancelled",
+        at: o.status_changed_at,
+        state: "cancelled",
+      },
+    ];
+  }
+  return [
+    { label: "Requested", at: o.created_at, state: "done" },
+    {
+      label: "Being prepared",
+      state: o.status === "pending" ? "current" : "done",
+    },
+    {
+      label: "Ready to collect",
+      at: o.ready_at,
+      state: o.status === "ready" ? "current" : o.status === "collected" ? "done" : "todo",
+    },
+    {
+      label: "Collected",
+      at: o.collected_at,
+      state: o.status === "collected" ? "done" : "todo",
+    },
+  ];
+}
 
 /** Something we already stock, packed from the store room. */
 export function OrderCard({
@@ -207,6 +239,8 @@ export function OrderCard({
           Procurement: {order.admin_note}
         </p>
       )}
+
+      {!editing && <Timeline steps={orderSteps(order)} />}
 
       {order.status === "pending" && (
         <div className="mt-3 flex flex-wrap gap-2">

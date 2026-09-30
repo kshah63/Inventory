@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { cancelOwnRequest, markRequestCollected } from "@/lib/actions/requests";
+import { Timeline, type TimelineStep } from "@/components/ui/timeline";
 import {
   formatDate,
   formatDateTime,
@@ -18,6 +19,31 @@ import type { RequestRow, RequestStatus } from "@/lib/types";
 
 export interface RequestWithJoins extends RequestRow {
   items: { name: string; unit: string } | null;
+}
+
+/** A bought-in request's lifecycle, from the requester's point of view — the
+ * internal "received" stage is folded into "On order", never shown as such. */
+function requestSteps(r: RequestWithJoins): TimelineStep[] {
+  if (r.status === "rejected") {
+    return [
+      { label: "Requested", at: r.created_at, state: "done" },
+      { label: "Declined", at: r.updated_at, state: "cancelled" },
+    ];
+  }
+  const onOrder =
+    r.status === "acknowledged" || r.status === "ordered" || r.status === "received";
+  const ready = r.status === "ready";
+  const done = r.status === "fulfilled";
+  return [
+    { label: "Requested", at: r.created_at, state: r.status === "open" ? "current" : "done" },
+    {
+      label: "On order",
+      at: r.expected_date,
+      state: onOrder ? "current" : ready || done ? "done" : "todo",
+    },
+    { label: "Ready to collect", state: ready ? "current" : done ? "done" : "todo" },
+    { label: "Collected", at: r.collected_at, state: done ? "done" : "todo" },
+  ];
 }
 
 const STATUS_VARIANT: Record<
@@ -148,6 +174,8 @@ export function RequestCard({ request: req }: { request: RequestWithJoins }) {
           <span className="font-medium">Procurement:</span> {req.admin_note}
         </p>
       )}
+
+      <Timeline steps={requestSteps(req)} />
 
       {req.status === "open" && (
         <div className="mt-3 flex justify-end">

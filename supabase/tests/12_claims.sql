@@ -161,6 +161,31 @@ begin
     'cancelling an open claim removes its lines too');
 end $$;
 
+-- ═══ A declined claim can be corrected and resubmitted ═══
+set test.uid = 'aaaaaaaa-0000-0000-0000-000000000002';
+select public.create_claim('14', 'zz-claim declined then fixed',
+  jsonb_build_array(jsonb_build_object('description', 'Wrong amount', 'amount_cents', 500)));
+set test.uid = 'aaaaaaaa-0000-0000-0000-000000000001';
+select public.set_claim_status(
+  (select id from public.claims where reason = 'zz-claim declined then fixed'),
+  'declined', 'Amount does not match the receipt');
+select public.t_assert(
+  (select status from public.claims where reason = 'zz-claim declined then fixed') = 'declined',
+  'a claim can be declined with a reason');
+set test.uid = 'aaaaaaaa-0000-0000-0000-000000000002';
+select public.edit_claim(
+  (select id from public.claims where reason = 'zz-claim declined then fixed'),
+  '14', 'zz-claim declined then fixed',
+  jsonb_build_array(jsonb_build_object('description', 'Corrected amount', 'amount_cents', 750)));
+select public.t_assert(
+  (select status from public.claims where reason = 'zz-claim declined then fixed') = 'requested'
+  and (select admin_note from public.claims where reason = 'zz-claim declined then fixed') is null
+  and (select decided_at from public.claims where reason = 'zz-claim declined then fixed') is null
+  and (select sum(amount_cents) from public.claim_lines cl
+       join public.claims c on c.id = cl.claim_id
+       where c.reason = 'zz-claim declined then fixed') = 750,
+  'editing a declined claim resubmits it, clears the decision, and saves the change');
+
 -- ═══ Receipts are not world-readable, unlike the other buckets ═══
 select public.t_assert(
   (select public from storage.buckets where id = 'claim-receipts') = false,

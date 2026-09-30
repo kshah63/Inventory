@@ -24,7 +24,7 @@ export default async function TrackMyOrdersPage({
   const { tab } = await searchParams;
   const supabase = await createClient();
 
-  const [ordersRes, requestsRes, claimsRes] = await Promise.all([
+  const [ordersRes, requestsRes, claimsRes, zonesRes] = await Promise.all([
     supabase
       .from("orders")
       .select(
@@ -47,7 +47,13 @@ export default async function TrackMyOrdersPage({
       .select("*, claim_lines(*), claim_receipts(*)")
       .order("created_at", { ascending: false })
       .limit(100),
+    // Needed only to reopen a declined claim for editing (its zone picker).
+    supabase.from("settings").select("value").eq("key", "zones").maybeSingle(),
   ]);
+
+  const zones = Array.isArray(zonesRes.data?.value)
+    ? (zonesRes.data.value as unknown[]).filter((z): z is string => typeof z === "string")
+    : [];
 
   const loadError = ordersRes.error ?? requestsRes.error ?? claimsRes.error;
   const orders = (ordersRes.data ?? []) as unknown as StaffOrder[];
@@ -119,7 +125,7 @@ export default async function TrackMyOrdersPage({
             variant="collected"
           />
         }
-        claims={<ClaimsList claims={claims} />}
+        claims={<ClaimsList claims={claims} zones={zones} />}
       />
 
       <MarkOrdersSeen unread={updatedIds.length} />
