@@ -12,7 +12,7 @@ export default async function AdminOrdersPage() {
     supabase
       .from("orders")
       .select(
-        "*, locations(name), requester:users!orders_requested_by_fkey(full_name), packer:users!orders_packed_by_fkey(full_name), order_lines(item_id, qty_requested, qty_packed, items(name, unit, stock_levels(location_id, qty_on_hand)))"
+        "*, locations(name), requester:users!orders_requested_by_fkey(full_name, user_no), packer:users!orders_packed_by_fkey(full_name), order_lines(item_id, qty_requested, qty_packed, items(name, unit, stock_levels(location_id, qty_on_hand)))"
       )
       .order("created_at", { ascending: false })
       .limit(300),

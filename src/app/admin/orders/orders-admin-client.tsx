@@ -18,7 +18,7 @@ import type { Location, OrderRow, OrderStatus } from "@/lib/types";
 
 export interface AdminOrder extends OrderRow {
   locations: { name: string } | null;
-  requester: { full_name: string } | null;
+  requester: { full_name: string; user_no: number | null } | null;
   packer: { full_name: string } | null;
   order_lines: {
     item_id: string;
@@ -45,6 +45,18 @@ const STATUS_BADGE: Record<
 
 type Tab = "pending" | "ready" | "done";
 
+/** "2026-09" for grouping and "Sep 2026" for showing. */
+function monthKey(iso: string) {
+  return iso.slice(0, 7);
+}
+function monthLabel(key: string) {
+  const [y, m] = key.split("-");
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-SG", {
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export function OrdersAdminClient({
   orders,
   locations,
@@ -58,10 +70,24 @@ export function OrdersAdminClient({
   const [packing, setPacking] = React.useState<AdminOrder | null>(null);
   const [rejecting, setRejecting] = React.useState<AdminOrder | null>(null);
   const [busyId, setBusyId] = React.useState<string | null>(null);
+  const [month, setMonth] = React.useState("");
+  const [who, setWho] = React.useState("");
 
-  const pending = orders.filter((o) => o.status === "pending");
-  const ready = orders.filter((o) => o.status === "ready");
-  const done = orders.filter((o) => !["pending", "ready"].includes(o.status));
+  const months = React.useMemo(
+    () => [...new Set(orders.map((o) => monthKey(o.created_at)))].sort().reverse(),
+    [orders]
+  );
+  const whoQuery = who.trim().toLowerCase();
+  const matchesFilters = (o: AdminOrder) =>
+    (month === "" || monthKey(o.created_at) === month) &&
+    (whoQuery === "" ||
+      String(o.requester?.user_no ?? "").includes(whoQuery) ||
+      (o.requester?.full_name ?? "").toLowerCase().includes(whoQuery));
+
+  const inTab = orders.filter(matchesFilters);
+  const pending = inTab.filter((o) => o.status === "pending");
+  const ready = inTab.filter((o) => o.status === "ready");
+  const done = inTab.filter((o) => !["pending", "ready"].includes(o.status));
   const visible = tab === "pending" ? pending : tab === "ready" ? ready : done;
 
   async function markCollected(order: AdminOrder) {
@@ -85,6 +111,46 @@ export function OrdersAdminClient({
           <TabsTrigger value="done">History ({done.length})</TabsTrigger>
         </TabsList>
       </Tabs>
+
+      {/* Filter by the month ordered and by who ordered. */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1">
+          <Label htmlFor="order-month" className="text-xs text-muted-foreground">Month</Label>
+          <Select
+            id="order-month"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="h-9 w-40"
+          >
+            <option value="">All months</option>
+            {months.map((m) => (
+              <option key={m} value={m}>{monthLabel(m)}</option>
+            ))}
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="order-who" className="text-xs text-muted-foreground">User ID or name</Label>
+          <Input
+            id="order-who"
+            value={who}
+            onChange={(e) => setWho(e.target.value)}
+            placeholder="e.g. 1042 or Priya"
+            className="h-9 w-48"
+          />
+        </div>
+        {(month !== "" || who !== "") && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setMonth("");
+              setWho("");
+            }}
+          >
+            Clear filters
+          </Button>
+        )}
+      </div>
 
       {visible.length === 0 ? (
         <EmptyState

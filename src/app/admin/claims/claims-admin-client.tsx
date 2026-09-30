@@ -12,7 +12,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
@@ -29,6 +31,8 @@ import type { ClaimStatus, ClaimWithLines } from "@/lib/types";
 
 export interface AdminClaim extends ClaimWithLines {
   claimant_name: string;
+  /** The four-digit ID they sign in with — the key for payment records. */
+  claimant_no: number | null;
 }
 
 const TABS: { key: ClaimStatus; label: string }[] = [
@@ -39,6 +43,18 @@ const TABS: { key: ClaimStatus; label: string }[] = [
 
 const total = (c: AdminClaim) =>
   (c.claim_lines ?? []).reduce((n, l) => n + l.amount_cents, 0);
+
+/** "2026-09" for grouping and "Sep 2026" for showing. */
+function monthKey(iso: string) {
+  return iso.slice(0, 7);
+}
+function monthLabel(key: string) {
+  const [y, m] = key.split("-");
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-SG", {
+    month: "short",
+    year: "numeric",
+  });
+}
 
 function csvEscape(v: string) {
   return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
@@ -53,8 +69,23 @@ export function ClaimsAdminClient({ claims }: { claims: AdminClaim[] }) {
   // Declining needs a reason, so it goes through a dialog rather than a tap.
   const [declining, setDeclining] = React.useState<AdminClaim | null>(null);
   const [declineNote, setDeclineNote] = React.useState("");
+  // Filters, applied within the current status tab.
+  const [month, setMonth] = React.useState("");
+  const [who, setWho] = React.useState("");
 
-  const shown = claims.filter((c) => c.status === tab);
+  // Every month that has a claim, newest first, for the picker.
+  const months = React.useMemo(
+    () => [...new Set(claims.map((c) => monthKey(c.created_at)))].sort().reverse(),
+    [claims]
+  );
+  const whoQuery = who.trim().toLowerCase();
+  const matchesFilters = (c: AdminClaim) =>
+    (month === "" || monthKey(c.created_at) === month) &&
+    (whoQuery === "" ||
+      String(c.claimant_no ?? "").includes(whoQuery) ||
+      c.claimant_name.toLowerCase().includes(whoQuery));
+
+  const shown = claims.filter((c) => c.status === tab && matchesFilters(c));
   const counts = Object.fromEntries(
     TABS.map((t) => [t.key, claims.filter((c) => c.status === t.key).length])
   ) as Record<ClaimStatus, number>;
@@ -109,6 +140,7 @@ export function ClaimsAdminClient({ claims }: { claims: AdminClaim[] }) {
   function exportCsv() {
     const header = [
       "claim_id",
+      "user_id",
       "claimant",
       "zone",
       "raised",
@@ -127,6 +159,7 @@ export function ClaimsAdminClient({ claims }: { claims: AdminClaim[] }) {
         lines.push(
           [
             c.id,
+            c.claimant_no ?? "",
             c.claimant_name,
             c.zone ?? "",
             formatDate(c.created_at),
@@ -188,6 +221,46 @@ export function ClaimsAdminClient({ claims }: { claims: AdminClaim[] }) {
             <Download /> Export CSV
           </Button>
         </div>
+      </div>
+
+      {/* Filter within the tab: by the month raised and by who claimed. */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1">
+          <Label htmlFor="claim-month" className="text-xs text-muted-foreground">Month</Label>
+          <Select
+            id="claim-month"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="h-9 w-40"
+          >
+            <option value="">All months</option>
+            {months.map((m) => (
+              <option key={m} value={m}>{monthLabel(m)}</option>
+            ))}
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="claim-who" className="text-xs text-muted-foreground">User ID or name</Label>
+          <Input
+            id="claim-who"
+            value={who}
+            onChange={(e) => setWho(e.target.value)}
+            placeholder="e.g. 1042 or Priya"
+            className="h-9 w-48"
+          />
+        </div>
+        {(month !== "" || who !== "") && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setMonth("");
+              setWho("");
+            }}
+          >
+            Clear filters
+          </Button>
+        )}
       </div>
 
       {shown.length === 0 ? (

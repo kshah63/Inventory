@@ -31,7 +31,7 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   exact?: boolean;
   /** Which waiting-on-us count to show, if any. */
-  count?: "orders" | "requests" | "claims";
+  count?: "orders" | "requests" | "claims" | "resets";
   superOnly?: boolean;
 }
 
@@ -51,7 +51,7 @@ interface NavGroup {
  */
 const GROUPS: NavGroup[] = [
   {
-    items: [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true }],
+    items: [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true, count: "resets" }],
   },
   {
     heading: "To do",
@@ -93,12 +93,12 @@ const FOOTER_NAV: NavItem[] = [
 export function AdminNav({
   userName,
   isSuperAdmin,
-  todo = { orders: 0, requests: 0, claims: 0 },
+  todo = { orders: 0, requests: 0, claims: 0, resets: 0 },
 }: {
   userName: string;
   isSuperAdmin: boolean;
   /** What's actually waiting on procurement right now. */
-  todo?: { orders: number; requests: number; claims: number };
+  todo?: { orders: number; requests: number; claims: number; resets: number };
 }) {
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);

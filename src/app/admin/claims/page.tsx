@@ -23,18 +23,18 @@ export default async function ClaimsAdminPage() {
   // ambiguous and would fail the whole query rather than one column.
   const ids = [...new Set(rows.map((c) => c.claimed_by))];
   const { data: people } = ids.length
-    ? await supabase.from("users").select("id, full_name").in("id", ids)
+    ? await supabase.from("users").select("id, full_name, user_no").in("id", ids)
     : { data: [] };
-  const nameById = new Map(
-    ((people ?? []) as { id: string; full_name: string }[]).map((u) => [
-      u.id,
-      u.full_name,
-    ])
+  const personById = new Map(
+    ((people ?? []) as { id: string; full_name: string; user_no: number | null }[]).map(
+      (u) => [u.id, u]
+    )
   );
 
   const claims: AdminClaim[] = rows.map((c) => ({
     ...c,
-    claimant_name: nameById.get(c.claimed_by) ?? "Unknown",
+    claimant_name: personById.get(c.claimed_by)?.full_name ?? "Unknown",
+    claimant_no: personById.get(c.claimed_by)?.user_no ?? null,
   }));
 
   return (
