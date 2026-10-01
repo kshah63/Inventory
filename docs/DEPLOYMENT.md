@@ -40,7 +40,7 @@ half an hour.
    | `0018_remove_approvals.sql` | Removes the approval flow, which nothing had enforced since 0008 |
    | `0019_keep_about.sql` | Replaces reorder point and par level with one number per item |
    | `0020_reimbursement_claims.sql` | Claims for things people bought themselves, with a private receipts bucket |
-   | `0021_suppliers.sql` | The supplier register — groups, coded sub-groups, 126 seeded suppliers, 205 QuickBooks aliases |
+   | `0021_suppliers.sql` | The supplier register — groups, coded sub-groups, 125 seeded suppliers, 204 QuickBooks aliases |
    | `0022_resubmit_declined_claims.sql` | Lets a declined reimbursement be corrected and resubmitted (a paid one stays locked) |
 
 4. *(Optional)* Run [`supabase/seed_demo.sql`](../supabase/seed_demo.sql) for

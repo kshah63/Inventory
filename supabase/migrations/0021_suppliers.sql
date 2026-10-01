@@ -799,11 +799,6 @@ from public.supplier_subgroups sg where sg.group_code = 24350 and sg.code_start 
 on conflict (group_code, sub_code) do nothing;
 
 insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
-select sg.id, 24350, 104, 'SUPREME HR', null
-from public.supplier_subgroups sg where sg.group_code = 24350 and sg.code_start = 100
-on conflict (group_code, sub_code) do nothing;
-
-insert into public.suppliers (subgroup_id, group_code, sub_code, name, notes)
 select sg.id, 24350, 201, 'RAYMOND SOFTWARE', null
 from public.supplier_subgroups sg where sg.group_code = 24350 and sg.code_start = 200
 on conflict (group_code, sub_code) do nothing;
@@ -1974,11 +1969,6 @@ where s.group_code = 24150 and s.sub_code = 203
 on conflict (alias_key) do nothing;
 
 insert into public.supplier_aliases (supplier_id, alias, old_code)
-select s.id, 'Supreme HR', '24350-22' from public.suppliers s
-where s.group_code = 24350 and s.sub_code = 104
-on conflict (alias_key) do nothing;
-
-insert into public.supplier_aliases (supplier_id, alias, old_code)
 select s.id, 'TAX /STAMP -06/07', '24500-23' from public.suppliers s
 where s.group_code = 24500 and s.sub_code = 204
 on conflict (alias_key) do nothing;
@@ -2133,3 +2123,11 @@ delete from public.suppliers
 where group_code = 24550 and name = 'OTHER SCHOOLS & EDUCATION CENTRES'
   and notes = 'Reserved from the draft hierarchy; no QuickBooks history yet.'
   and not exists (select 1 from public.supplier_aliases a where a.supplier_id = suppliers.id);
+
+-- SUPREME HR removed from Software & Subscriptions (was 24350-104): it belongs
+-- in another group and will be recreated there from the portal. The seed above
+-- no longer creates it; this converges a database seeded before the removal.
+-- Its alias row cascades with the delete (supplier_aliases on delete cascade).
+-- Guarded by name so a different supplier later given 24350-104 is never hit.
+delete from public.suppliers
+where group_code = 24350 and sub_code = 104 and name = 'SUPREME HR';
