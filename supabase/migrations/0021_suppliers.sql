@@ -376,7 +376,7 @@ insert into public.supplier_groups (code, name) values
   (24400, 'Professional Services'),
   (24450, 'Administration, Insurance & Banking'),
   (24500, 'Levies, Contributions, Taxes'),
-  (24550, 'Marketing & Business Development'),
+  (24550, 'Recruitment & Marketing'),
   (24600, 'Pantry, Catering & Staff Welfare'),
   (24700, 'Multipurpose Retailer'),
   (24750, 'Suppliers - Other'),
@@ -2131,3 +2131,8 @@ where group_code = 24550 and name = 'OTHER SCHOOLS & EDUCATION CENTRES'
 -- Guarded by name so a different supplier later given 24350-104 is never hit.
 delete from public.suppliers
 where group_code = 24350 and sub_code = 104 and name = 'SUPREME HR';
+
+-- Renamed supplier group 24550 to "Recruitment & Marketing". Applied as an
+-- update too, so a database seeded before the rename picks it up on a re-run.
+update public.supplier_groups set name = 'Recruitment & Marketing'
+where code = 24550 and name = 'Marketing & Business Development';
