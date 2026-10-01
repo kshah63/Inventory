@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
-import type { CatalogItem, Category, Location } from "@/lib/types";
+import type { CatalogItem, Category, ItemGroup, Location } from "@/lib/types";
 import { CatalogueClient } from "./catalogue-client";
 
 export const metadata = { title: "Catalogue" };
@@ -9,25 +9,28 @@ export const dynamic = "force-dynamic";
 export default async function CataloguePage() {
   const supabase = await createClient();
 
-  const [locationsRes, categoriesRes, itemsRes, zonesRes, aliasRes] = await Promise.all([
-    supabase
-      .from("locations")
-      .select("id, name, is_active")
-      .eq("is_active", true)
-      .order("name"),
-    supabase.from("categories").select("id, name, sort_order").order("sort_order"),
-    supabase
-      .from("items")
-      .select("*, category:categories(name), stock_levels(location_id, qty_on_hand)")
-      .eq("is_active", true)
-      .order("name"),
-    supabase.from("settings").select("value").eq("key", "zones").maybeSingle(),
-    supabase.from("item_aliases").select("item_id, alias"),
-  ]);
+  const [locationsRes, categoriesRes, itemsRes, zonesRes, aliasRes, groupsRes] =
+    await Promise.all([
+      supabase
+        .from("locations")
+        .select("id, name, is_active")
+        .eq("is_active", true)
+        .order("name"),
+      supabase.from("categories").select("id, name, sort_order").order("sort_order"),
+      supabase
+        .from("items")
+        .select("*, category:categories(name), stock_levels(location_id, qty_on_hand)")
+        .eq("is_active", true)
+        .order("name"),
+      supabase.from("settings").select("value").eq("key", "zones").maybeSingle(),
+      supabase.from("item_aliases").select("item_id, alias"),
+      supabase.from("item_groups").select("*").eq("is_active", true).order("name"),
+    ]);
 
   const locations = (locationsRes.data ?? []) as unknown as Location[];
   const categories = (categoriesRes.data ?? []) as unknown as Category[];
   const items = (itemsRes.data ?? []) as unknown as CatalogItem[];
+  const groups = (groupsRes.data ?? []) as unknown as ItemGroup[];
   const zones = Array.isArray(zonesRes.data?.value)
     ? (zonesRes.data.value as unknown[]).filter((z): z is string => typeof z === "string")
     : [];
@@ -47,6 +50,7 @@ export default async function CataloguePage() {
       />
       <CatalogueClient
         items={items}
+        groups={groups}
         locations={locations}
         categories={categories}
         zones={zones}

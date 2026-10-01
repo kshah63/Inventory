@@ -6,6 +6,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Layers,
   Package,
   Search,
   SearchX,
@@ -31,6 +32,7 @@ import type {
   CatalogItem,
   CatalogueMatch,
   Category,
+  ItemGroup,
   Location,
 } from "@/lib/types";
 
@@ -41,14 +43,29 @@ function totalStock(item: CatalogItem): number {
   return item.stock_levels.reduce((n, sl) => n + sl.qty_on_hand, 0);
 }
 
+/** One tile in the grid: a standalone item, or a group of variants folded
+ * into a single entry. A group's variants are the stockable items under it. */
+type Entry =
+  | { kind: "item"; key: string; name: string; categoryId: string; item: CatalogItem }
+  | {
+      kind: "group";
+      key: string;
+      name: string;
+      categoryId: string;
+      group: ItemGroup;
+      variants: CatalogItem[];
+    };
+
 export function CatalogueClient({
   items,
+  groups = [],
   locations,
   categories,
   zones,
   aliases = {},
 }: {
   items: CatalogItem[];
+  groups?: ItemGroup[];
   locations: Location[];
   categories: Category[];
   zones: string[];
@@ -68,48 +85,91 @@ export function CatalogueClient({
   const [qty, setQty] = React.useState(1);
   const [perPack, setPerPack] = React.useState(false);
 
+  // Variant-group dialog: pick the attribute(s), which resolve to a variant.
+  const [groupKey, setGroupKey] = React.useState<string | null>(null);
+  const [a1, setA1] = React.useState<string | null>(null);
+  const [a2, setA2] = React.useState<string | null>(null);
+  const [gQty, setGQty] = React.useState(1);
+
   // Order review
   const [reviewOpen, setReviewOpen] = React.useState(false);
   const [zone, setZone] = React.useState<string | null>(null);
   const [note, setNote] = React.useState("");
   const [placing, setPlacing] = React.useState(false);
 
-  // Precomputed once: name, code and any learned aliases, lowercased.
+  // Fold variant items into a single group entry; standalone items stand
+  // alone. A group whose row is missing/inactive falls back to loose items so
+  // nothing silently disappears from the shelf.
+  const entries = React.useMemo<Entry[]>(() => {
+    const byGroup = new Map<string, CatalogItem[]>();
+    const out: Entry[] = [];
+    for (const it of items) {
+      if (it.group_id) {
+        const arr = byGroup.get(it.group_id);
+        if (arr) arr.push(it);
+        else byGroup.set(it.group_id, [it]);
+      } else {
+        out.push({ kind: "item", key: it.id, name: it.name, categoryId: it.category_id, item: it });
+      }
+    }
+    const groupById = new Map(groups.map((g) => [g.id, g]));
+    for (const [gid, variants] of byGroup) {
+      const g = groupById.get(gid);
+      if (!g) {
+        for (const it of variants)
+          out.push({ kind: "item", key: it.id, name: it.name, categoryId: it.category_id, item: it });
+        continue;
+      }
+      out.push({ kind: "group", key: `g:${gid}`, name: g.name, categoryId: g.category_id, group: g, variants });
+    }
+    return out;
+  }, [items, groups]);
+
+  // Precomputed once per entry: name, code, learned aliases, and — for a
+  // group — its attribute labels and every variant's values, lowercased.
   const haystacks = React.useMemo(() => {
     const map = new Map<string, string>();
-    for (const item of items) {
-      map.set(item.id, searchableText(item, aliases[item.id]));
+    for (const e of entries) {
+      if (e.kind === "item") {
+        map.set(e.key, searchableText(e.item, aliases[e.item.id]));
+      } else {
+        const parts = [e.group.name, e.group.attr1_label, e.group.attr2_label ?? ""];
+        for (const v of e.variants) {
+          parts.push(searchableText(v, aliases[v.id]), v.attr1_value ?? "", v.attr2_value ?? "");
+        }
+        map.set(e.key, parts.join(" ").toLowerCase());
+      }
     }
     return map;
-  }, [items, aliases]);
+  }, [entries, aliases]);
 
   const filtered = React.useMemo(() => {
     // Words, not a phrase — "pen blue" and "blue pen" find the same item.
     const words = queryWords(query);
-    const hits = items.filter((item) => {
-      if (categoryId && item.category_id !== categoryId) return false;
+    const hits = entries.filter((e) => {
+      if (categoryId && e.categoryId !== categoryId) return false;
       if (words.length === 0) return true;
-      return matchesWords(haystacks.get(item.id) ?? "", words);
+      return matchesWords(haystacks.get(e.key) ?? "", words);
     });
     if (words.length === 0) return hits;
     // Best answers first, so they land on the first page rather than
     // wherever the alphabet puts them.
     return [...hits].sort((a, b) => {
       const byScore =
-        relevance(b, haystacks.get(b.id) ?? "", query, words) -
-        relevance(a, haystacks.get(a.id) ?? "", query, words);
+        relevance({ name: b.name }, haystacks.get(b.key) ?? "", query, words) -
+        relevance({ name: a.name }, haystacks.get(a.key) ?? "", query, words);
       if (byScore !== 0) return byScore;
       // Then the plainer name: "BLUE PEN 0.7MM" before "BLUE PEN REFILL BOX".
       if (a.name.length !== b.name.length) return a.name.length - b.name.length;
       return a.name.localeCompare(b.name);
     });
-  }, [items, query, categoryId, haystacks]);
+  }, [entries, query, categoryId, haystacks]);
 
   // Nine at a time — three rows of three on a laptop — so the whole page fits
   // without scrolling and you step through the catalogue instead.
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
-  const pageItems = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const pageEntries = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
 
   // A new search or category starts again at the first page.
   React.useEffect(() => {
@@ -117,8 +177,8 @@ export function CatalogueClient({
   }, [query, categoryId]);
 
   const usedCategoryIds = React.useMemo(
-    () => new Set(items.map((i) => i.category_id)),
-    [items]
+    () => new Set(entries.map((e) => e.categoryId)),
+    [entries]
   );
   const visibleCategories = categories.filter((c) => usedCategoryIds.has(c.id));
 
@@ -166,6 +226,47 @@ export function CatalogueClient({
     setQty(cartQty.get(item.id) ?? 1);
     setPerPack(false);
   };
+
+  const openGroup = (e: Extract<Entry, { kind: "group" }>) => {
+    const a1opts = [...new Set(e.variants.map((v) => v.attr1_value).filter(Boolean))];
+    setGroupKey(e.key);
+    setA1(a1opts.length === 1 ? (a1opts[0] as string) : null);
+    setA2(null);
+    setGQty(1);
+  };
+
+  // The group being chosen from, its attribute options, and the variant the
+  // current choices resolve to.
+  const groupSel =
+    (groupKey
+      ? (entries.find((e) => e.kind === "group" && e.key === groupKey) as
+          | Extract<Entry, { kind: "group" }>
+          | undefined)
+      : undefined) ?? null;
+  const a1Options = groupSel
+    ? [...new Set(groupSel.variants.map((v) => v.attr1_value).filter(Boolean))] as string[]
+    : [];
+  const a2Options =
+    groupSel && groupSel.group.attr2_label
+      ? ([
+          ...new Set(
+            groupSel.variants
+              .filter((v) => a1 == null || v.attr1_value === a1)
+              .map((v) => v.attr2_value)
+              .filter(Boolean)
+          ),
+        ] as string[])
+      : [];
+  const resolvedVariant = groupSel
+    ? groupSel.variants.find(
+        (v) =>
+          v.attr1_value === a1 && (groupSel.group.attr2_label ? v.attr2_value === a2 : true)
+      ) ?? null
+    : null;
+  const gAvailable = resolvedVariant ? totalStock(resolvedVariant) : 0;
+  const gCap = resolvedVariant?.max_per_checkout ?? null;
+  const gMax = Math.max(1, Math.min(gAvailable || 1, gCap ?? Infinity));
+  const gClamped = Math.max(1, Math.min(gQty, gMax));
 
   const stockLabel = (item: CatalogItem, locationId_: string) =>
     item.stock_levels.find((sl) => sl.location_id === locationId_)?.qty_on_hand ?? 0;
@@ -271,11 +372,69 @@ export function CatalogueClient({
         />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {pageItems.map((item) => {
+          {pageEntries.map((entry) => {
+            if (entry.kind === "group") {
+              const variants = entry.variants;
+              const stock = variants.reduce((n, v) => n + totalStock(v), 0);
+              const inCart = variants.reduce((n, v) => n + (cartQty.get(v.id) ?? 0), 0);
+              const photo =
+                entry.group.photo_url ?? variants.find((v) => v.photo_url)?.photo_url ?? null;
+              const optionCount = new Set(
+                variants.map((v) => `${v.attr1_value}|${v.attr2_value ?? ""}`)
+              ).size;
+              return (
+                <button
+                  key={entry.key}
+                  type="button"
+                  onClick={() => openGroup(entry)}
+                  className="flex flex-col overflow-hidden rounded-lg border bg-card text-left shadow-sm transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <div className="relative flex h-24 w-full items-center justify-center bg-muted">
+                    {photo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={photo} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-muted-foreground/50">
+                        <Package className="h-8 w-8" />
+                        <span className="text-[10px] uppercase tracking-wide">Photo coming</span>
+                      </div>
+                    )}
+                    <Badge variant="secondary" className="absolute left-1.5 top-1.5 gap-1">
+                      <Layers className="h-3 w-3" /> {optionCount}
+                    </Badge>
+                    {inCart > 0 && (
+                      <Badge className="absolute right-1.5 top-1.5">×{inCart}</Badge>
+                    )}
+                  </div>
+                  <div className="flex flex-1 flex-col gap-0.5 p-2.5">
+                    <span className="line-clamp-2 text-sm font-semibold leading-snug">
+                      {entry.name}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      Choose {entry.group.attr1_label.toLowerCase()}
+                      {entry.group.attr2_label
+                        ? ` & ${entry.group.attr2_label.toLowerCase()}`
+                        : ""}
+                    </span>
+                    <span className="mt-1 text-xs">
+                      {stock === 0 ? (
+                        <span className="font-semibold text-destructive">Out of stock</span>
+                      ) : (
+                        <>
+                          <span className="font-semibold text-success">{stock}</span>
+                          <span className="text-muted-foreground"> in stock</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </button>
+              );
+            }
+            const item = entry.item;
             const inCart = cartQty.get(item.id) ?? 0;
             return (
               <button
-                key={item.id}
+                key={entry.key}
                 type="button"
                 onClick={() => openItem(item)}
                 className="flex flex-col overflow-hidden rounded-lg border bg-card text-left shadow-sm transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -332,7 +491,7 @@ export function CatalogueClient({
             <ChevronLeft /> Back
           </Button>
           <span className="text-sm tabular-nums text-muted-foreground">
-            {safePage * PAGE_SIZE + 1}–{safePage * PAGE_SIZE + pageItems.length} of{" "}
+            {safePage * PAGE_SIZE + 1}–{safePage * PAGE_SIZE + pageEntries.length} of{" "}
             {filtered.length}
           </span>
           <Button
@@ -450,6 +609,112 @@ export function CatalogueClient({
                 }}
               >
                 {cartQty.has(selected.id) ? "Update" : "Add"} — {baseQty} {selected.unit}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </Dialog>
+
+      {/* Variant-group dialog: pick the attribute(s), then the quantity */}
+      <Dialog open={!!groupSel} onClose={() => setGroupKey(null)}>
+        {groupSel && (
+          <>
+            <DialogTitle>{groupSel.group.name}</DialogTitle>
+            <DialogDescription>
+              Choose {groupSel.group.attr1_label.toLowerCase()}
+              {groupSel.group.attr2_label
+                ? ` and ${groupSel.group.attr2_label.toLowerCase()}`
+                : ""}
+              , then how many.
+            </DialogDescription>
+
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label>{groupSel.group.attr1_label}</Label>
+                <div className="flex flex-wrap gap-2">
+                  {a1Options.map((opt) => (
+                    <Chip
+                      key={opt}
+                      active={a1 === opt}
+                      onClick={() => {
+                        setA1(opt);
+                        setA2(null);
+                      }}
+                    >
+                      {opt}
+                    </Chip>
+                  ))}
+                </div>
+              </div>
+
+              {groupSel.group.attr2_label && (
+                <div className="space-y-1.5">
+                  <Label>{groupSel.group.attr2_label}</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {a2Options.length === 0 ? (
+                      <span className="text-sm text-muted-foreground">
+                        Pick a {groupSel.group.attr1_label.toLowerCase()} first.
+                      </span>
+                    ) : (
+                      a2Options.map((opt) => (
+                        <Chip key={opt} active={a2 === opt} onClick={() => setA2(opt)}>
+                          {opt}
+                        </Chip>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {resolvedVariant && (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    {resolvedVariant.sku}
+                    {" · "}
+                    {gAvailable === 0
+                      ? "Out of stock"
+                      : `${gAvailable} ${resolvedVariant.unit} in stock`}
+                    {gCap !== null && ` · up to ${gCap} per order`}
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <Label htmlFor="grp-qty" className="shrink-0">
+                      Quantity
+                    </Label>
+                    <Input
+                      id="grp-qty"
+                      type="number"
+                      min={1}
+                      max={gMax}
+                      value={gClamped}
+                      onChange={(e) => setGQty(Number(e.target.value) || 1)}
+                      className="w-24"
+                    />
+                    <span className="text-sm text-muted-foreground">{resolvedVariant.unit}</span>
+                  </div>
+                  {gAvailable === 0 && (
+                    <p className="text-sm text-destructive">
+                      Out of stock — you can still order it; procurement packs it
+                      when stock arrives.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setGroupKey(null)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={!resolvedVariant}
+                onClick={() => {
+                  if (!resolvedVariant) return;
+                  setCartLine(resolvedVariant.id, gClamped);
+                  setGroupKey(null);
+                }}
+              >
+                {resolvedVariant && cartQty.has(resolvedVariant.id) ? "Update" : "Add"}
+                {resolvedVariant ? ` — ${gClamped} ${resolvedVariant.unit}` : ""}
               </Button>
             </DialogFooter>
           </>
