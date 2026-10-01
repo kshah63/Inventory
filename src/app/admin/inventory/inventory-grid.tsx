@@ -6,11 +6,13 @@ import {
   Check,
   Download,
   FolderPlus,
+  Layers,
   Lock,
   Package,
   Pencil,
   Plus,
   Search,
+  Unlink,
   Upload,
   X,
 } from "lucide-react";
@@ -31,12 +33,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
-import { saveCategory } from "@/lib/actions/inventory";
+import { saveCategory, ungroupItem } from "@/lib/actions/inventory";
 import { cn, friendlyError } from "@/lib/utils";
 import { matchesWords, queryWords, searchableText } from "@/lib/search";
-import type { Category, Item, Location } from "@/lib/types";
+import type { Category, Item, ItemGroup, Location } from "@/lib/types";
 import { ItemDialog } from "./item-dialog";
 import { ImportDialog } from "./import-dialog";
+import { GroupItemsDialog } from "./group-dialog";
 
 /** Item joined with category name and full stock params — the grid row shape. */
 export interface InventoryItem extends Item {
@@ -75,13 +78,32 @@ export function InventoryGrid({
   items,
   categories,
   locations,
+  groups = [],
   initialStockFilter,
 }: {
   items: InventoryItem[];
   categories: Category[];
   locations: Location[];
+  groups?: ItemGroup[];
   initialStockFilter?: StockFilter;
 }) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const groupById = React.useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups]);
+  const [groupDialogOpen, setGroupDialogOpen] = React.useState(false);
+  const [ungrouping, setUngrouping] = React.useState<string | null>(null);
+
+  async function doUngroup(item: InventoryItem) {
+    setUngrouping(item.id);
+    const res = await ungroupItem(item.id);
+    setUngrouping(null);
+    if (!res.ok) {
+      toast(friendlyError(res.error), "error");
+      return;
+    }
+    toast(`${item.name} taken out of its group.`);
+    router.refresh();
+  }
   const [search, setSearch] = React.useState("");
   const [categoryId, setCategoryId] = React.useState("");
   const [showInactive, setShowInactive] = React.useState(false);
@@ -220,6 +242,9 @@ export function InventoryGrid({
           <Button variant="outline" size="sm" onClick={exportCsv}>
             <Download /> Export CSV
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setGroupDialogOpen(true)}>
+            <Layers /> Group items
+          </Button>
           <Button size="sm" onClick={() => setItemDialog({ open: true, item: null })}>
             <Plus /> New item
           </Button>
@@ -307,6 +332,17 @@ export function InventoryGrid({
                           Max {item.max_per_checkout} per order
                         </Badge>
                       )}
+                      {item.group_id && (
+                        <Badge
+                          variant="secondary"
+                          title="Shown in the catalogue as a variant of this group"
+                        >
+                          <Layers className="mr-1 h-3 w-3" />
+                          {groupById.get(item.group_id)?.name ?? "Variant"}
+                          {item.attr1_value ? `: ${item.attr1_value}` : ""}
+                          {item.attr2_value ? ` · ${item.attr2_value}` : ""}
+                        </Badge>
+                      )}
                       {!item.is_active && <Badge variant="secondary">Inactive</Badge>}
                     </div>
                   </TableCell>
@@ -314,15 +350,30 @@ export function InventoryGrid({
                     <StockCell key={l.id} item={item} location={l} />
                   ))}
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setItemDialog({ open: true, item })}
-                      aria-label={`Edit ${item.name}`}
-                    >
-                      <Pencil />
-                    </Button>
+                    <div className="flex items-center justify-end">
+                      {item.group_id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground"
+                          loading={ungrouping === item.id}
+                          onClick={() => doUngroup(item)}
+                          aria-label={`Take ${item.name} out of its group`}
+                          title="Take out of its group"
+                        >
+                          <Unlink />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setItemDialog({ open: true, item })}
+                        aria-label={`Edit ${item.name}`}
+                      >
+                        <Pencil />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -347,6 +398,13 @@ export function InventoryGrid({
         locations={locations}
       />
       <CategoryDialog open={categoryOpen} onClose={() => setCategoryOpen(false)} />
+      <GroupItemsDialog
+        open={groupDialogOpen}
+        onClose={() => setGroupDialogOpen(false)}
+        categories={categories}
+        groups={groups}
+        items={items}
+      />
     </div>
   );
 }
