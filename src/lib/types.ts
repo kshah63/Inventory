@@ -56,6 +56,25 @@ export interface Item {
   admin_only: boolean;
   is_active: boolean;
   created_at: string;
+  /** The variant group this item belongs to, or null for a standalone item. */
+  group_id: string | null;
+  /** This variant's value for the group's first/second attribute. */
+  attr1_value: string | null;
+  attr2_value: string | null;
+}
+
+/** A product that comes in variants — the variants are the items under it. */
+export interface ItemGroup {
+  id: string;
+  name: string;
+  category_id: string;
+  /** What you choose between: "Colour", "Size", "Length". */
+  attr1_label: string;
+  /** A second axis (e.g. a gel pen's Size and Colour), or null. */
+  attr2_label: string | null;
+  photo_url: string | null;
+  is_active: boolean;
+  created_at: string;
 }
 
 export interface StockLevel {

@@ -115,6 +115,10 @@ export async function saveItem(params: {
   adminOnly: boolean;
   isActive: boolean;
   photoUrl?: string | null;
+  /** When this item is a variant of a group. */
+  groupId?: string | null;
+  attr1Value?: string | null;
+  attr2Value?: string | null;
 }): Promise<ActionResult<{ id: string }>> {
   const supabase = await createClient();
   const row = {
@@ -129,6 +133,13 @@ export async function saveItem(params: {
     admin_only: params.adminOnly,
     is_active: params.isActive,
     ...(params.photoUrl !== undefined ? { photo_url: params.photoUrl } : {}),
+    ...(params.groupId !== undefined
+      ? {
+          group_id: params.groupId,
+          attr1_value: params.groupId ? params.attr1Value?.trim() || null : null,
+          attr2_value: params.groupId ? params.attr2Value?.trim() || null : null,
+        }
+      : {}),
   };
   if (!row.sku || !row.name) return { ok: false, error: "SKU and name are required." };
 
@@ -145,6 +156,60 @@ export async function saveItem(params: {
   }
   revalidatePath("/admin/inventory");
   return { ok: true, data: { id: data.id } };
+}
+
+/** Create or rename a variant group (its name and one/two attribute labels). */
+export async function saveItemGroup(params: {
+  id?: string;
+  name: string;
+  categoryId: string;
+  attr1Label: string;
+  attr2Label: string | null;
+  isActive: boolean;
+}): Promise<ActionResult<{ id: string }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("save_item_group", {
+    p_id: params.id ?? null,
+    p_name: params.name,
+    p_category_id: params.categoryId,
+    p_attr1: params.attr1Label,
+    p_attr2: params.attr2Label,
+    p_is_active: params.isActive,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/inventory");
+  revalidatePath("/browse");
+  return { ok: true, data: { id: data as string } };
+}
+
+/** Fold existing standalone items into a group, each with its attribute values. */
+export async function assignItemsToGroup(params: {
+  groupId: string;
+  assignments: { itemId: string; attr1Value: string; attr2Value: string | null }[];
+}): Promise<ActionResult<{ count: number }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("assign_items_to_group", {
+    p_group_id: params.groupId,
+    p_assignments: params.assignments.map((a) => ({
+      item_id: a.itemId,
+      attr1_value: a.attr1Value,
+      attr2_value: a.attr2Value,
+    })),
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/inventory");
+  revalidatePath("/browse");
+  return { ok: true, data: { count: (data as number) ?? 0 } };
+}
+
+/** Take one item back out of its group (it becomes standalone again). */
+export async function ungroupItem(itemId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("ungroup_item", { p_item_id: itemId });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/inventory");
+  revalidatePath("/browse");
+  return { ok: true, data: undefined };
 }
 
 export async function uploadItemPhoto(

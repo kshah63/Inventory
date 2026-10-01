@@ -16,7 +16,7 @@ half an hour.
    seeds the two locations (Level 8, Basement) + categories.
 3. Run the remaining migration files in
    [`supabase/migrations/`](../supabase/migrations) **in numerical order**
-   (`0002` → `0022`), one at a time, same way. Each is safe to run on a live
+   (`0002` → `0023`), one at a time, same way. Each is safe to run on a live
    database and only needs running once:
 
    | File | What it adds |
@@ -42,6 +42,7 @@ half an hour.
    | `0020_reimbursement_claims.sql` | Claims for things people bought themselves, with a private receipts bucket |
    | `0021_suppliers.sql` | The supplier register — groups, coded sub-groups, 125 seeded suppliers, 204 QuickBooks aliases |
    | `0022_resubmit_declined_claims.sql` | Lets a declined reimbursement be corrected and resubmitted (a paid one stays locked) |
+   | `0023_item_variants.sql` | Groups items into variants (a highlighter's colours, a gel pen's size + colour), kept as one catalogue entry |
 
 4. *(Optional)* Run [`supabase/seed_demo.sql`](../supabase/seed_demo.sql) for
    a sample catalog to click around with. Skip if you'll import your real
