@@ -460,7 +460,7 @@ export function CatalogueClient({
                   <div className="relative flex h-24 w-full items-center justify-center bg-muted">
                     {photo ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={photo} alt="" className="h-full w-full object-cover" loading="lazy" />
+                      <img src={photo} alt="" className="h-full w-full object-contain p-2" loading="lazy" />
                     ) : (
                       <div className="flex flex-col items-center gap-1 text-muted-foreground/50">
                         <Package className="h-8 w-8" />
@@ -511,7 +511,7 @@ export function CatalogueClient({
                 <div className="relative flex h-24 w-full items-center justify-center bg-muted">
                   {item.photo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.photo_url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    <img src={item.photo_url} alt="" className="h-full w-full object-contain p-2" loading="lazy" />
                   ) : (
                     <div className="flex flex-col items-center gap-1 text-muted-foreground/50">
                       <Package className="h-8 w-8" />
