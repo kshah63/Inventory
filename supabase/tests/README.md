@@ -66,6 +66,10 @@ also checks that a declined claim can be corrected and resubmitted (editing it
 clears the decision and sends it back for review), and that the receipts
 bucket is private, unlike the other two.
 
+`15_out_of_stock_orders.sql` covers migration 0024: an item with stock — even
+low — can still be ordered, an item at a true zero is refused, and the refused
+order leaves nothing behind.
+
 `14_item_variants.sql` covers migration 0023: an item group is built with one
 or two attributes, its variants are ordinary stockable items, two variants
 can't share a combination, a grouped item must name its first attribute, an
@@ -119,6 +123,8 @@ psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0021_suppliers.sql
 psql -d mvtest -f 13_suppliers.sql                           # expect: SUPPLIER REGISTER TESTS PASSED
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0023_item_variants.sql
 psql -d mvtest -f 14_item_variants.sql                       # expect: ITEM VARIANT TESTS PASSED
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0024_block_out_of_stock_orders.sql
+psql -d mvtest -f 15_out_of_stock_orders.sql                 # expect: OUT OF STOCK ORDER TESTS PASSED
 ```
 
 The shim replaces `auth.uid()` with a `test.uid` session setting so tests can
