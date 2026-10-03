@@ -457,7 +457,7 @@ export function CatalogueClient({
                   onClick={() => openGroup(entry)}
                   className="flex flex-col overflow-hidden rounded-lg border bg-card text-left shadow-sm transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <div className="relative flex h-24 w-full items-center justify-center bg-muted">
+                  <div className="relative flex h-24 w-full items-center justify-center bg-white">
                     {photo ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={photo} alt="" className="h-full w-full object-contain p-2" loading="lazy" />
@@ -508,7 +508,7 @@ export function CatalogueClient({
                 className="flex flex-col overflow-hidden rounded-lg border bg-card text-left shadow-sm transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {/* Photo — or the placeholder waiting for a real picture */}
-                <div className="relative flex h-24 w-full items-center justify-center bg-muted">
+                <div className="relative flex h-24 w-full items-center justify-center bg-white">
                   {item.photo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={item.photo_url} alt="" className="h-full w-full object-contain p-2" loading="lazy" />
