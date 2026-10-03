@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function CataloguePage() {
   const supabase = await createClient();
 
-  const [locationsRes, categoriesRes, itemsRes, zonesRes, aliasRes, groupsRes] =
+  const [locationsRes, categoriesRes, itemsRes, zonesRes, aliasRes, groupsRes, interestRes] =
     await Promise.all([
       supabase
         .from("locations")
@@ -25,6 +25,8 @@ export default async function CataloguePage() {
       supabase.from("settings").select("value").eq("key", "zones").maybeSingle(),
       supabase.from("item_aliases").select("item_id, alias"),
       supabase.from("item_groups").select("*").eq("is_active", true).order("name"),
+      // RLS returns only the current user's own interest rows.
+      supabase.from("item_interest").select("item_id"),
     ]);
 
   const locations = (locationsRes.data ?? []) as unknown as Location[];
@@ -42,6 +44,10 @@ export default async function CataloguePage() {
     (aliases[row.item_id] ??= []).push(row.alias);
   }
 
+  const interestedIds = ((interestRes.data ?? []) as { item_id: string }[]).map(
+    (r) => r.item_id
+  );
+
   return (
     <div>
       <PageHeader
@@ -55,6 +61,7 @@ export default async function CataloguePage() {
         categories={categories}
         zones={zones}
         aliases={aliases}
+        interestedIds={interestedIds}
       />
     </div>
   );

@@ -70,6 +70,11 @@ bucket is private, unlike the other two.
 low — can still be ordered, an item at a true zero is refused, and the refused
 order leaves nothing behind.
 
+`16_item_interest.sql` covers migration 0025: expressing interest is one soft
+signal per person however many times pressed, can't be expressed in a hidden
+central-team item, can be withdrawn, and one person's interest is private to
+them and procurement.
+
 `14_item_variants.sql` covers migration 0023: an item group is built with one
 or two attributes, its variants are ordinary stockable items, two variants
 can't share a combination, a grouped item must name its first attribute, an
@@ -125,6 +130,8 @@ psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0023_item_variants.sql
 psql -d mvtest -f 14_item_variants.sql                       # expect: ITEM VARIANT TESTS PASSED
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0024_block_out_of_stock_orders.sql
 psql -d mvtest -f 15_out_of_stock_orders.sql                 # expect: OUT OF STOCK ORDER TESTS PASSED
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0025_item_interest.sql
+psql -d mvtest -f 16_item_interest.sql                       # expect: ITEM INTEREST TESTS PASSED
 ```
 
 The shim replaces `auth.uid()` with a `test.uid` session setting so tests can

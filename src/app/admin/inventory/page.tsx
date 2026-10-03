@@ -17,7 +17,7 @@ export default async function InventoryPage({
   const initialStockFilter =
     stock === "out" || stock === "low" || stock === "in" ? stock : "all";
   const supabase = await createClient();
-  const [catRes, locRes, itemRes, groupRes] = await Promise.all([
+  const [catRes, locRes, itemRes, groupRes, interestRes] = await Promise.all([
     supabase
       .from("categories")
       .select("id, name, sort_order")
@@ -35,6 +35,8 @@ export default async function InventoryPage({
       )
       .order("name"),
     supabase.from("item_groups").select("*").order("name"),
+    // Admins read every interest row (RLS) — the out-of-stock demand tally.
+    supabase.from("item_interest").select("item_id"),
   ]);
 
   const error = catRes.error ?? locRes.error ?? itemRes.error ?? groupRes.error;
@@ -42,6 +44,10 @@ export default async function InventoryPage({
   const locations = (locRes.data ?? []) as unknown as Location[];
   const items = (itemRes.data ?? []) as unknown as InventoryItem[];
   const groups = (groupRes.data ?? []) as unknown as ItemGroup[];
+  const interestCounts: Record<string, number> = {};
+  for (const r of (interestRes.data ?? []) as { item_id: string }[]) {
+    interestCounts[r.item_id] = (interestCounts[r.item_id] ?? 0) + 1;
+  }
 
   return (
     <>
@@ -54,7 +60,13 @@ export default async function InventoryPage({
           Couldn&apos;t load inventory: {friendlyError(error.message)}
         </p>
       ) : (
-        <InventoryGrid items={items} categories={categories} locations={locations} groups={groups} />
+        <InventoryGrid
+          items={items}
+          categories={categories}
+          locations={locations}
+          groups={groups}
+          interestCounts={interestCounts}
+        />
       )}
     </>
   );

@@ -6,6 +6,7 @@ import {
   Check,
   Download,
   FolderPlus,
+  Hand,
   Layers,
   Lock,
   Package,
@@ -79,12 +80,15 @@ export function InventoryGrid({
   categories,
   locations,
   groups = [],
+  interestCounts = {},
   initialStockFilter,
 }: {
   items: InventoryItem[];
   categories: Category[];
   locations: Location[];
   groups?: ItemGroup[];
+  /** How many people have expressed interest in each item (out-of-stock tally). */
+  interestCounts?: Record<string, number>;
   initialStockFilter?: StockFilter;
 }) {
   const router = useRouter();
@@ -341,6 +345,15 @@ export function InventoryGrid({
                           {groupById.get(item.group_id)?.name ?? "Variant"}
                           {item.attr1_value ? `: ${item.attr1_value}` : ""}
                           {item.attr2_value ? ` · ${item.attr2_value}` : ""}
+                        </Badge>
+                      )}
+                      {(interestCounts[item.id] ?? 0) > 0 && (
+                        <Badge
+                          variant="warning"
+                          title="People who said they'd want this while it was out of stock"
+                        >
+                          <Hand className="mr-1 h-3 w-3" />
+                          {interestCounts[item.id]} interested
                         </Badge>
                       )}
                       {!item.is_active && <Badge variant="secondary">Inactive</Badge>}

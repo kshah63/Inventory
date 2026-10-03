@@ -6,6 +6,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Hand,
   Layers,
   Package,
   Search,
@@ -24,6 +25,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { matchesWords, queryWords, relevance, searchableText } from "@/lib/search";
 import { createOrder } from "@/lib/actions/orders";
+import { expressInterest, withdrawInterest } from "@/lib/actions/interest";
 import { NewRequestDialog } from "@/app/(staff)/requests/new-request-dialog";
 import { ClaimDialog } from "@/app/(staff)/claims/claim-dialog";
 import { ZonePicker } from "@/components/zone-picker";
@@ -63,6 +65,7 @@ export function CatalogueClient({
   categories,
   zones,
   aliases = {},
+  interestedIds = [],
 }: {
   items: CatalogItem[];
   groups?: ItemGroup[];
@@ -71,6 +74,8 @@ export function CatalogueClient({
   zones: string[];
   /** Extra names per item, learned from requests procurement resolved. */
   aliases?: Record<string, string[]>;
+  /** Item ids this viewer has already expressed interest in. */
+  interestedIds?: string[];
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -79,6 +84,11 @@ export function CatalogueClient({
   const [categoryId, setCategoryId] = React.useState<string | null>(null);
   const [cart, setCart] = React.useState<BasketLine[]>([]);
   const [page, setPage] = React.useState(0);
+  // Which items this viewer has expressed interest in (out-of-stock signal).
+  const [interested, setInterested] = React.useState<Set<string>>(
+    () => new Set(interestedIds)
+  );
+  const [interestBusy, setInterestBusy] = React.useState<string | null>(null);
 
   // Item dialog
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
@@ -226,6 +236,64 @@ export function CatalogueClient({
     setQty(cartQty.get(item.id) ?? 1);
     setPerPack(false);
   };
+
+  // A soft "I'd want this" signal on an out-of-stock item — not an order and
+  // not a request, just demand procurement can glance at. Optimistic.
+  async function toggleInterest(item: { id: string; name: string }) {
+    const on = !interested.has(item.id);
+    setInterestBusy(item.id);
+    setInterested((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(item.id);
+      else next.delete(item.id);
+      return next;
+    });
+    const res = on ? await expressInterest(item.id) : await withdrawInterest(item.id);
+    setInterestBusy(null);
+    if (!res.ok) {
+      // Roll back on failure.
+      setInterested((prev) => {
+        const next = new Set(prev);
+        if (on) next.delete(item.id);
+        else next.add(item.id);
+        return next;
+      });
+      toast(res.error, "error");
+      return;
+    }
+    toast(on ? `Interest noted in ${item.name}.` : `Interest withdrawn.`);
+  }
+
+  /** The out-of-stock footer shared by the item and variant dialogs. */
+  function InterestFooter({ item }: { item: { id: string; name: string } }) {
+    const on = interested.has(item.id);
+    return (
+      <div className="rounded-md border border-dashed bg-muted/40 p-3">
+        <p className="text-sm font-medium">Out of stock — not available to order right now.</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Let us know you&apos;d want it. No promise on timing — it just helps us
+          see what&apos;s wanted.
+        </p>
+        <Button
+          variant={on ? "secondary" : "outline"}
+          size="sm"
+          className="mt-2"
+          loading={interestBusy === item.id}
+          onClick={() => toggleInterest(item)}
+        >
+          {on ? (
+            <>
+              <Check /> Interest noted · tap to undo
+            </>
+          ) : (
+            <>
+              <Hand /> Express interest
+            </>
+          )}
+        </Button>
+      </div>
+    );
+  }
 
   const openGroup = (e: Extract<Entry, { kind: "group" }>) => {
     const a1opts = [...new Set(e.variants.map((v) => v.attr1_value).filter(Boolean))];
@@ -572,44 +640,44 @@ export function CatalogueClient({
               </div>
             )}
 
-            <div className="flex items-center gap-3">
-              <Label htmlFor="shop-qty" className="shrink-0">
-                Quantity
-              </Label>
-              <Input
-                id="shop-qty"
-                type="number"
-                min={1}
-                max={effectiveMax}
-                value={clampedQty}
-                onChange={(e) => setQty(Number(e.target.value) || 1)}
-                className="w-24"
-              />
-              <span className="text-sm text-muted-foreground">
-                {usePack
-                  ? `pack${clampedQty === 1 ? "" : "s"} of ${packSize} = ${baseQty} ${selected.unit}`
-                  : selected.unit}
-              </span>
-            </div>
-            {available === 0 && (
-              <p className="mt-2 text-sm text-destructive">
-                Out of stock — you can still order it; procurement will pack it
-                when stock arrives, or use Requests for new items.
-              </p>
+            {available === 0 ? (
+              <InterestFooter item={selected} />
+            ) : (
+              <div className="flex items-center gap-3">
+                <Label htmlFor="shop-qty" className="shrink-0">
+                  Quantity
+                </Label>
+                <Input
+                  id="shop-qty"
+                  type="number"
+                  min={1}
+                  max={effectiveMax}
+                  value={clampedQty}
+                  onChange={(e) => setQty(Number(e.target.value) || 1)}
+                  className="w-24"
+                />
+                <span className="text-sm text-muted-foreground">
+                  {usePack
+                    ? `pack${clampedQty === 1 ? "" : "s"} of ${packSize} = ${baseQty} ${selected.unit}`
+                    : selected.unit}
+                </span>
+              </div>
             )}
 
             <DialogFooter>
               <Button variant="ghost" onClick={() => setSelectedId(null)}>
-                Cancel
+                {available === 0 ? "Close" : "Cancel"}
               </Button>
-              <Button
-                onClick={() => {
-                  setCartLine(selected.id, baseQty);
-                  setSelectedId(null);
-                }}
-              >
-                {cartQty.has(selected.id) ? "Update" : "Add"} — {baseQty} {selected.unit}
-              </Button>
+              {available > 0 && (
+                <Button
+                  onClick={() => {
+                    setCartLine(selected.id, baseQty);
+                    setSelectedId(null);
+                  }}
+                >
+                  {cartQty.has(selected.id) ? "Update" : "Add"} — {baseQty} {selected.unit}
+                </Button>
+              )}
             </DialogFooter>
           </>
         )}
@@ -666,56 +734,57 @@ export function CatalogueClient({
                 </div>
               )}
 
-              {resolvedVariant && (
-                <>
-                  <p className="text-sm text-muted-foreground">
-                    {resolvedVariant.sku}
-                    {" · "}
-                    {gAvailable === 0
-                      ? "Out of stock"
-                      : `${gAvailable} ${resolvedVariant.unit} in stock`}
-                    {gCap !== null && ` · up to ${gCap} per order`}
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <Label htmlFor="grp-qty" className="shrink-0">
-                      Quantity
-                    </Label>
-                    <Input
-                      id="grp-qty"
-                      type="number"
-                      min={1}
-                      max={gMax}
-                      value={gClamped}
-                      onChange={(e) => setGQty(Number(e.target.value) || 1)}
-                      className="w-24"
-                    />
-                    <span className="text-sm text-muted-foreground">{resolvedVariant.unit}</span>
-                  </div>
-                  {gAvailable === 0 && (
-                    <p className="text-sm text-destructive">
-                      Out of stock — you can still order it; procurement packs it
-                      when stock arrives.
+              {resolvedVariant &&
+                (gAvailable === 0 ? (
+                  <InterestFooter
+                    item={{ id: resolvedVariant.id, name: resolvedVariant.name }}
+                  />
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      {resolvedVariant.sku}
+                      {" · "}
+                      {`${gAvailable} ${resolvedVariant.unit} in stock`}
+                      {gCap !== null && ` · up to ${gCap} per order`}
                     </p>
-                  )}
-                </>
-              )}
+                    <div className="flex items-center gap-3">
+                      <Label htmlFor="grp-qty" className="shrink-0">
+                        Quantity
+                      </Label>
+                      <Input
+                        id="grp-qty"
+                        type="number"
+                        min={1}
+                        max={gMax}
+                        value={gClamped}
+                        onChange={(e) => setGQty(Number(e.target.value) || 1)}
+                        className="w-24"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {resolvedVariant.unit}
+                      </span>
+                    </div>
+                  </>
+                ))}
             </div>
 
             <DialogFooter>
               <Button variant="ghost" onClick={() => setGroupKey(null)}>
-                Cancel
+                {resolvedVariant && gAvailable === 0 ? "Close" : "Cancel"}
               </Button>
-              <Button
-                disabled={!resolvedVariant}
-                onClick={() => {
-                  if (!resolvedVariant) return;
-                  setCartLine(resolvedVariant.id, gClamped);
-                  setGroupKey(null);
-                }}
-              >
-                {resolvedVariant && cartQty.has(resolvedVariant.id) ? "Update" : "Add"}
-                {resolvedVariant ? ` — ${gClamped} ${resolvedVariant.unit}` : ""}
-              </Button>
+              {!(resolvedVariant && gAvailable === 0) && (
+                <Button
+                  disabled={!resolvedVariant}
+                  onClick={() => {
+                    if (!resolvedVariant) return;
+                    setCartLine(resolvedVariant.id, gClamped);
+                    setGroupKey(null);
+                  }}
+                >
+                  {resolvedVariant && cartQty.has(resolvedVariant.id) ? "Update" : "Add"}
+                  {resolvedVariant ? ` — ${gClamped} ${resolvedVariant.unit}` : ""}
+                </Button>
+              )}
             </DialogFooter>
           </>
         )}
