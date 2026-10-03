@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ClipboardCheck,
+  Hand,
   History,
   Inbox,
   PackageCheck,
@@ -51,7 +52,7 @@ const TYPE_BADGE: Record<
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
-  const [statsRes, txRes, resetRes] = await Promise.all([
+  const [statsRes, txRes, resetRes, interestRes] = await Promise.all([
     supabase.rpc("get_dashboard_stats"),
     supabase
       .from("v_transactions")
@@ -66,7 +67,13 @@ export default async function AdminDashboardPage() {
       .select("id, identifier, created_at, matched_user")
       .eq("status", "open")
       .order("created_at"),
+    // Admins read every interest row (RLS); count the distinct items wanted.
+    supabase.from("item_interest").select("item_id"),
   ]);
+
+  const interestItemCount = new Set(
+    ((interestRes.data ?? []) as { item_id: string }[]).map((r) => r.item_id)
+  ).size;
 
   const stats = (statsRes.data as unknown as DashboardStats) ?? EMPTY_STATS;
   const recent = (txRes.data ?? []) as unknown as TransactionRow[];
@@ -191,6 +198,14 @@ export default async function AdminDashboardPage() {
           sub="awaiting delivery"
           icon={Truck}
           href="/admin/requests"
+        />
+        <StatCard
+          label="Expressed interest"
+          value={interestItemCount}
+          sub="items people want"
+          icon={Hand}
+          href="/admin/interest"
+          tone={interestItemCount > 0 ? "warning" : undefined}
         />
         <StatCard
           label="Checkouts today"
