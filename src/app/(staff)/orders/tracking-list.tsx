@@ -27,9 +27,9 @@ export function TrackingList({
   updatedIds?: string[];
   /** Passed to a declined request's edit-and-resubmit form (its zone picker). */
   zones?: string[];
-  /** "waiting" — still in flight. "declined" — turned down, fixable.
-   * "collected" — finished with. */
-  variant: "waiting" | "declined" | "collected";
+  /** "waiting" — still in flight. "uncollected" — cancelled or declined
+   * (declined ones are fixable). "collected" — finished with. */
+  variant: "waiting" | "uncollected" | "collected";
 }) {
   const updated = React.useMemo(() => new Set(updatedIds), [updatedIds]);
 
@@ -74,12 +74,12 @@ export function TrackingList({
         </EmptyState>
       );
     }
-    if (variant === "declined") {
+    if (variant === "uncollected") {
       return (
         <EmptyState
           icon={ThumbsUp}
-          title="Nothing declined"
-          description="If procurement can't fill an order or a request, it lands here so you can fix it and send it back."
+          title="Nothing here"
+          description="Anything you cancelled, or that procurement couldn't fill, lands here. Declined ones can be fixed and sent back."
         />
       );
     }

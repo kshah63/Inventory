@@ -3,51 +3,52 @@
 import * as React from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type TabKey = "waiting" | "declined" | "collected" | "claims";
+type TabKey = "waiting" | "uncollected" | "collected" | "claims";
 
 const LABELS: Record<TabKey, string> = {
   waiting: "Waiting",
-  // Turned down, but not a dead end: each one can be fixed and sent back,
-  // so it sits apart from the things that are finished with.
-  declined: "Declined",
+  // Never ended up with them — cancelled or declined. Declined ones aren't a
+  // dead end (they can be fixed and sent back), so these sit apart from the
+  // things that were actually collected.
+  uncollected: "Not collected",
   collected: "Collected",
   // Money, not goods — which is why it's a tab of its own rather than more
   // cards in the other two. It's the one place a running total makes sense.
   claims: "Reimbursements",
 };
 
-/** What am I still waiting for, what got turned down, what have I had, and
+/** What am I still waiting for, what never came through, what have I had, and
  * what am I owed. Orders and bought-in requests sit together in the first
  * three — the difference between them is ours to manage, not theirs. */
 export function TrackingTabs({
   initialTab,
   waitingCount,
-  declinedCount,
+  uncollectedCount,
   claimsCount,
   waiting,
-  declined,
+  uncollected,
   collected,
   claims,
 }: {
   initialTab: TabKey;
   waitingCount: number;
-  declinedCount: number;
+  uncollectedCount: number;
   claimsCount: number;
   waiting: React.ReactNode;
-  declined: React.ReactNode;
+  uncollected: React.ReactNode;
   collected: React.ReactNode;
   claims: React.ReactNode;
 }) {
   const [tab, setTab] = React.useState<TabKey>(initialTab);
   const panels: Record<TabKey, React.ReactNode> = {
     waiting,
-    declined,
+    uncollected,
     collected,
     claims,
   };
   const counts: Partial<Record<TabKey, number>> = {
     waiting: waitingCount,
-    declined: declinedCount,
+    uncollected: uncollectedCount,
     claims: claimsCount,
   };
 

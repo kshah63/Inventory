@@ -88,13 +88,15 @@ export default async function TrackMyOrdersPage({
 
   const waitingOrders = orders.filter((o) => ORDER_OPEN.includes(o.status));
   const waitingRequests = requests.filter((r) => REQUEST_OPEN.includes(r.status));
-  // Declined is its own home — fixable, so not mixed in with things that are
-  // finished with. Everything else that's out of flight is "collected".
-  const declinedOrders = orders.filter((o) => o.status === "rejected");
-  const declinedRequests = requests.filter((r) => r.status === "rejected");
-  const doneOrders = orders.filter(
-    (o) => !ORDER_OPEN.includes(o.status) && o.status !== "rejected"
+  // Never ended up with them — cancelled or declined. Kept apart from the
+  // things that were actually collected; a declined one can still be fixed
+  // and sent back. (Requests have no cancelled state — cancelling deletes
+  // them — so only a rejected request lands here.)
+  const uncollectedOrders = orders.filter(
+    (o) => o.status === "rejected" || o.status === "cancelled"
   );
+  const uncollectedRequests = requests.filter((r) => r.status === "rejected");
+  const doneOrders = orders.filter((o) => o.status === "collected");
   const doneRequests = requests.filter(
     (r) => !REQUEST_OPEN.includes(r.status) && r.status !== "rejected"
   );
@@ -114,8 +116,8 @@ export default async function TrackMyOrdersPage({
 
       <TrackingTabs
         initialTab={
-          tab === "declined"
-            ? "declined"
+          tab === "uncollected"
+            ? "uncollected"
             : tab === "collected"
               ? "collected"
               : tab === "claims"
@@ -123,7 +125,7 @@ export default async function TrackMyOrdersPage({
                 : "waiting"
         }
         waitingCount={waitingOrders.length + waitingRequests.length}
-        declinedCount={declinedOrders.length + declinedRequests.length}
+        uncollectedCount={uncollectedOrders.length + uncollectedRequests.length}
         claimsCount={claims.filter((c) => c.status === "requested").length}
         waiting={
           <TrackingList
@@ -133,12 +135,12 @@ export default async function TrackMyOrdersPage({
             variant="waiting"
           />
         }
-        declined={
+        uncollected={
           <TrackingList
-            orders={declinedOrders}
-            requests={declinedRequests}
+            orders={uncollectedOrders}
+            requests={uncollectedRequests}
             zones={zones}
-            variant="declined"
+            variant="uncollected"
           />
         }
         collected={
