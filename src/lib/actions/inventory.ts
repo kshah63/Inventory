@@ -110,6 +110,7 @@ export async function saveItem(params: {
   unit: string;
   packSize: number | null;
   notes: string | null;
+  about: string | null;
   maxPerCheckout: number | null;
   keepAbout: number | null;
   adminOnly: boolean;
@@ -128,6 +129,7 @@ export async function saveItem(params: {
     unit: params.unit.trim() || "pcs",
     pack_size: params.packSize,
     notes: params.notes?.trim() || null,
+    about: params.about?.trim() || null,
     max_per_checkout: params.maxPerCheckout,
     keep_about: params.keepAbout,
     admin_only: params.adminOnly,

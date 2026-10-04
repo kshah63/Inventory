@@ -47,6 +47,9 @@ export interface Item {
   pack_size: number | null;
   photo_url: string | null;
   notes: string | null;
+  /** A short note shown to people ordering in the catalogue (unlike notes,
+   * which is internal). Null when there's nothing to explain. */
+  about: string | null;
   max_per_checkout: number | null;
   /** Roughly how many we like to have, across every room. Null means nobody
    * is tracking it, so it never appears on Reorder. */

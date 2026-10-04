@@ -629,6 +629,12 @@ export function CatalogueClient({
               )}
             </DialogDescription>
 
+            {selected.about && (
+              <p className="mb-3 rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
+                {selected.about}
+              </p>
+            )}
+
             {packChoice && packSize != null && (
               <div className="mb-3 flex gap-2">
                 <Chip active={!perPack} onClick={() => setPerPack(false)}>
@@ -732,6 +738,12 @@ export function CatalogueClient({
                     )}
                   </div>
                 </div>
+              )}
+
+              {resolvedVariant?.about && (
+                <p className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
+                  {resolvedVariant.about}
+                </p>
               )}
 
               {resolvedVariant &&

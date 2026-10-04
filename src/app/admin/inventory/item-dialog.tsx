@@ -45,6 +45,7 @@ export function ItemDialog({
   const [unit, setUnit] = React.useState("pcs");
   const [packSizeRaw, setPackSizeRaw] = React.useState("");
   const [notes, setNotes] = React.useState("");
+  const [about, setAbout] = React.useState("");
   const [maxRaw, setMaxRaw] = React.useState("");
   const [keepRaw, setKeepRaw] = React.useState("");
   const [adminOnly, setAdminOnly] = React.useState(false);
@@ -66,6 +67,7 @@ export function ItemDialog({
     setUnit(item?.unit ?? "pcs");
     setPackSizeRaw(item?.pack_size != null ? String(item.pack_size) : "");
     setNotes(item?.notes ?? "");
+    setAbout(item?.about ?? "");
     setMaxRaw(item?.max_per_checkout != null ? String(item.max_per_checkout) : "");
     setKeepRaw(item?.keep_about != null ? String(item.keep_about) : "");
     setAdminOnly(item?.admin_only ?? false);
@@ -116,6 +118,7 @@ export function ItemDialog({
       unit,
       packSize,
       notes: notes.trim() === "" ? null : notes,
+      about: about.trim() === "" ? null : about,
       maxPerCheckout,
       keepAbout,
       adminOnly,
@@ -198,6 +201,7 @@ export function ItemDialog({
       unit: item.unit,
       packSize: item.pack_size,
       notes: item.notes,
+      about: item.about,
       maxPerCheckout: item.max_per_checkout,
       keepAbout: item.keep_about,
       adminOnly: item.admin_only,
@@ -336,14 +340,32 @@ export function ItemDialog({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="item-notes">Notes</Label>
+          <Label htmlFor="item-about">About this item</Label>
+          <Textarea
+            id="item-about"
+            value={about}
+            onChange={(e) => setAbout(e.target.value)}
+            placeholder="Shown to people ordering — e.g. what it's for, which one to pick…"
+            rows={2}
+          />
+          <p className="text-xs text-muted-foreground">
+            Visible to everyone in the catalogue. Good for niche items that need
+            explaining.
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="item-notes">Notes (internal)</Label>
           <Textarea
             id="item-notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Optional — storage location, supplier, remarks…"
+            placeholder="Private — storage location, supplier, remarks…"
             rows={2}
           />
+          <p className="text-xs text-muted-foreground">
+            Only procurement sees this — not shown to people ordering.
+          </p>
         </div>
 
         <div className="space-y-1.5">
