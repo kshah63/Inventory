@@ -3,38 +3,51 @@
 import * as React from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type TabKey = "waiting" | "collected" | "claims";
+type TabKey = "waiting" | "declined" | "collected" | "claims";
 
 const LABELS: Record<TabKey, string> = {
   waiting: "Waiting",
+  // Turned down, but not a dead end: each one can be fixed and sent back,
+  // so it sits apart from the things that are finished with.
+  declined: "Declined",
   collected: "Collected",
   // Money, not goods — which is why it's a tab of its own rather than more
   // cards in the other two. It's the one place a running total makes sense.
   claims: "Reimbursements",
 };
 
-/** What am I still waiting for, what have I had, and what am I owed.
- * Orders and bought-in requests sit together in the first two — the
- * difference between them is ours to manage, not theirs. */
+/** What am I still waiting for, what got turned down, what have I had, and
+ * what am I owed. Orders and bought-in requests sit together in the first
+ * three — the difference between them is ours to manage, not theirs. */
 export function TrackingTabs({
   initialTab,
   waitingCount,
+  declinedCount,
   claimsCount,
   waiting,
+  declined,
   collected,
   claims,
 }: {
   initialTab: TabKey;
   waitingCount: number;
+  declinedCount: number;
   claimsCount: number;
   waiting: React.ReactNode;
+  declined: React.ReactNode;
   collected: React.ReactNode;
   claims: React.ReactNode;
 }) {
   const [tab, setTab] = React.useState<TabKey>(initialTab);
-  const panels: Record<TabKey, React.ReactNode> = { waiting, collected, claims };
+  const panels: Record<TabKey, React.ReactNode> = {
+    waiting,
+    declined,
+    collected,
+    claims,
+  };
   const counts: Partial<Record<TabKey, number>> = {
     waiting: waitingCount,
+    declined: declinedCount,
     claims: claimsCount,
   };
 

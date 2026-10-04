@@ -88,8 +88,16 @@ export default async function TrackMyOrdersPage({
 
   const waitingOrders = orders.filter((o) => ORDER_OPEN.includes(o.status));
   const waitingRequests = requests.filter((r) => REQUEST_OPEN.includes(r.status));
-  const doneOrders = orders.filter((o) => !ORDER_OPEN.includes(o.status));
-  const doneRequests = requests.filter((r) => !REQUEST_OPEN.includes(r.status));
+  // Declined is its own home — fixable, so not mixed in with things that are
+  // finished with. Everything else that's out of flight is "collected".
+  const declinedOrders = orders.filter((o) => o.status === "rejected");
+  const declinedRequests = requests.filter((r) => r.status === "rejected");
+  const doneOrders = orders.filter(
+    (o) => !ORDER_OPEN.includes(o.status) && o.status !== "rejected"
+  );
+  const doneRequests = requests.filter(
+    (r) => !REQUEST_OPEN.includes(r.status) && r.status !== "rejected"
+  );
 
   return (
     <div>
@@ -106,9 +114,16 @@ export default async function TrackMyOrdersPage({
 
       <TrackingTabs
         initialTab={
-          tab === "collected" ? "collected" : tab === "claims" ? "claims" : "waiting"
+          tab === "declined"
+            ? "declined"
+            : tab === "collected"
+              ? "collected"
+              : tab === "claims"
+                ? "claims"
+                : "waiting"
         }
         waitingCount={waitingOrders.length + waitingRequests.length}
+        declinedCount={declinedOrders.length + declinedRequests.length}
         claimsCount={claims.filter((c) => c.status === "requested").length}
         waiting={
           <TrackingList
@@ -116,6 +131,14 @@ export default async function TrackMyOrdersPage({
             requests={waitingRequests}
             updatedIds={updatedIds}
             variant="waiting"
+          />
+        }
+        declined={
+          <TrackingList
+            orders={declinedOrders}
+            requests={declinedRequests}
+            zones={zones}
+            variant="declined"
           />
         }
         collected={

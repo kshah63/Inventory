@@ -152,6 +152,49 @@ export async function updateRequestQty(
   return { ok: true, data: undefined };
 }
 
+/** Correct a request and, if it was declined, resubmit it. Fixes the item,
+ * description, link, photo, quantity and zone in one go — a declined request
+ * then goes back to procurement as open, instead of being raised afresh. */
+export async function editRequest(params: {
+  requestId: string;
+  itemName: string;
+  description?: string;
+  productUrl?: string;
+  photoUrl?: string | null;
+  qty: number;
+  zone?: string | null;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const itemName = params.itemName.trim();
+  if (!itemName) return { ok: false, error: "Tell us what you need." };
+  if (!params.qty || params.qty <= 0) {
+    return { ok: false, error: "Quantity must be at least 1." };
+  }
+  const url = params.productUrl?.trim();
+  if (url && !/^https?:\/\/\S+$/i.test(url)) {
+    return { ok: false, error: "The product link should start with http:// or https://" };
+  }
+
+  const { error } = await supabase.rpc("edit_request", {
+    p_request_id: params.requestId,
+    p_item_name: itemName,
+    p_description: params.description?.trim() || null,
+    p_product_url: url || null,
+    // null wipes the photo; undefined would too, so the caller passes the
+    // existing URL through when it's being kept.
+    p_photo_url: params.photoUrl ?? null,
+    p_qty: params.qty,
+    p_zone: params.zone?.trim() || null,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/orders");
+  revalidatePath("/requests");
+  revalidatePath("/admin/requests");
+  return { ok: true, data: undefined };
+}
+
 export async function cancelOwnRequest(requestId: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase

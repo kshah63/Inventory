@@ -90,6 +90,9 @@ export function OrderCard({
   const [savingEdit, setSavingEdit] = React.useState(false);
 
   const packed = order.status !== "pending" && order.status !== "cancelled";
+  const isRejected = order.status === "rejected";
+  // Pending orders can be tweaked; a declined one can be fixed and sent back.
+  const canEdit = order.status === "pending" || isRejected;
 
   function startEdit() {
     setDraft(
@@ -113,7 +116,7 @@ export function OrderCard({
       toast(friendlyError(result.error), "error");
       return;
     }
-    toast("Order updated.");
+    toast(isRejected ? "Resubmitted — back with procurement." : "Order updated.");
     setEditing(false);
     router.refresh();
   }
@@ -242,12 +245,12 @@ export function OrderCard({
 
       {!editing && <Timeline steps={orderSteps(order)} />}
 
-      {order.status === "pending" && (
+      {canEdit && (
         <div className="mt-3 flex flex-wrap gap-2">
           {editing ? (
             <>
               <Button size="sm" loading={savingEdit} onClick={saveEdit}>
-                <Check /> Save changes
+                <Check /> {isRejected ? "Resubmit" : "Save changes"}
               </Button>
               <Button
                 variant="ghost"
@@ -258,6 +261,10 @@ export function OrderCard({
                 <X /> Discard
               </Button>
             </>
+          ) : isRejected ? (
+            <Button variant="outline" size="sm" onClick={startEdit}>
+              <Pencil /> Edit &amp; resubmit
+            </Button>
           ) : (
             <>
               <Button variant="outline" size="sm" onClick={startEdit}>

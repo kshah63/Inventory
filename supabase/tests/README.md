@@ -93,6 +93,12 @@ columns are gone, no active device is left, and the paths that touched those
 columns — new accounts, role and User ID changes — still work. Run the first
 two suites *before* 0008, since they exercise the kiosk flow it removes.
 
+`17_resubmit_declined.sql` covers migration 0027: a declined order carries
+procurement's reason, can't be resubmitted by anyone but its owner, and when
+the owner corrects it returns to pending with the old note cleared and the
+change kept; the same for a declined request (back to open), while a blank
+item, a non-positive quantity, and a request already on order are all refused.
+
 ```bash
 createdb mvtest
 psql -d mvtest -v ON_ERROR_STOP=1 -f 00_supabase_shim.sql   # fakes auth.*, storage.*, roles
@@ -132,6 +138,9 @@ psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0024_block_out_of_stock_order
 psql -d mvtest -f 15_out_of_stock_orders.sql                 # expect: OUT OF STOCK ORDER TESTS PASSED
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0025_item_interest.sql
 psql -d mvtest -f 16_item_interest.sql                       # expect: ITEM INTEREST TESTS PASSED
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0026_item_about.sql
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0027_resubmit_declined_orders.sql
+psql -d mvtest -f 17_resubmit_declined.sql                   # expect: RESUBMIT DECLINED TESTS PASSED
 ```
 
 The shim replaces `auth.uid()` with a `test.uid` session setting so tests can

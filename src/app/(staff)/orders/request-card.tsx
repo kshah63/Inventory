@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { cancelOwnRequest, markRequestCollected } from "@/lib/actions/requests";
+import { RequestEditDialog } from "./request-edit-dialog";
 import { Timeline, type TimelineStep } from "@/components/ui/timeline";
 import {
   formatDate,
@@ -60,7 +61,14 @@ const STATUS_VARIANT: Record<
 };
 
 /** Something we don't keep on the shelf, bought in for whoever asked. */
-export function RequestCard({ request: req }: { request: RequestWithJoins }) {
+export function RequestCard({
+  request: req,
+  zones = [],
+}: {
+  request: RequestWithJoins;
+  /** Needed only when a declined request is reopened to edit and resubmit. */
+  zones?: string[];
+}) {
   const router = useRouter();
   const { toast } = useToast();
   const [cancelling, setCancelling] = React.useState(false);
@@ -188,6 +196,13 @@ export function RequestCard({ request: req }: { request: RequestWithJoins }) {
           >
             <Trash2 /> Cancel request
           </Button>
+        </div>
+      )}
+
+      {/* Declined — fix what procurement flagged and send it back. */}
+      {req.status === "rejected" && (
+        <div className="mt-3 flex justify-end">
+          <RequestEditDialog request={req} zones={zones} />
         </div>
       )}
 

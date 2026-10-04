@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { PackageCheck, ShoppingBag } from "lucide-react";
+import { PackageCheck, ShoppingBag, ThumbsUp } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { OrderCard, type StaffOrder } from "./order-card";
@@ -18,14 +18,18 @@ export function TrackingList({
   orders,
   requests,
   updatedIds = [],
+  zones = [],
   variant,
 }: {
   orders: StaffOrder[];
   requests: RequestWithJoins[];
   /** Orders that moved on since this person last looked. */
   updatedIds?: string[];
-  /** "waiting" — still in flight. "collected" — finished with. */
-  variant: "waiting" | "collected";
+  /** Passed to a declined request's edit-and-resubmit form (its zone picker). */
+  zones?: string[];
+  /** "waiting" — still in flight. "declined" — turned down, fixable.
+   * "collected" — finished with. */
+  variant: "waiting" | "declined" | "collected";
 }) {
   const updated = React.useMemo(() => new Set(updatedIds), [updatedIds]);
 
@@ -47,27 +51,39 @@ export function TrackingList({
         key: `r-${r.id}`,
         at: r.created_at,
         needsThem: r.status === "ready",
-        node: <RequestCard request={r} />,
+        node: <RequestCard request={r} zones={zones} />,
       })),
     ];
     return rows.sort((a, b) => {
       if (a.needsThem !== b.needsThem) return a.needsThem ? -1 : 1;
       return b.at.localeCompare(a.at);
     });
-  }, [orders, requests, updated]);
+  }, [orders, requests, updated, zones]);
 
   if (entries.length === 0) {
-    return variant === "waiting" ? (
-      <EmptyState
-        icon={ShoppingBag}
-        title="Nothing on the way"
-        description="Order supplies from the catalogue and they'll show up here. If we don't stock what you need, ask for it there too."
-      >
-        <Link href="/browse" className={buttonVariants({})}>
-          Browse the catalogue
-        </Link>
-      </EmptyState>
-    ) : (
+    if (variant === "waiting") {
+      return (
+        <EmptyState
+          icon={ShoppingBag}
+          title="Nothing on the way"
+          description="Order supplies from the catalogue and they'll show up here. If we don't stock what you need, ask for it there too."
+        >
+          <Link href="/browse" className={buttonVariants({})}>
+            Browse the catalogue
+          </Link>
+        </EmptyState>
+      );
+    }
+    if (variant === "declined") {
+      return (
+        <EmptyState
+          icon={ThumbsUp}
+          title="Nothing declined"
+          description="If procurement can't fill an order or a request, it lands here so you can fix it and send it back."
+        />
+      );
+    }
+    return (
       <EmptyState
         icon={PackageCheck}
         title="Nothing collected yet"
