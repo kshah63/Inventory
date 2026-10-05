@@ -93,6 +93,13 @@ columns are gone, no active device is left, and the paths that touched those
 columns — new accounts, role and User ID changes — still work. Run the first
 two suites *before* 0008, since they exercise the kiosk flow it removes.
 
+`18_stock_reservation.sql` covers migration 0028: a pending order holds its
+stock, so it shows as committed and a second person is offered only what's
+left (over-ordering is refused and leaves nothing behind); once every unit is
+reserved nothing can be ordered even with stock on the shelf; packing an order
+drops it out of the committed tally (never double-counted); a declined order
+frees its stock again; and an edit respects everyone else's reservations.
+
 `17_resubmit_declined.sql` covers migration 0027: a declined order carries
 procurement's reason, can't be resubmitted by anyone but its owner, and when
 the owner corrects it returns to pending with the old note cleared and the
@@ -141,6 +148,8 @@ psql -d mvtest -f 16_item_interest.sql                       # expect: ITEM INTE
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0026_item_about.sql
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0027_resubmit_declined_orders.sql
 psql -d mvtest -f 17_resubmit_declined.sql                   # expect: RESUBMIT DECLINED TESTS PASSED
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0028_stock_reservation.sql
+psql -d mvtest -f 18_stock_reservation.sql                   # expect: STOCK RESERVATION TESTS PASSED
 ```
 
 The shim replaces `auth.uid()` with a `test.uid` session setting so tests can

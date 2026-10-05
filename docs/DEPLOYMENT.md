@@ -16,7 +16,7 @@ half an hour.
    seeds the two locations (Level 8, Basement) + categories.
 3. Run the remaining migration files in
    [`supabase/migrations/`](../supabase/migrations) **in numerical order**
-   (`0002` → `0027`), one at a time, same way. Each is safe to run on a live
+   (`0002` → `0028`), one at a time, same way. Each is safe to run on a live
    database and only needs running once:
 
    | File | What it adds |
@@ -47,6 +47,7 @@ half an hour.
    | `0025_item_interest.sql` | "Express interest" on an out-of-stock item — a soft demand tally for procurement, not a request |
    | `0026_item_about.sql` | A short "About this item" note shown to people ordering in the catalogue (separate from the internal Notes) |
    | `0027_resubmit_declined_orders.sql` | Lets a declined order or bought-in request be corrected and resubmitted, instead of raised from scratch |
+   | `0028_stock_reservation.sql` | Stock in a pending (uncollected) order is held, so the same units aren't offered twice — the catalogue shows what's left after reservations |
 
 4. *(Optional)* Run [`supabase/seed_demo.sql`](../supabase/seed_demo.sql) for
    a sample catalog to click around with. Skip if you'll import your real

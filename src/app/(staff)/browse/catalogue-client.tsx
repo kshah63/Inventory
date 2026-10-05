@@ -66,6 +66,7 @@ export function CatalogueClient({
   zones,
   aliases = {},
   interestedIds = [],
+  committed = {},
 }: {
   items: CatalogItem[];
   groups?: ItemGroup[];
@@ -76,9 +77,18 @@ export function CatalogueClient({
   aliases?: Record<string, string[]>;
   /** Item ids this viewer has already expressed interest in. */
   interestedIds?: string[];
+  /** How many of each item pending orders already hold, so the same stock
+   * isn't offered twice. Keyed by item id. */
+  committed?: Record<string, number>;
 }) {
   const router = useRouter();
   const { toast } = useToast();
+
+  // What's actually orderable: on the shelf, less what pending orders hold.
+  const availableQty = React.useCallback(
+    (item: CatalogItem) => Math.max(0, totalStock(item) - (committed[item.id] ?? 0)),
+    [committed]
+  );
 
   const [query, setQuery] = React.useState("");
   const [categoryId, setCategoryId] = React.useState<string | null>(null);
@@ -199,7 +209,10 @@ export function CatalogueClient({
   const cartCount = cart.reduce((n, l) => n + l.qty, 0);
 
   const selected = selectedId ? items.find((i) => i.id === selectedId) ?? null : null;
-  const available = selected ? totalStock(selected) : 0;
+  const available = selected ? availableQty(selected) : 0;
+  // Physically present, regardless of what's reserved — tells "none in stock"
+  // apart from "all of it is already in orders".
+  const selectedPhysical = selected ? totalStock(selected) : 0;
   const packSize = selected?.pack_size ?? null;
   const packChoice = packSize != null && packSize > 1 && available >= packSize;
   const usePack = perPack && packChoice && packSize != null;
@@ -295,6 +308,21 @@ export function CatalogueClient({
     );
   }
 
+  /** In stock, but every unit is already in a pending order — so there's none
+   * to order right now. Not out of stock, so no interest prompt; it frees up
+   * as those orders are collected, cancelled or come up short. */
+  function ReservedNotice({ unit, physical }: { unit: string; physical: number }) {
+    return (
+      <div className="rounded-md border border-dashed bg-muted/40 p-3">
+        <p className="text-sm font-medium">None available to order right now.</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          All {physical} {unit} we have are already in orders waiting to be
+          collected. Check back once they&apos;ve been picked up.
+        </p>
+      </div>
+    );
+  }
+
   const openGroup = (e: Extract<Entry, { kind: "group" }>) => {
     const a1opts = [...new Set(e.variants.map((v) => v.attr1_value).filter(Boolean))];
     setGroupKey(e.key);
@@ -331,7 +359,8 @@ export function CatalogueClient({
           v.attr1_value === a1 && (groupSel.group.attr2_label ? v.attr2_value === a2 : true)
       ) ?? null
     : null;
-  const gAvailable = resolvedVariant ? totalStock(resolvedVariant) : 0;
+  const gAvailable = resolvedVariant ? availableQty(resolvedVariant) : 0;
+  const gPhysical = resolvedVariant ? totalStock(resolvedVariant) : 0;
   const gCap = resolvedVariant?.max_per_checkout ?? null;
   const gMax = Math.max(1, Math.min(gAvailable || 1, gCap ?? Infinity));
   const gClamped = Math.max(1, Math.min(gQty, gMax));
@@ -443,7 +472,8 @@ export function CatalogueClient({
           {pageEntries.map((entry) => {
             if (entry.kind === "group") {
               const variants = entry.variants;
-              const stock = variants.reduce((n, v) => n + totalStock(v), 0);
+              const stock = variants.reduce((n, v) => n + availableQty(v), 0);
+              const physical = variants.reduce((n, v) => n + totalStock(v), 0);
               const inCart = variants.reduce((n, v) => n + (cartQty.get(v.id) ?? 0), 0);
               const photo =
                 entry.group.photo_url ?? variants.find((v) => v.photo_url)?.photo_url ?? null;
@@ -485,13 +515,15 @@ export function CatalogueClient({
                         : ""}
                     </span>
                     <span className="mt-1 text-xs">
-                      {stock === 0 ? (
-                        <span className="font-semibold text-destructive">Out of stock</span>
-                      ) : (
+                      {stock > 0 ? (
                         <>
                           <span className="font-semibold text-success">{stock}</span>
-                          <span className="text-muted-foreground"> in stock</span>
+                          <span className="text-muted-foreground"> available</span>
                         </>
+                      ) : physical > 0 ? (
+                        <span className="font-semibold text-warning">Fully reserved</span>
+                      ) : (
+                        <span className="font-semibold text-destructive">Out of stock</span>
                       )}
                     </span>
                   </div>
@@ -529,14 +561,18 @@ export function CatalogueClient({
                   <span className="text-[11px] text-muted-foreground">{item.sku}</span>
                   <span className="mt-1 text-xs">
                     {(() => {
-                      const n = totalStock(item);
-                      return n === 0 ? (
-                        <span className="font-semibold text-destructive">Out of stock</span>
+                      const n = availableQty(item);
+                      if (n > 0)
+                        return (
+                          <>
+                            <span className="font-semibold text-success">{n}</span>
+                            <span className="text-muted-foreground"> available</span>
+                          </>
+                        );
+                      return totalStock(item) > 0 ? (
+                        <span className="font-semibold text-warning">Fully reserved</span>
                       ) : (
-                        <>
-                          <span className="font-semibold text-success">{n}</span>
-                          <span className="text-muted-foreground"> in stock</span>
-                        </>
+                        <span className="font-semibold text-destructive">Out of stock</span>
                       );
                     })()}
                   </span>
@@ -618,10 +654,12 @@ export function CatalogueClient({
             <DialogDescription>
               {selected.sku}
               {" · "}
-              {available === 0
-                ? "Out of stock"
-                : `${available} ${selected.unit} in stock`}
-              {perOrderCap !== null && (
+              {available > 0
+                ? `${available} ${selected.unit} available`
+                : selectedPhysical > 0
+                  ? "All in orders right now"
+                  : "Out of stock"}
+              {perOrderCap !== null && available > 0 && (
                 <span className="mt-1 block">
                   Up to {perOrderCap} {selected.unit} per order, so there&apos;s
                   enough to go round.
@@ -646,9 +684,7 @@ export function CatalogueClient({
               </div>
             )}
 
-            {available === 0 ? (
-              <InterestFooter item={selected} />
-            ) : (
+            {available > 0 ? (
               <div className="flex items-center gap-3">
                 <Label htmlFor="shop-qty" className="shrink-0">
                   Quantity
@@ -668,6 +704,10 @@ export function CatalogueClient({
                     : selected.unit}
                 </span>
               </div>
+            ) : selectedPhysical > 0 ? (
+              <ReservedNotice unit={selected.unit} physical={selectedPhysical} />
+            ) : (
+              <InterestFooter item={selected} />
             )}
 
             <DialogFooter>
@@ -748,15 +788,19 @@ export function CatalogueClient({
 
               {resolvedVariant &&
                 (gAvailable === 0 ? (
-                  <InterestFooter
-                    item={{ id: resolvedVariant.id, name: resolvedVariant.name }}
-                  />
+                  gPhysical > 0 ? (
+                    <ReservedNotice unit={resolvedVariant.unit} physical={gPhysical} />
+                  ) : (
+                    <InterestFooter
+                      item={{ id: resolvedVariant.id, name: resolvedVariant.name }}
+                    />
+                  )
                 ) : (
                   <>
                     <p className="text-sm text-muted-foreground">
                       {resolvedVariant.sku}
                       {" · "}
-                      {`${gAvailable} ${resolvedVariant.unit} in stock`}
+                      {`${gAvailable} ${resolvedVariant.unit} available`}
                       {gCap !== null && ` · up to ${gCap} per order`}
                     </p>
                     <div className="flex items-center gap-3">
