@@ -18,6 +18,7 @@ export default async function CataloguePage() {
     groupsRes,
     interestRes,
     committedRes,
+    restockRes,
   ] = await Promise.all([
     supabase
       .from("locations")
@@ -38,6 +39,12 @@ export default async function CataloguePage() {
     // How much of each item is already held by pending orders (everyone's),
     // so the shelf isn't offered twice. Aggregate only — no identities.
     supabase.rpc("item_committed_qty"),
+    // "Back in stock" notices for things this person was waiting on (RLS
+    // returns only their own), not yet dismissed.
+    supabase
+      .from("restock_notices")
+      .select("item_id, items(name, is_active)")
+      .is("seen_at", null),
   ]);
 
   const locations = (locationsRes.data ?? []) as unknown as Location[];
@@ -67,6 +74,17 @@ export default async function CataloguePage() {
     committed[row.item_id] = row.committed;
   }
 
+  // Items this person was waiting on that are back — shown as a banner they
+  // can dismiss. Skip any that have since been archived.
+  const restockNotices = (
+    (restockRes.data ?? []) as unknown as {
+      item_id: string;
+      items: { name: string; is_active: boolean } | null;
+    }[]
+  )
+    .filter((r) => r.items?.is_active)
+    .map((r) => ({ item_id: r.item_id, name: r.items!.name }));
+
   return (
     <div>
       <PageHeader
@@ -82,6 +100,7 @@ export default async function CataloguePage() {
         aliases={aliases}
         interestedIds={interestedIds}
         committed={committed}
+        restockNotices={restockNotices}
       />
     </div>
   );

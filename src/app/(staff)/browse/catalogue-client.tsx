@@ -9,6 +9,7 @@ import {
   Hand,
   Layers,
   Package,
+  PackageCheck,
   Search,
   SearchX,
   ShoppingBag,
@@ -25,7 +26,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { matchesWords, queryWords, relevance, searchableText } from "@/lib/search";
 import { createOrder } from "@/lib/actions/orders";
-import { expressInterest, withdrawInterest } from "@/lib/actions/interest";
+import {
+  expressInterest,
+  markRestockNoticesSeen,
+  withdrawInterest,
+} from "@/lib/actions/interest";
 import { NewRequestDialog } from "@/app/(staff)/requests/new-request-dialog";
 import { ClaimDialog } from "@/app/(staff)/claims/claim-dialog";
 import { ZonePicker } from "@/components/zone-picker";
@@ -67,6 +72,7 @@ export function CatalogueClient({
   aliases = {},
   interestedIds = [],
   committed = {},
+  restockNotices = [],
 }: {
   items: CatalogItem[];
   groups?: ItemGroup[];
@@ -80,6 +86,9 @@ export function CatalogueClient({
   /** How many of each item pending orders already hold, so the same stock
    * isn't offered twice. Keyed by item id. */
   committed?: Record<string, number>;
+  /** Items this viewer was waiting on that are back in stock, to show as a
+   * dismissible banner. */
+  restockNotices?: { item_id: string; name: string }[];
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -99,6 +108,8 @@ export function CatalogueClient({
     () => new Set(interestedIds)
   );
   const [interestBusy, setInterestBusy] = React.useState<string | null>(null);
+  // "Back in stock" notices for things this viewer was waiting on.
+  const [backInStock, setBackInStock] = React.useState(restockNotices);
 
   // Item dialog
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
@@ -249,6 +260,12 @@ export function CatalogueClient({
     setQty(cartQty.get(item.id) ?? 1);
     setPerPack(false);
   };
+
+  // Clear the "back in stock" banner once they've seen it.
+  async function dismissRestock() {
+    setBackInStock([]);
+    await markRestockNoticesSeen();
+  }
 
   // A soft "I'd want this" signal on an out-of-stock item — not an order and
   // not a request, just demand procurement can glance at. Optimistic.
@@ -418,6 +435,48 @@ export function CatalogueClient({
 
   return (
     <div className={cn("space-y-4", cart.length > 0 && "pb-24")}>
+      {/* Back in stock — the in-app "we got it" for people who'd expressed
+          interest while it was out. Dismissible; clears once seen. */}
+      {backInStock.length > 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-success/40 bg-success/5 p-3">
+          <PackageCheck className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">Back in stock</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Something you were waiting for is available again:{" "}
+              {backInStock.map((n, i) => {
+                const item = items.find((it) => it.id === n.item_id);
+                return (
+                  <React.Fragment key={n.item_id}>
+                    {i > 0 && ", "}
+                    {item ? (
+                      <button
+                        type="button"
+                        onClick={() => openItem(item)}
+                        className="font-medium text-primary underline-offset-2 hover:underline"
+                      >
+                        {n.name}
+                      </button>
+                    ) : (
+                      <span className="font-medium text-foreground">{n.name}</span>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+              .
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={dismissRestock}
+            aria-label="Dismiss"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Search and categories stay put while you page through the shelves. */}
       <div className="sticky top-0 z-30 -mx-4 space-y-3 bg-background/95 px-4 pb-3 pt-1 backdrop-blur sm:-mx-6 sm:px-6">
         <div className="relative">

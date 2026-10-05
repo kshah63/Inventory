@@ -93,6 +93,12 @@ columns are gone, no active device is left, and the paths that touched those
 columns — new accounts, role and User ID changes — still work. Run the first
 two suites *before* 0008, since they exercise the kiosk flow it removes.
 
+`19_restock_notices.sql` covers migration 0029: when an item people were
+interested in comes back into stock (zero → positive across the rooms), the
+interest tally is cleared and each interested person gets an unseen "back in
+stock" notice; dismissing marks only your own; and a top-up of an item that
+already had stock neither clears interest nor raises a notice.
+
 `18_stock_reservation.sql` covers migration 0028: a pending order holds its
 stock, so it shows as committed and a second person is offered only what's
 left (over-ordering is refused and leaves nothing behind); once every unit is
@@ -150,6 +156,8 @@ psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0027_resubmit_declined_orders
 psql -d mvtest -f 17_resubmit_declined.sql                   # expect: RESUBMIT DECLINED TESTS PASSED
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0028_stock_reservation.sql
 psql -d mvtest -f 18_stock_reservation.sql                   # expect: STOCK RESERVATION TESTS PASSED
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0029_restock_notices.sql
+psql -d mvtest -f 19_restock_notices.sql                     # expect: RESTOCK NOTICES TESTS PASSED
 ```
 
 The shim replaces `auth.uid()` with a `test.uid` session setting so tests can

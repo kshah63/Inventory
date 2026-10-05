@@ -21,3 +21,13 @@ export async function withdrawInterest(itemId: string): Promise<ActionResult> {
   revalidatePath("/browse");
   return { ok: true, data: undefined };
 }
+
+/** Dismiss the "back in stock" notices shown to the person who'd expressed
+ * interest, once they've seen them. */
+export async function markRestockNoticesSeen(): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_restock_notices_seen");
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/browse");
+  return { ok: true, data: undefined };
+}
