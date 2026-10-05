@@ -11,22 +11,22 @@
 -- ║ none of it does — but a backup is still the safety net.
 -- ╚══════════════════════════════════════════════════════════════════════════
 --
--- WHAT THIS RESETS (your chosen scope — "stock counts only"):
+-- WHAT THIS RESETS:
 --   1. Every item's stock count → 0, in every room. Ready for the fresh count.
 --   2. Past stocktakes → cleared.
 --   3. The "interested" / "back in stock" tallies → cleared, so that loading
 --      your real opening stock does NOT fire "back in stock" notices off
 --      interest people tapped during the trial.
+--   4. All trial ORDERS (and their lines) → cleared, and order numbering
+--      restarts so the first real order is #1.
 --
 -- WHAT THIS KEEPS:
 --   • The catalogue — items, categories, variant groups, photos, aliases.
 --   • Suppliers, locations (Level 8 / Basement), zones.
 --   • Every user account and their four-digit User ID.
---   • The full order / request / reimbursement history and the stock ledger.
---
--- Fresh "#1" order numbering is the OPTIONAL block at the very bottom — it
--- needs the trial orders cleared first, so it's kept separate. Leave it out to
--- keep every order and let numbering simply carry on from the last number used.
+--   • New-item requests, reimbursement claims, and the stock ledger — UNLESS
+--     you also run the optional blocks at the bottom (recommended if those
+--     were all testing too).
 
 begin;
 
@@ -43,26 +43,40 @@ truncate public.stocktakes cascade;
 truncate public.item_interest;
 truncate public.restock_notices;
 
+-- 4. Clear the trial orders (lines cascade) and restart numbering at #1.
+truncate public.orders cascade;
+alter table public.orders alter column order_no restart with 1;
+
 commit;
 
--- Sanity check — both of these should come back 0:
+-- Sanity check — these should all come back 0:
 --   select coalesce(sum(qty_on_hand), 0) as units_on_hand from public.stock_levels;
 --   select count(*) as stocktakes from public.stocktakes;
+--   select count(*) as orders from public.orders;
 
 
 -- ╔══════════════════════════════════════════════════════════════════════════
--- ║ OPTIONAL — make the first real order #1
+-- ║ OPTIONAL — wipe the rest of the trial history too
 -- ╠══════════════════════════════════════════════════════════════════════════
--- ║ Run this block ONLY if you also want the order numbering to restart at 1.
--- ║ It clears every trial ORDER and its lines (requests and reimbursement
--- ║ claims are left untouched) and restarts the counter. An identity counter
--- ║ can't restart under rows that already use those numbers, so the orders
--- ║ have to go first. Skip this block to keep order history, in which case new
--- ║ orders just continue from the last number used.
+-- ║ The blocks below are commented out. Run whichever apply — if the trial
+-- ║ really was all testing, running all three gives a completely blank slate.
+-- ║ To run a block, remove the leading "-- " from each of its lines.
 -- ║
--- ║ To run it, remove the leading "-- " from each line below.
--- ╚══════════════════════════════════════════════════════════════════════════
+-- ║ (a) New-item requests (the "Request a new item" queue):
 -- begin;
---   truncate public.orders cascade;   -- order_lines cascade away with them
---   alter table public.orders alter column order_no restart with 1;
+--   truncate public.requests;
 -- commit;
+-- ║
+-- ║ (b) Reimbursement claims (and their lines + receipt records; the receipt
+-- ║     files themselves sit in storage and can be cleared there if wanted):
+-- begin;
+--   truncate public.claims cascade;
+-- commit;
+-- ║
+-- ║ (c) The stock ledger — every historic movement (receive, checkout,
+-- ║     transfer, adjustment, stocktake). This is the audit trail, so only
+-- ║     wipe it if you want reports to start from a blank page:
+-- begin;
+--   truncate public.transactions;
+-- commit;
+-- ╚══════════════════════════════════════════════════════════════════════════
