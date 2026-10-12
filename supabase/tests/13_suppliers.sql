@@ -98,6 +98,41 @@ begin
   perform public.t_assert(v_ok, 'an alias can only point at one supplier');
 end $$;
 
+-- ═══ Sub-groups: no duplicate names, and an empty stray can be removed ═══
+do $$
+declare v_res jsonb; v_sg uuid; v_ok boolean := false;
+begin
+  v_res := public.add_supplier_subgroup(24750, 'zz Spare Block', 10);
+  v_sg := (v_res->>'subgroup_id')::uuid;
+
+  -- The same name again (any case) in the same group is refused — the thing
+  -- that let a duplicate be created by accident.
+  begin
+    perform public.add_supplier_subgroup(24750, 'ZZ SPARE BLOCK', 10);
+  exception when others then v_ok := true;
+  end;
+  perform public.t_assert(v_ok, 'a duplicate sub-group name in one group is refused');
+
+  -- An empty one can be deleted.
+  perform public.delete_supplier_subgroup(v_sg);
+  perform public.t_assert(
+    not exists (select 1 from public.supplier_subgroups where id = v_sg),
+    'an empty sub-group can be deleted');
+end $$;
+
+do $$
+declare v_res jsonb; v_sg uuid; v_ok boolean := false;
+begin
+  v_res := public.add_supplier_subgroup(24750, 'zz Occupied Block', 10);
+  v_sg := (v_res->>'subgroup_id')::uuid;
+  perform public.add_supplier(v_sg, 'zz Lodger', null);
+  begin
+    perform public.delete_supplier_subgroup(v_sg);
+  exception when others then v_ok := true;
+  end;
+  perform public.t_assert(v_ok, 'a sub-group with suppliers in it cannot be deleted');
+end $$;
+
 -- ═══ Invisible outside the central team ═══
 set role authenticated;
 set test.uid = 'aaaaaaaa-0000-0000-0000-000000000002';  -- staff

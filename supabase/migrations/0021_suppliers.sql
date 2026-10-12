@@ -239,6 +239,14 @@ begin
   if not exists (select 1 from public.supplier_groups where code = p_group_code) then
     raise exception 'Group not found.';
   end if;
+  -- No two sub-groups with the same name in one group — the thing that lets a
+  -- duplicate be created by accident. Case-insensitive.
+  if exists (
+    select 1 from public.supplier_subgroups
+    where group_code = p_group_code and lower(name) = lower(v_name)
+  ) then
+    raise exception 'A sub-group called "%" already exists in this group.', v_name;
+  end if;
 
   -- Serialise per group, then take the first aligned block that doesn't
   -- overlap anything already claimed.
@@ -262,6 +270,30 @@ end;
 $$;
 
 grant execute on function public.add_supplier_subgroup(int, text, int) to authenticated;
+
+-- Remove a sub-group that was created by mistake. Only ever when it's empty —
+-- a sub-group that has suppliers is never dropped, because their codes point
+-- at it. (Retire or move the suppliers first.)
+create or replace function public.delete_supplier_subgroup(p_subgroup_id uuid)
+returns void
+language plpgsql security definer set search_path = public, extensions
+as $$
+declare
+  v_sg public.supplier_subgroups;
+begin
+  perform public._require_admin();
+  select * into v_sg from public.supplier_subgroups where id = p_subgroup_id;
+  if v_sg.id is null then
+    raise exception 'Sub-group not found.';
+  end if;
+  if exists (select 1 from public.suppliers where subgroup_id = p_subgroup_id) then
+    raise exception 'This sub-group has suppliers in it — retire or move them first.';
+  end if;
+  delete from public.supplier_subgroups where id = p_subgroup_id;
+end;
+$$;
+
+grant execute on function public.delete_supplier_subgroup(uuid) to authenticated;
 
 -- ═══ Recode 24150 Power, Water & Energy (runs before the seed) ═════════════
 -- SP Digital leads the block at 101 so the SP accounts run 101–105, and

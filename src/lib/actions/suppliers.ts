@@ -74,3 +74,17 @@ export async function addSupplierSubgroup(params: {
   revalidatePath("/admin/suppliers");
   return { ok: true, data: data as { code_start: number; code_end: number } };
 }
+
+/** Remove a sub-group created by mistake. The RPC refuses if it has any
+ * suppliers — their codes reference it. */
+export async function deleteSupplierSubgroup(
+  subgroupId: string
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_supplier_subgroup", {
+    p_subgroup_id: subgroupId,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/suppliers");
+  return { ok: true, data: undefined };
+}

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Copy, Download, Pencil, Plus, Search } from "lucide-react";
+import { Building2, Copy, Download, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +22,7 @@ import {
   addSupplier,
   addSupplierAlias,
   addSupplierSubgroup,
+  deleteSupplierSubgroup,
   updateSupplier,
 } from "@/lib/actions/suppliers";
 import { matchesWords, queryWords } from "@/lib/search";
@@ -312,6 +313,8 @@ export function SuppliersClient({
         open={subgroupOpen}
         onClose={() => setSubgroupOpen(false)}
         groups={groups}
+        subgroups={subgroups}
+        suppliers={suppliers}
       />
       <EditSupplierDialog supplier={editing} onClose={() => setEditing(null)} />
     </div>
@@ -468,10 +471,14 @@ function NewSubgroupDialog({
   open,
   onClose,
   groups,
+  subgroups,
+  suppliers,
 }: {
   open: boolean;
   onClose: () => void;
   groups: SupplierGroup[];
+  subgroups: SupplierSubgroup[];
+  suppliers: SupplierRow[];
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -479,6 +486,9 @@ function NewSubgroupDialog({
   const [name, setName] = React.useState("");
   const [width, setWidth] = React.useState<"10" | "100">("100");
   const [saving, setSaving] = React.useState(false);
+  // Two-step delete, so an empty stray can't go in a single misclick.
+  const [confirmDelete, setConfirmDelete] = React.useState<string | null>(null);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!open) return;
@@ -486,10 +496,31 @@ function NewSubgroupDialog({
     setName("");
     setWidth("100");
     setSaving(false);
+    setConfirmDelete(null);
+    setDeletingId(null);
   }, [open]);
 
+  // What's already in the chosen group — shown so a duplicate isn't made by
+  // accident, with each one's live supplier count.
+  const existing = React.useMemo(
+    () =>
+      subgroups
+        .filter((sg) => String(sg.group_code) === groupCode)
+        .map((sg) => ({
+          ...sg,
+          count: suppliers.filter((s) => s.subgroup_id === sg.id).length,
+        }))
+        .sort((a, b) => a.code_start - b.code_start),
+    [subgroups, suppliers, groupCode]
+  );
+  // A name that already exists in this group (case-insensitive) is the thing
+  // we're trying to prevent.
+  const duplicate =
+    name.trim() !== "" &&
+    existing.some((sg) => sg.name.toLowerCase() === name.trim().toLowerCase());
+
   async function submit() {
-    if (!groupCode || !name.trim() || saving) return;
+    if (!groupCode || !name.trim() || saving || duplicate) return;
     setSaving(true);
     const res = await addSupplierSubgroup({
       groupCode: Number(groupCode),
@@ -509,6 +540,19 @@ function NewSubgroupDialog({
     onClose();
   }
 
+  async function remove(sg: SupplierSubgroup) {
+    setDeletingId(sg.id);
+    const res = await deleteSupplierSubgroup(sg.id);
+    setDeletingId(null);
+    setConfirmDelete(null);
+    if (!res.ok) {
+      toast(friendlyError(res.error), "error");
+      return;
+    }
+    toast(`Deleted the empty sub-group "${sg.name}".`, "success");
+    router.refresh();
+  }
+
   return (
     <Dialog open={open} onClose={saving ? () => {} : onClose} className="max-w-md">
       <DialogTitle>New sub-group</DialogTitle>
@@ -519,7 +563,14 @@ function NewSubgroupDialog({
       <div className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="nsg-group">Group</Label>
-          <Select id="nsg-group" value={groupCode} onChange={(e) => setGroupCode(e.target.value)}>
+          <Select
+            id="nsg-group"
+            value={groupCode}
+            onChange={(e) => {
+              setGroupCode(e.target.value);
+              setConfirmDelete(null);
+            }}
+          >
             <option value="">Select a group…</option>
             {groups.map((g) => (
               <option key={g.code} value={g.code}>
@@ -528,9 +579,71 @@ function NewSubgroupDialog({
             ))}
           </Select>
         </div>
+
+        {/* Already in this group — so you don't add one that's already here. */}
+        {groupCode && (
+          <div className="space-y-1.5">
+            <Label>Already in this group</Label>
+            {existing.length === 0 ? (
+              <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                None yet — this will be the first.
+              </p>
+            ) : (
+              <ul className="max-h-44 divide-y overflow-y-auto rounded-md border">
+                {existing.map((sg) => (
+                  <li key={sg.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                    <span className="min-w-0 flex-1 truncate">{sg.name}</span>
+                    <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                      {sg.group_code}-{sg.code_start + 1}–{sg.code_end}
+                    </span>
+                    <span className="w-16 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                      {sg.count} {sg.count === 1 ? "supplier" : "suppliers"}
+                    </span>
+                    {/* Only an empty sub-group can be removed. */}
+                    {sg.count === 0 &&
+                      (confirmDelete === sg.id ? (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-7 shrink-0 px-2"
+                          loading={deletingId === sg.id}
+                          onClick={() => remove(sg)}
+                        >
+                          Confirm
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                          aria-label={`Delete empty sub-group ${sg.name}`}
+                          title="Delete this empty sub-group"
+                          onClick={() => setConfirmDelete(sg.id)}
+                        >
+                          <Trash2 />
+                        </Button>
+                      ))}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
         <div className="space-y-1.5">
-          <Label htmlFor="nsg-name">Sub-group name</Label>
-          <Input id="nsg-name" value={name} onChange={(e) => setName(e.target.value)} />
+          <Label htmlFor="nsg-name">New sub-group name</Label>
+          <Input
+            id="nsg-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            aria-invalid={duplicate}
+          />
+          {duplicate && (
+            <p className="text-xs text-destructive">
+              There&apos;s already a sub-group with this name in the group —
+              check the list above.
+            </p>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="nsg-width">Block size</Label>
@@ -548,7 +661,11 @@ function NewSubgroupDialog({
         <Button variant="outline" onClick={onClose} disabled={saving}>
           Cancel
         </Button>
-        <Button onClick={submit} loading={saving} disabled={!groupCode || !name.trim()}>
+        <Button
+          onClick={submit}
+          loading={saving}
+          disabled={!groupCode || !name.trim() || duplicate}
+        >
           Create sub-group
         </Button>
       </DialogFooter>
