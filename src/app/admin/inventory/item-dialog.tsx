@@ -275,8 +275,11 @@ export function ItemDialog({
               id="item-unit"
               value={unit}
               onChange={(e) => setUnit(e.target.value)}
-              placeholder="pcs / ream / box"
+              placeholder="pcs / clip / sheet"
             />
+            <p className="text-xs text-muted-foreground">
+              The single item people order — e.g. clip, sheet, pen.
+            </p>
           </div>
         </div>
 
@@ -292,8 +295,18 @@ export function ItemDialog({
               placeholder="Optional, e.g. 12"
               className="tabular-nums"
             />
-            {packSizeInvalid && (
+            {packSizeInvalid ? (
               <p className="text-xs text-destructive">Pack size must be a positive number.</p>
+            ) : packSize !== null && packSize > 1 ? (
+              <p className="text-xs text-muted-foreground">
+                People can order a single {unit.trim() || "unit"} or a pack of {packSize}.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                How many {unit.trim() || "units"} are in a pack or box. Set it to let
+                people order a single {unit.trim() || "unit"} or a full pack; leave
+                blank for single only.
+              </p>
             )}
           </div>
           <div className="space-y-1.5">
