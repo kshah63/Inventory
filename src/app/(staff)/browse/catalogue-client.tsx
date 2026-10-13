@@ -121,6 +121,8 @@ export function CatalogueClient({
   const [a1, setA1] = React.useState<string | null>(null);
   const [a2, setA2] = React.useState<string | null>(null);
   const [gQty, setGQty] = React.useState(1);
+  // Single vs pack, for a variant that comes in packs (mirrors the item dialog).
+  const [gPerPack, setGPerPack] = React.useState(false);
 
   // Order review
   const [reviewOpen, setReviewOpen] = React.useState(false);
@@ -346,6 +348,7 @@ export function CatalogueClient({
     setA1(a1opts.length === 1 ? (a1opts[0] as string) : null);
     setA2(null);
     setGQty(1);
+    setGPerPack(false);
   };
 
   // The group being chosen from, its attribute options, and the variant the
@@ -379,8 +382,25 @@ export function CatalogueClient({
   const gAvailable = resolvedVariant ? availableQty(resolvedVariant) : 0;
   const gPhysical = resolvedVariant ? totalStock(resolvedVariant) : 0;
   const gCap = resolvedVariant?.max_per_checkout ?? null;
-  const gMax = Math.max(1, Math.min(gAvailable || 1, gCap ?? Infinity));
+  // A variant can come in packs too (e.g. a box of binder clips): offer single
+  // or pack, the same as a standalone item does.
+  const gPackSize = resolvedVariant?.pack_size ?? null;
+  const gPackChoice = gPackSize != null && gPackSize > 1 && gAvailable >= gPackSize;
+  const gUsePack = gPerPack && gPackChoice && gPackSize != null;
+  const gMaxUnits = Math.max(1, Math.min(gAvailable || 1, gCap ?? Infinity));
+  const gMax =
+    gUsePack && gPackSize != null
+      ? Math.max(1, Math.floor(gMaxUnits / gPackSize))
+      : gMaxUnits;
   const gClamped = Math.max(1, Math.min(gQty, gMax));
+  // What actually goes in the cart — always in single units.
+  const gBaseQty = gUsePack && gPackSize != null ? gClamped * gPackSize : gClamped;
+
+  // Switching to a different variant drops any pack choice, so it can't carry
+  // over to one that isn't sold in packs.
+  React.useEffect(() => {
+    setGPerPack(false);
+  }, [resolvedVariant?.id]);
 
   const stockLabel = (item: CatalogItem, locationId_: string) =>
     item.stock_levels.find((sl) => sl.location_id === locationId_)?.qty_on_hand ?? 0;
@@ -862,6 +882,18 @@ export function CatalogueClient({
                       {`${gAvailable} ${resolvedVariant.unit} available`}
                       {gCap !== null && ` · up to ${gCap} per order`}
                     </p>
+
+                    {gPackChoice && gPackSize != null && (
+                      <div className="flex gap-2">
+                        <Chip active={!gPerPack} onClick={() => setGPerPack(false)}>
+                          Single {resolvedVariant.unit}
+                        </Chip>
+                        <Chip active={gPerPack} onClick={() => setGPerPack(true)}>
+                          Pack of {gPackSize}
+                        </Chip>
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-3">
                       <Label htmlFor="grp-qty" className="shrink-0">
                         Quantity
@@ -876,7 +908,9 @@ export function CatalogueClient({
                         className="w-24"
                       />
                       <span className="text-sm text-muted-foreground">
-                        {resolvedVariant.unit}
+                        {gUsePack && gPackSize != null
+                          ? `pack${gClamped === 1 ? "" : "s"} of ${gPackSize} = ${gBaseQty} ${resolvedVariant.unit}`
+                          : resolvedVariant.unit}
                       </span>
                     </div>
                   </>
@@ -892,12 +926,12 @@ export function CatalogueClient({
                   disabled={!resolvedVariant}
                   onClick={() => {
                     if (!resolvedVariant) return;
-                    setCartLine(resolvedVariant.id, gClamped);
+                    setCartLine(resolvedVariant.id, gBaseQty);
                     setGroupKey(null);
                   }}
                 >
                   {resolvedVariant && cartQty.has(resolvedVariant.id) ? "Update" : "Add"}
-                  {resolvedVariant ? ` — ${gClamped} ${resolvedVariant.unit}` : ""}
+                  {resolvedVariant ? ` — ${gBaseQty} ${resolvedVariant.unit}` : ""}
                 </Button>
               )}
             </DialogFooter>
