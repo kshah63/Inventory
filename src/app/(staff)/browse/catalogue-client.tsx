@@ -50,6 +50,37 @@ function totalStock(item: CatalogItem): number {
   return item.stock_levels.reduce((n, sl) => n + sl.qty_on_hand, 0);
 }
 
+/**
+ * How an item (or a variant — variants are items) can be ordered, from its
+ * pack settings and what's available. Shared by the item and variant dialogs
+ * so they behave identically.
+ *   • no pack size            → single only
+ *   • pack size + allow_single → single or pack (a choice)
+ *   • pack size, not allowed   → pack only
+ * A single is always allowed as a fallback when a full pack can't be formed,
+ * so a part-pack of stock is never stranded.
+ */
+function orderModes(opts: {
+  packSize: number | null;
+  allowSingle: boolean;
+  available: number;
+  cap: number | null;
+  perPack: boolean;
+  qty: number;
+}) {
+  const { packSize, allowSingle, available, cap } = opts;
+  const hasPack = packSize != null && packSize > 1 && available >= packSize;
+  const canSingle = allowSingle || !hasPack;
+  const showChoice = hasPack && canSingle; // both ways → offer the toggle
+  const usePack = hasPack && (showChoice ? opts.perPack : true);
+  const maxUnits = Math.max(1, Math.min(available || 1, cap ?? Infinity));
+  const max =
+    usePack && packSize != null ? Math.max(1, Math.floor(maxUnits / packSize)) : maxUnits;
+  const clamped = Math.max(1, Math.min(opts.qty, max));
+  const baseQty = usePack && packSize != null ? clamped * packSize : clamped;
+  return { hasPack, canSingle, showChoice, usePack, max, clamped, baseQty };
+}
+
 /** One tile in the grid: a standalone item, or a group of variants folded
  * into a single entry. A group's variants are the stockable items under it. */
 type Entry =
@@ -227,15 +258,22 @@ export function CatalogueClient({
   // apart from "all of it is already in orders".
   const selectedPhysical = selected ? totalStock(selected) : 0;
   const packSize = selected?.pack_size ?? null;
-  const packChoice = packSize != null && packSize > 1 && available >= packSize;
-  const usePack = perPack && packChoice && packSize != null;
   // Procurement can cap how much of an item one order may take, so a single
   // person can't clear the shelf.
   const perOrderCap = selected?.max_per_checkout ?? null;
-  const maxUnits = Math.max(1, Math.min(available || 1, perOrderCap ?? Infinity));
-  const effectiveMax = usePack ? Math.max(1, Math.floor(maxUnits / packSize)) : maxUnits;
-  const clampedQty = Math.max(1, Math.min(qty, effectiveMax));
-  const baseQty = usePack ? clampedQty * packSize : clampedQty;
+  const sm = orderModes({
+    packSize,
+    allowSingle: selected?.allow_single ?? true,
+    available,
+    cap: perOrderCap,
+    perPack,
+    qty,
+  });
+  const packChoice = sm.showChoice;
+  const usePack = sm.usePack;
+  const effectiveMax = sm.max;
+  const clampedQty = sm.clamped;
+  const baseQty = sm.baseQty;
 
   const setCartLine = (itemId: string, nextQty: number) => {
     setCart((prev) => {
@@ -385,16 +423,20 @@ export function CatalogueClient({
   // A variant can come in packs too (e.g. a box of binder clips): offer single
   // or pack, the same as a standalone item does.
   const gPackSize = resolvedVariant?.pack_size ?? null;
-  const gPackChoice = gPackSize != null && gPackSize > 1 && gAvailable >= gPackSize;
-  const gUsePack = gPerPack && gPackChoice && gPackSize != null;
-  const gMaxUnits = Math.max(1, Math.min(gAvailable || 1, gCap ?? Infinity));
-  const gMax =
-    gUsePack && gPackSize != null
-      ? Math.max(1, Math.floor(gMaxUnits / gPackSize))
-      : gMaxUnits;
-  const gClamped = Math.max(1, Math.min(gQty, gMax));
+  const gm = orderModes({
+    packSize: gPackSize,
+    allowSingle: resolvedVariant?.allow_single ?? true,
+    available: gAvailable,
+    cap: gCap,
+    perPack: gPerPack,
+    qty: gQty,
+  });
+  const gPackChoice = gm.showChoice;
+  const gUsePack = gm.usePack;
+  const gMax = gm.max;
+  const gClamped = gm.clamped;
   // What actually goes in the cart — always in single units.
-  const gBaseQty = gUsePack && gPackSize != null ? gClamped * gPackSize : gClamped;
+  const gBaseQty = gm.baseQty;
 
   // Switching to a different variant drops any pack choice, so it can't carry
   // over to one that isn't sold in packs.

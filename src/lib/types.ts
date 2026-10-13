@@ -59,6 +59,10 @@ export interface Item {
   admin_only: boolean;
   is_active: boolean;
   created_at: string;
+  /** Whether it can be ordered as a single unit. With a pack size set, false
+   * means pack-only; true (the default) means single or pack. With no pack
+   * size it's single-only regardless. */
+  allow_single: boolean;
   /** The variant group this item belongs to, or null for a standalone item. */
   group_id: string | null;
   /** This variant's value for the group's first/second attribute. */

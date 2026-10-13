@@ -113,6 +113,7 @@ export async function saveItem(params: {
   about: string | null;
   maxPerCheckout: number | null;
   keepAbout: number | null;
+  allowSingle: boolean;
   adminOnly: boolean;
   isActive: boolean;
   photoUrl?: string | null;
@@ -132,6 +133,7 @@ export async function saveItem(params: {
     about: params.about?.trim() || null,
     max_per_checkout: params.maxPerCheckout,
     keep_about: params.keepAbout,
+    allow_single: params.allowSingle,
     admin_only: params.adminOnly,
     is_active: params.isActive,
     ...(params.photoUrl !== undefined ? { photo_url: params.photoUrl } : {}),

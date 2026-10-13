@@ -158,7 +158,11 @@ psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0028_stock_reservation.sql
 psql -d mvtest -f 18_stock_reservation.sql                   # expect: STOCK RESERVATION TESTS PASSED
 psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0029_restock_notices.sql
 psql -d mvtest -f 19_restock_notices.sql                     # expect: RESTOCK NOTICES TESTS PASSED
+psql -d mvtest -v ON_ERROR_STOP=1 -f ../migrations/0030_item_allow_single.sql
 ```
+
+(`0030` adds a column with a default and changes no RPC, so it has no suite of
+its own — the chain is simply applied through it.)
 
 The shim replaces `auth.uid()` with a `test.uid` session setting so tests can
 impersonate any user. Never run any of this against a real Supabase project.

@@ -50,6 +50,8 @@ export function ItemDialog({
   const [keepRaw, setKeepRaw] = React.useState("");
   const [adminOnly, setAdminOnly] = React.useState(false);
   const [isActive, setIsActive] = React.useState(true);
+  // With a pack size, whether a single can also be ordered (vs pack only).
+  const [allowSingle, setAllowSingle] = React.useState(true);
   const [rooms, setRooms] = React.useState<string[]>([]);
   const [saving, setSaving] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
@@ -72,6 +74,7 @@ export function ItemDialog({
     setKeepRaw(item?.keep_about != null ? String(item.keep_about) : "");
     setAdminOnly(item?.admin_only ?? false);
     setIsActive(item?.is_active ?? true);
+    setAllowSingle(item?.allow_single ?? true);
     // A new item starts kept everywhere; untick the rooms it isn't in.
     setRooms(
       item
@@ -121,6 +124,7 @@ export function ItemDialog({
       about: about.trim() === "" ? null : about,
       maxPerCheckout,
       keepAbout,
+      allowSingle: packSize !== null && packSize > 1 ? allowSingle : true,
       adminOnly,
       isActive: item ? isActive : true,
     });
@@ -204,6 +208,7 @@ export function ItemDialog({
       about: item.about,
       maxPerCheckout: item.max_per_checkout,
       keepAbout: item.keep_about,
+      allowSingle: item.allow_single,
       adminOnly: item.admin_only,
       isActive: false,
     });
@@ -299,7 +304,8 @@ export function ItemDialog({
               <p className="text-xs text-destructive">Pack size must be a positive number.</p>
             ) : packSize !== null && packSize > 1 ? (
               <p className="text-xs text-muted-foreground">
-                People can order a single {unit.trim() || "unit"} or a pack of {packSize}.
+                A pack of {packSize} {unit.trim() || "unit"}s. Choose below whether
+                people can also take a single.
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">
@@ -329,6 +335,28 @@ export function ItemDialog({
             )}
           </div>
         </div>
+
+        {/* Only meaningful once there's a pack — with no pack size it's single
+            only, and there's nothing to choose. */}
+        {packSize !== null && packSize > 1 && (
+          <div className="space-y-1.5">
+            <Label htmlFor="item-order-mode">Ordering options</Label>
+            <Select
+              id="item-order-mode"
+              value={allowSingle ? "both" : "pack"}
+              onChange={(e) => setAllowSingle(e.target.value === "both")}
+            >
+              <option value="both">
+                Single {unit.trim() || "unit"} or pack of {packSize}
+              </option>
+              <option value="pack">Pack of {packSize} only</option>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              What people can order from the catalogue. Change it any time; with
+              no pack size it&apos;s single only.
+            </p>
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <Label htmlFor="item-keep">Keep about</Label>
