@@ -78,8 +78,9 @@ them and procurement.
 `14_item_variants.sql` covers migration 0023: an item group is built with one
 or two attributes, its variants are ordinary stockable items, two variants
 can't share a combination, a grouped item must name its first attribute, an
-existing item can be folded into a group and taken back out, and only admins
-build groups while staff can read them to pick a variant.
+existing item can be folded into a group and taken back out, a group can be
+renamed and deleted (its items released back to standalone, which it counts),
+and only admins build groups while staff can read them to pick a variant.
 
 `13_suppliers.sql` covers migration 0021: the approved supplier master is
 seeded in full with spot-checked codes, a new supplier takes the next number

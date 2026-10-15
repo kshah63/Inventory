@@ -145,3 +145,27 @@ begin
 end;
 $$;
 grant execute on function public.ungroup_item(uuid) to authenticated;
+
+-- ── Delete a group ─────────────────────────────────────────────────────────
+-- The group container is removed and its items are released back to standalone
+-- items — their stock, history and orders are untouched. Returns how many
+-- items were released, for the confirmation message.
+create or replace function public.delete_item_group(p_group_id uuid)
+returns int
+language plpgsql security definer set search_path = public, extensions
+as $$
+declare v_count int;
+begin
+  perform public._require_admin();
+  if not exists (select 1 from public.item_groups where id = p_group_id) then
+    raise exception 'Group not found.';
+  end if;
+  update public.items
+  set group_id = null, attr1_value = null, attr2_value = null
+  where group_id = p_group_id;
+  get diagnostics v_count = row_count;
+  delete from public.item_groups where id = p_group_id;
+  return v_count;
+end;
+$$;
+grant execute on function public.delete_item_group(uuid) to authenticated;

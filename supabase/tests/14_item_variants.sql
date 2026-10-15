@@ -78,6 +78,33 @@ begin
     'and taken back out again');
 end $$;
 
+-- ═══ A group can be renamed, and deleted (its items released) ═══
+do $$
+declare v_cat uuid; v_g uuid; v_i1 uuid; v_i2 uuid; v_released int;
+begin
+  select id into v_cat from public.categories where name = 'zz Variants';
+  v_g := public.save_item_group(null, 'zz Staples', v_cat, 'Size', null, true);
+  insert into public.items (sku, name, category_id, group_id, attr1_value)
+  values ('ZZV-6', 'zz Staples 10mm', v_cat, v_g, '10mm') returning id into v_i1;
+  insert into public.items (sku, name, category_id, group_id, attr1_value)
+  values ('ZZV-7', 'zz Staples 24mm', v_cat, v_g, '24mm') returning id into v_i2;
+
+  perform public.save_item_group(v_g, 'zz Staples (renamed)', v_cat, 'Size', null, true);
+  perform public.t_assert(
+    (select name from public.item_groups where id = v_g) = 'zz Staples (renamed)',
+    'a group can be renamed');
+
+  v_released := public.delete_item_group(v_g);
+  perform public.t_assert(v_released = 2, 'deleting a group reports how many items it released');
+  perform public.t_assert(
+    not exists (select 1 from public.item_groups where id = v_g),
+    'the group is gone');
+  perform public.t_assert(
+    (select count(*) from public.items
+     where id in (v_i1, v_i2) and group_id is null and attr1_value is null) = 2,
+    'its items become standalone again, keeping their rows');
+end $$;
+
 -- ═══ Staff may read groups but not build them ═══
 set test.uid = 'aaaaaaaa-0000-0000-0000-000000000002';  -- staff
 do $$

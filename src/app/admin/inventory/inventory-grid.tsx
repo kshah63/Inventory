@@ -13,6 +13,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Trash2,
   Unlink,
   Upload,
   X,
@@ -34,7 +35,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
-import { saveCategory, ungroupItem } from "@/lib/actions/inventory";
+import {
+  deleteItemGroup,
+  saveCategory,
+  saveItemGroup,
+  ungroupItem,
+} from "@/lib/actions/inventory";
 import { cn, friendlyError } from "@/lib/utils";
 import { matchesWords, queryWords, searchableText } from "@/lib/search";
 import type { Category, Item, ItemGroup, Location } from "@/lib/types";
@@ -95,6 +101,7 @@ export function InventoryGrid({
   const { toast } = useToast();
   const groupById = React.useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups]);
   const [groupDialogOpen, setGroupDialogOpen] = React.useState(false);
+  const [manageGroupsOpen, setManageGroupsOpen] = React.useState(false);
   const [ungrouping, setUngrouping] = React.useState<string | null>(null);
 
   async function doUngroup(item: InventoryItem) {
@@ -249,6 +256,15 @@ export function InventoryGrid({
           <Button variant="outline" size="sm" onClick={() => setGroupDialogOpen(true)}>
             <Layers /> Group items
           </Button>
+          {groups.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setManageGroupsOpen(true)}
+            >
+              <Pencil /> Edit groups
+            </Button>
+          )}
           <Button size="sm" onClick={() => setItemDialog({ open: true, item: null })}>
             <Plus /> New item
           </Button>
@@ -418,7 +434,201 @@ export function InventoryGrid({
         groups={groups}
         items={items}
       />
+      <ManageGroupsDialog
+        open={manageGroupsOpen}
+        onClose={() => setManageGroupsOpen(false)}
+        groups={groups}
+        items={items}
+      />
     </div>
+  );
+}
+
+/** Rename, hide or delete a variant group. Deleting releases its items back
+ * to standalone items (their stock and history are untouched). */
+function ManageGroupsDialog({
+  open,
+  onClose,
+  groups,
+  items,
+}: {
+  open: boolean;
+  onClose: () => void;
+  groups: ItemGroup[];
+  items: Item[];
+}) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [names, setNames] = React.useState<Record<string, string>>({});
+  const [savingId, setSavingId] = React.useState<string | null>(null);
+  const [togglingId, setTogglingId] = React.useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = React.useState<string | null>(null);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    setNames(Object.fromEntries(groups.map((g) => [g.id, g.name])));
+    setSavingId(null);
+    setTogglingId(null);
+    setConfirmDelete(null);
+    setDeletingId(null);
+  }, [open, groups]);
+
+  const countById = React.useMemo(() => {
+    const m = new Map<string, number>();
+    for (const it of items) {
+      if (it.group_id) m.set(it.group_id, (m.get(it.group_id) ?? 0) + 1);
+    }
+    return m;
+  }, [items]);
+
+  async function save(g: ItemGroup, nextActive?: boolean) {
+    const name = (names[g.id] ?? "").trim();
+    if (!name) {
+      toast("A name is required.", "error");
+      return;
+    }
+    const isActive = nextActive ?? g.is_active;
+    if (nextActive === undefined) setSavingId(g.id);
+    else setTogglingId(g.id);
+    const res = await saveItemGroup({
+      id: g.id,
+      name,
+      categoryId: g.category_id,
+      attr1Label: g.attr1_label,
+      attr2Label: g.attr2_label,
+      isActive,
+    });
+    setSavingId(null);
+    setTogglingId(null);
+    if (!res.ok) {
+      toast(friendlyError(res.error), "error");
+      return;
+    }
+    toast(
+      nextActive === undefined
+        ? `Group renamed to "${name}".`
+        : isActive
+          ? "Group shown in the catalogue again."
+          : "Group hidden — its items show individually.",
+      "success"
+    );
+    router.refresh();
+  }
+
+  async function remove(g: ItemGroup) {
+    setDeletingId(g.id);
+    const res = await deleteItemGroup(g.id);
+    setDeletingId(null);
+    setConfirmDelete(null);
+    if (!res.ok) {
+      toast(friendlyError(res.error), "error");
+      return;
+    }
+    toast(
+      `Group deleted — ${res.data.released} item${res.data.released === 1 ? "" : "s"} released.`,
+      "success"
+    );
+    router.refresh();
+  }
+
+  return (
+    <Dialog open={open} onClose={onClose} className="max-w-xl">
+      <DialogTitle>Edit groups</DialogTitle>
+      <DialogDescription>
+        Rename a variant group, hide it, or delete it. Deleting keeps its items —
+        they become individual items again, with their stock and history
+        untouched.
+      </DialogDescription>
+      {groups.length === 0 ? (
+        <p className="rounded-md border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+          No groups yet. Use &ldquo;Group items&rdquo; to create one.
+        </p>
+      ) : (
+        <ul className="max-h-[26rem] divide-y overflow-y-auto rounded-md border">
+          {groups.map((g) => {
+            const count = countById.get(g.id) ?? 0;
+            const value = names[g.id] ?? "";
+            const changed = value.trim() !== "" && value.trim() !== g.name;
+            const attrs = g.attr2_label
+              ? `${g.attr1_label} · ${g.attr2_label}`
+              : g.attr1_label;
+            return (
+              <li key={g.id} className="space-y-2 px-3 py-2.5">
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={value}
+                    onChange={(e) =>
+                      setNames((n) => ({ ...n, [g.id]: e.target.value }))
+                    }
+                    className="h-8 flex-1"
+                    aria-label={`Name for ${g.name}`}
+                  />
+                  {changed && (
+                    <Button
+                      size="sm"
+                      className="h-8 shrink-0"
+                      loading={savingId === g.id}
+                      onClick={() => save(g)}
+                    >
+                      Save
+                    </Button>
+                  )}
+                  {confirmDelete === g.id ? (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="h-8 shrink-0 px-2"
+                      loading={deletingId === g.id}
+                      onClick={() => remove(g)}
+                    >
+                      Confirm
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      aria-label={`Delete group ${g.name}`}
+                      title="Delete this group"
+                      onClick={() => setConfirmDelete(g.id)}
+                    >
+                      <Trash2 />
+                    </Button>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span className="truncate">Chosen by: {attrs}</span>
+                  <span className="tabular-nums">
+                    · {count} item{count === 1 ? "" : "s"}
+                  </span>
+                  <label className="ml-auto flex items-center gap-1.5">
+                    <Switch
+                      checked={g.is_active}
+                      disabled={togglingId === g.id}
+                      onCheckedChange={(v) => save(g, v)}
+                      aria-label="Shown in the catalogue"
+                    />
+                    <span>{g.is_active ? "Shown" : "Hidden"}</span>
+                  </label>
+                </div>
+                {confirmDelete === g.id && count > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Its {count} item{count === 1 ? "" : "s"} will become
+                    individual items again.
+                  </p>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          Done
+        </Button>
+      </DialogFooter>
+    </Dialog>
   );
 }
 

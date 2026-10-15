@@ -216,6 +216,21 @@ export async function ungroupItem(itemId: string): Promise<ActionResult> {
   return { ok: true, data: undefined };
 }
 
+/** Delete a variant group. Its items are released back to standalone items
+ * (stock and history untouched); the RPC returns how many. */
+export async function deleteItemGroup(
+  groupId: string
+): Promise<ActionResult<{ released: number }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("delete_item_group", {
+    p_group_id: groupId,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/inventory");
+  revalidatePath("/browse");
+  return { ok: true, data: { released: (data as number) ?? 0 } };
+}
+
 export async function uploadItemPhoto(
   itemId: string,
   formData: FormData
