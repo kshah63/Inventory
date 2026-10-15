@@ -22,7 +22,10 @@ import {
   addSupplier,
   addSupplierAlias,
   addSupplierSubgroup,
+  deleteSupplierGroup,
   deleteSupplierSubgroup,
+  renameSupplierGroup,
+  renameSupplierSubgroup,
   updateSupplier,
 } from "@/lib/actions/suppliers";
 import { matchesWords, queryWords } from "@/lib/search";
@@ -61,6 +64,7 @@ export function SuppliersClient({
   const [showRetired, setShowRetired] = React.useState(true);
   const [addOpen, setAddOpen] = React.useState(false);
   const [subgroupOpen, setSubgroupOpen] = React.useState(false);
+  const [groupsOpen, setGroupsOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<SupplierRow | null>(null);
 
   const words = queryWords(search);
@@ -200,6 +204,9 @@ export function SuppliersClient({
           <Button variant="outline" size="sm" onClick={exportCsv} disabled={shown.length === 0}>
             <Download /> Export CSV
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setGroupsOpen(true)}>
+            <Pencil /> Edit groups
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setSubgroupOpen(true)}>
             <Plus /> New sub-group
           </Button>
@@ -315,6 +322,12 @@ export function SuppliersClient({
         groups={groups}
         subgroups={subgroups}
         suppliers={suppliers}
+      />
+      <EditGroupsDialog
+        open={groupsOpen}
+        onClose={() => setGroupsOpen(false)}
+        groups={groups}
+        subgroups={subgroups}
       />
       <EditSupplierDialog supplier={editing} onClose={() => setEditing(null)} />
     </div>
@@ -489,6 +502,10 @@ function NewSubgroupDialog({
   // Two-step delete, so an empty stray can't go in a single misclick.
   const [confirmDelete, setConfirmDelete] = React.useState<string | null>(null);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  // Inline rename of an existing sub-group.
+  const [renamingId, setRenamingId] = React.useState<string | null>(null);
+  const [renameValue, setRenameValue] = React.useState("");
+  const [renamingBusy, setRenamingBusy] = React.useState(false);
 
   React.useEffect(() => {
     if (!open) return;
@@ -498,6 +515,7 @@ function NewSubgroupDialog({
     setSaving(false);
     setConfirmDelete(null);
     setDeletingId(null);
+    setRenamingId(null);
   }, [open]);
 
   // What's already in the chosen group — shown so a duplicate isn't made by
@@ -553,6 +571,24 @@ function NewSubgroupDialog({
     router.refresh();
   }
 
+  async function saveRename(sg: SupplierSubgroup) {
+    const next = renameValue.trim();
+    if (!next || next === sg.name) {
+      setRenamingId(null);
+      return;
+    }
+    setRenamingBusy(true);
+    const res = await renameSupplierSubgroup(sg.id, next);
+    setRenamingBusy(false);
+    if (!res.ok) {
+      toast(friendlyError(res.error), "error");
+      return;
+    }
+    setRenamingId(null);
+    toast(`Sub-group renamed to "${next}".`, "success");
+    router.refresh();
+  }
+
   return (
     <Dialog open={open} onClose={saving ? () => {} : onClose} className="max-w-md">
       <DialogTitle>New sub-group</DialogTitle>
@@ -590,41 +626,88 @@ function NewSubgroupDialog({
               </p>
             ) : (
               <ul className="max-h-44 divide-y overflow-y-auto rounded-md border">
-                {existing.map((sg) => (
-                  <li key={sg.id} className="flex items-center gap-2 px-3 py-2 text-sm">
-                    <span className="min-w-0 flex-1 truncate">{sg.name}</span>
-                    <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
-                      {sg.group_code}-{sg.code_start + 1}–{sg.code_end}
-                    </span>
-                    <span className="w-16 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
-                      {sg.count} {sg.count === 1 ? "supplier" : "suppliers"}
-                    </span>
-                    {/* Only an empty sub-group can be removed. */}
-                    {sg.count === 0 &&
-                      (confirmDelete === sg.id ? (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="h-7 shrink-0 px-2"
-                          loading={deletingId === sg.id}
-                          onClick={() => remove(sg)}
-                        >
-                          Confirm
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                          aria-label={`Delete empty sub-group ${sg.name}`}
-                          title="Delete this empty sub-group"
-                          onClick={() => setConfirmDelete(sg.id)}
-                        >
-                          <Trash2 />
-                        </Button>
-                      ))}
-                  </li>
-                ))}
+                {existing.map((sg) =>
+                  renamingId === sg.id ? (
+                    <li key={sg.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                      <Input
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        className="h-7 flex-1"
+                        autoFocus
+                        aria-label={`Rename ${sg.name}`}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveRename(sg);
+                          if (e.key === "Escape") setRenamingId(null);
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        className="h-7 shrink-0"
+                        loading={renamingBusy}
+                        onClick={() => saveRename(sg)}
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 shrink-0"
+                        disabled={renamingBusy}
+                        onClick={() => setRenamingId(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </li>
+                  ) : (
+                    <li key={sg.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                      <span className="min-w-0 flex-1 truncate">{sg.name}</span>
+                      <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                        {sg.group_code}-{sg.code_start + 1}–{sg.code_end}
+                      </span>
+                      <span className="w-16 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                        {sg.count} {sg.count === 1 ? "supplier" : "suppliers"}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                        aria-label={`Rename sub-group ${sg.name}`}
+                        title="Rename this sub-group"
+                        onClick={() => {
+                          setRenamingId(sg.id);
+                          setRenameValue(sg.name);
+                          setConfirmDelete(null);
+                        }}
+                      >
+                        <Pencil />
+                      </Button>
+                      {/* Only an empty sub-group can be removed. */}
+                      {sg.count === 0 &&
+                        (confirmDelete === sg.id ? (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-7 shrink-0 px-2"
+                            loading={deletingId === sg.id}
+                            onClick={() => remove(sg)}
+                          >
+                            Confirm
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                            aria-label={`Delete empty sub-group ${sg.name}`}
+                            title="Delete this empty sub-group"
+                            onClick={() => setConfirmDelete(sg.id)}
+                          >
+                            <Trash2 />
+                          </Button>
+                        ))}
+                    </li>
+                  )
+                )}
               </ul>
             )}
           </div>
@@ -667,6 +750,142 @@ function NewSubgroupDialog({
           disabled={!groupCode || !name.trim() || duplicate}
         >
           Create sub-group
+        </Button>
+      </DialogFooter>
+    </Dialog>
+  );
+}
+
+function EditGroupsDialog({
+  open,
+  onClose,
+  groups,
+  subgroups,
+}: {
+  open: boolean;
+  onClose: () => void;
+  groups: SupplierGroup[];
+  subgroups: SupplierSubgroup[];
+}) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [names, setNames] = React.useState<Record<number, string>>({});
+  const [savingCode, setSavingCode] = React.useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = React.useState<number | null>(null);
+  const [deletingCode, setDeletingCode] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    setNames(Object.fromEntries(groups.map((g) => [g.code, g.name])));
+    setSavingCode(null);
+    setConfirmDelete(null);
+    setDeletingCode(null);
+  }, [open, groups]);
+
+  const subCount = React.useMemo(() => {
+    const m = new Map<number, number>();
+    for (const sg of subgroups) m.set(sg.group_code, (m.get(sg.group_code) ?? 0) + 1);
+    return m;
+  }, [subgroups]);
+
+  async function save(code: number) {
+    const name = (names[code] ?? "").trim();
+    if (!name) {
+      toast("The group needs a name.", "error");
+      return;
+    }
+    setSavingCode(code);
+    const res = await renameSupplierGroup(code, name);
+    setSavingCode(null);
+    if (!res.ok) {
+      toast(friendlyError(res.error), "error");
+      return;
+    }
+    toast(`Group ${code} renamed.`, "success");
+    router.refresh();
+  }
+
+  async function remove(code: number) {
+    setDeletingCode(code);
+    const res = await deleteSupplierGroup(code);
+    setDeletingCode(null);
+    setConfirmDelete(null);
+    if (!res.ok) {
+      toast(friendlyError(res.error), "error");
+      return;
+    }
+    toast(`Group ${code} deleted.`, "success");
+    router.refresh();
+  }
+
+  return (
+    <Dialog open={open} onClose={onClose} className="max-w-xl">
+      <DialogTitle>Edit groups</DialogTitle>
+      <DialogDescription>
+        Rename a group, or delete one that has no sub-groups. The code (24xxx)
+        is permanent.
+      </DialogDescription>
+      <ul className="max-h-[26rem] divide-y overflow-y-auto rounded-md border">
+        {groups.map((g) => {
+          const count = subCount.get(g.code) ?? 0;
+          const value = names[g.code] ?? "";
+          const changed = value.trim() !== "" && value.trim() !== g.name;
+          return (
+            <li key={g.code} className="flex items-center gap-2 px-3 py-2">
+              <span className="w-12 shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                {g.code}
+              </span>
+              <Input
+                value={value}
+                onChange={(e) =>
+                  setNames((n) => ({ ...n, [g.code]: e.target.value }))
+                }
+                className="h-8 flex-1"
+                aria-label={`Name for group ${g.code}`}
+              />
+              <span className="w-20 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                {count} sub-grp{count === 1 ? "" : "s"}
+              </span>
+              {changed && (
+                <Button
+                  size="sm"
+                  className="h-8 shrink-0"
+                  loading={savingCode === g.code}
+                  onClick={() => save(g.code)}
+                >
+                  Save
+                </Button>
+              )}
+              {count === 0 &&
+                (confirmDelete === g.code ? (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="h-8 shrink-0 px-2"
+                    loading={deletingCode === g.code}
+                    onClick={() => remove(g.code)}
+                  >
+                    Confirm
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                    aria-label={`Delete empty group ${g.name}`}
+                    title="Delete this empty group"
+                    onClick={() => setConfirmDelete(g.code)}
+                  >
+                    <Trash2 />
+                  </Button>
+                ))}
+            </li>
+          );
+        })}
+      </ul>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          Done
         </Button>
       </DialogFooter>
     </Dialog>

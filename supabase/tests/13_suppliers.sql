@@ -6,6 +6,7 @@ set client_min_messages = notice;
 
 delete from public.suppliers where name like 'zz %';
 delete from public.supplier_subgroups where name like 'zz %';
+delete from public.supplier_groups where name like 'zz %';
 
 set test.uid = 'aaaaaaaa-0000-0000-0000-000000000001';  -- procurement
 
@@ -133,6 +134,50 @@ begin
   perform public.t_assert(v_ok, 'a sub-group with suppliers in it cannot be deleted');
 end $$;
 
+-- ═══ Sub-groups can be renamed (still no duplicate within a group) ═══
+do $$
+declare v_res jsonb; v_a uuid; v_b uuid; v_ok boolean := false;
+begin
+  v_res := public.add_supplier_subgroup(24750, 'zz Rename Me', 10);
+  v_a := (v_res->>'subgroup_id')::uuid;
+  v_res := public.add_supplier_subgroup(24750, 'zz Other Block', 10);
+  v_b := (v_res->>'subgroup_id')::uuid;
+
+  perform public.rename_supplier_subgroup(v_a, 'zz Renamed OK');
+  perform public.t_assert(
+    (select name from public.supplier_subgroups where id = v_a) = 'zz Renamed OK',
+    'a sub-group can be renamed');
+
+  begin
+    perform public.rename_supplier_subgroup(v_b, 'ZZ RENAMED OK');
+  exception when others then v_ok := true;
+  end;
+  perform public.t_assert(v_ok, 'renaming onto a name already in the group is refused');
+end $$;
+
+-- ═══ Groups: rename, and delete only when empty ═══
+insert into public.supplier_groups (code, name) values (29999, 'zz Temp Group')
+on conflict (code) do nothing;
+do $$
+declare v_ok boolean := false;
+begin
+  perform public.rename_supplier_group(29999, 'zz Temp Renamed');
+  perform public.t_assert(
+    (select name from public.supplier_groups where code = 29999) = 'zz Temp Renamed',
+    'a group can be renamed');
+
+  begin
+    perform public.delete_supplier_group(24150);  -- has sub-groups
+  exception when others then v_ok := true;
+  end;
+  perform public.t_assert(v_ok, 'a group with sub-groups cannot be deleted');
+
+  perform public.delete_supplier_group(29999);
+  perform public.t_assert(
+    not exists (select 1 from public.supplier_groups where code = 29999),
+    'an empty group can be deleted');
+end $$;
+
 -- ═══ Invisible outside the central team ═══
 set role authenticated;
 set test.uid = 'aaaaaaaa-0000-0000-0000-000000000002';  -- staff
@@ -156,6 +201,7 @@ reset role;
 set test.uid = 'aaaaaaaa-0000-0000-0000-000000000001';
 delete from public.suppliers where name like 'zz %';
 delete from public.supplier_subgroups where name like 'zz %';
+delete from public.supplier_groups where name like 'zz %';
 
 reset test.uid;
 select 'SUPPLIER REGISTER TESTS PASSED' as result;

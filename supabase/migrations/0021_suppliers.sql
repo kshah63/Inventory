@@ -295,6 +295,81 @@ $$;
 
 grant execute on function public.delete_supplier_subgroup(uuid) to authenticated;
 
+-- Rename a sub-group. No duplicate name within its group (case-insensitive),
+-- the same guard adding a sub-group uses.
+create or replace function public.rename_supplier_subgroup(
+  p_subgroup_id uuid, p_name text
+) returns void
+language plpgsql security definer set search_path = public, extensions
+as $$
+declare
+  v_sg public.supplier_subgroups;
+  v_name text := trim(coalesce(p_name, ''));
+begin
+  perform public._require_admin();
+  if v_name = '' then
+    raise exception 'The sub-group needs a name.';
+  end if;
+  select * into v_sg from public.supplier_subgroups where id = p_subgroup_id;
+  if v_sg.id is null then
+    raise exception 'Sub-group not found.';
+  end if;
+  if exists (
+    select 1 from public.supplier_subgroups
+    where group_code = v_sg.group_code
+      and lower(name) = lower(v_name)
+      and id <> p_subgroup_id
+  ) then
+    raise exception 'A sub-group called "%" already exists in this group.', v_name;
+  end if;
+  update public.supplier_subgroups set name = v_name where id = p_subgroup_id;
+end;
+$$;
+
+grant execute on function public.rename_supplier_subgroup(uuid, text) to authenticated;
+
+-- ── Groups: rename, and delete one created/left empty ─────────────────────
+-- The code is the key and never changes; only the name is editable.
+create or replace function public.rename_supplier_group(p_code int, p_name text)
+returns void
+language plpgsql security definer set search_path = public, extensions
+as $$
+declare
+  v_name text := trim(coalesce(p_name, ''));
+begin
+  perform public._require_admin();
+  if v_name = '' then
+    raise exception 'The group needs a name.';
+  end if;
+  update public.supplier_groups set name = v_name where code = p_code;
+  if not found then
+    raise exception 'Group not found.';
+  end if;
+end;
+$$;
+
+grant execute on function public.rename_supplier_group(int, text) to authenticated;
+
+-- Delete a group only when it holds no sub-groups (and therefore no
+-- suppliers, which live under a sub-group). Otherwise it's refused.
+create or replace function public.delete_supplier_group(p_code int)
+returns void
+language plpgsql security definer set search_path = public, extensions
+as $$
+begin
+  perform public._require_admin();
+  if not exists (select 1 from public.supplier_groups where code = p_code) then
+    raise exception 'Group not found.';
+  end if;
+  if exists (select 1 from public.supplier_subgroups where group_code = p_code) then
+    raise exception 'This group still has sub-groups — remove those first.';
+  end if;
+  delete from public.supplier_groups where code = p_code;
+end;
+$$;
+
+grant execute on function public.delete_supplier_group(int) to authenticated;
+
 -- ═══ Recode 24150 Power, Water & Energy (runs before the seed) ═════════════
 -- SP Digital leads the block at 101 so the SP accounts run 101–105, and
 -- Senoko — a former private provider unlikely to be used again — parks at

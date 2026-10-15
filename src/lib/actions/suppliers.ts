@@ -88,3 +88,42 @@ export async function deleteSupplierSubgroup(
   revalidatePath("/admin/suppliers");
   return { ok: true, data: undefined };
 }
+
+/** Rename a sub-group. The RPC refuses a name already used in its group. */
+export async function renameSupplierSubgroup(
+  subgroupId: string,
+  name: string
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("rename_supplier_subgroup", {
+    p_subgroup_id: subgroupId,
+    p_name: name,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/suppliers");
+  return { ok: true, data: undefined };
+}
+
+/** Rename a group. Its code (24xxx) never changes. */
+export async function renameSupplierGroup(
+  code: number,
+  name: string
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("rename_supplier_group", {
+    p_code: code,
+    p_name: name,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/suppliers");
+  return { ok: true, data: undefined };
+}
+
+/** Delete a group. The RPC refuses while it still has sub-groups. */
+export async function deleteSupplierGroup(code: number): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_supplier_group", { p_code: code });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/suppliers");
+  return { ok: true, data: undefined };
+}
